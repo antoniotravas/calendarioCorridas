@@ -1,0 +1,7 @@
+# Credenciais locais (DB + segredos OAuth) — nunca versionar
+scripts/config.php
+
+# Ruído habitual de SO/editor
+*.log
+.DS_Store
+Thumbs.db

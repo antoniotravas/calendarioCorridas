@@ -1,0 +1,216 @@
+:root {
+    --bg: #f6f7f5;
+    --card: #ffffff;
+    --ink: #1c1f1b;
+    --muted: #6b7268;
+    --line: #e4e7e1;
+    --accent: #1f7a4d;
+    --accent-soft: #e6f3ec;
+    --erro: #b3261e;
+    --erro-soft: #fbe9e7;
+}
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+}
+a { color: inherit; }
+
+header.topo {
+    background: var(--ink);
+    color: #fff;
+    padding: 18px 20px;
+}
+header.topo .topo-linha {
+    max-width: 860px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+header.topo .titulo h1 { margin: 0 0 2px; font-size: 1.4rem; }
+header.topo .titulo p { margin: 0; color: #c7ccc3; font-size: 0.9rem; }
+nav.conta { display: flex; align-items: center; gap: 14px; font-size: 0.88rem; }
+nav.conta a { text-decoration: none; color: #e4e7e1; }
+nav.conta a:hover { text-decoration: underline; }
+nav.conta .utilizador { color: #fff; font-weight: 600; }
+nav.conta form { margin: 0; }
+nav.conta button.link {
+    background: none; border: none; padding: 0; margin: 0;
+    color: #e4e7e1; font-size: 0.88rem; cursor: pointer; text-decoration: underline;
+    font-family: inherit;
+}
+
+main {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Filtros */
+form.filtros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 24px;
+}
+form.filtros select,
+form.filtros input[type="text"] {
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background: #fff;
+    color: var(--ink);
+}
+form.filtros input[type="text"] { flex: 1; min-width: 160px; }
+form.filtros button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+form.filtros a.limpar {
+    align-self: center;
+    font-size: 0.85rem;
+    color: var(--muted);
+    text-decoration: none;
+}
+
+/* Listagem de corridas */
+h2.mes {
+    font-size: 1.1rem;
+    color: var(--accent);
+    border-bottom: 2px solid var(--accent-soft);
+    padding-bottom: 6px;
+    margin: 28px 0 12px;
+    text-transform: capitalize;
+}
+ul.lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+li.corrida {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+}
+.data-badge {
+    flex: 0 0 52px;
+    text-align: center;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 6px 4px;
+    font-weight: 600;
+    line-height: 1.1;
+}
+.data-badge .dia { display: block; font-size: 1.2rem; }
+.data-badge .sem { display: block; font-size: 0.65rem; text-transform: uppercase; }
+.detalhe { flex: 1; min-width: 0; }
+.detalhe-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.detalhe h3 { margin: 0 0 4px; font-size: 1rem; }
+.detalhe h3 a { text-decoration: none; }
+.detalhe h3 a:hover { color: var(--accent); text-decoration: underline; }
+.local { color: var(--muted); font-size: 0.88rem; margin: 0 0 6px; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.tag {
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #eee;
+    color: #444;
+}
+.tag--corrida { background: #e6f3ec; color: #1f7a4d; }
+.tag--caminhada { background: #e8eef7; color: #2b5b9e; }
+.tag--trail { background: #fbeee0; color: #b25c17; }
+.tag--hyrox { background: #f1e7f7; color: #6c3aa3; }
+.fonte { font-size: 0.75rem; color: var(--muted); }
+.vazio { text-align: center; color: var(--muted); padding: 40px 0; }
+footer { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 20px; }
+
+/* Botão de favorito ("o meu calendário") */
+form.favorito { margin: 0; flex: 0 0 auto; }
+button.favorito-btn {
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    color: var(--muted);
+    white-space: nowrap;
+}
+button.favorito-btn:hover { border-color: var(--accent); color: var(--accent); }
+button.favorito-btn.ativo { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* Páginas de autenticação */
+.auth-wrap {
+    max-width: 380px;
+    margin: 60px auto;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 28px;
+}
+.auth-wrap h1 { margin: 0 0 20px; font-size: 1.3rem; text-align: center; }
+.campo { margin-bottom: 14px; display: flex; flex-direction: column; gap: 4px; }
+.campo label { font-size: 0.85rem; color: var(--muted); }
+.campo input {
+    padding: 9px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 0.95rem;
+}
+.botao-principal {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.95rem;
+    cursor: pointer;
+    margin-top: 6px;
+}
+.botao-google {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--ink);
+    font-size: 0.9rem;
+    cursor: pointer;
+    margin-top: 10px;
+    display: block;
+    text-align: center;
+    text-decoration: none;
+}
+.separador {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.8rem;
+    margin: 16px 0;
+}
+.aviso-erro {
+    background: var(--erro-soft);
+    color: var(--erro);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 0.85rem;
+    margin-bottom: 14px;
+}
+.rodape-auth { text-align: center; margin-top: 16px; font-size: 0.85rem; color: var(--muted); }
