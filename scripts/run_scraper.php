@@ -11,6 +11,7 @@ require __DIR__ . '/scrapers/ScraperInterface.php';
 require __DIR__ . '/scrapers/All4RunningScraper.php';
 require __DIR__ . '/scrapers/PortugalRunningScraper.php';
 require __DIR__ . '/scrapers/AAAPortoScraper.php';
+require __DIR__ . '/scrapers/FpaCompeticoesScraper.php';
 
 $configPath = __DIR__ . '/config.php';
 
@@ -35,6 +36,7 @@ $scrapers = [
     new All4RunningScraper($http),
     new PortugalRunningScraper($http),
     new AAAPortoScraper($http),
+    new FpaCompeticoesScraper($http),
 ];
 
 $totalInseridas = 0;

@@ -77,11 +77,12 @@ docs/MANUAL.md                       -- este ficheiro
 | All4Running | `all4running.pt/provas/provas-de-estrada/` | Todas as páginas de paginação (~10 provas/página) | Nome, data, local, tipo e distâncias vêm diretamente do HTML da listagem. |
 | Portugal Running | `portugalrunning.com/calendario-de-corridas-de-estrada/` | Só o mês corrente e o seguinte (o que a página mostra por omissão) | Tipo, região e distâncias são **inferidos** a partir das classes CSS de categorização do site (ex.: `evo_corrida-10-km`, `evo_algarve-e-sul`); podem ficar vazios para eventos com etiquetagem atípica. |
 | AAAPorto (Associação de Atletismo do Porto) | `aaporto.com/.../calendario-competitivo/estrada` | Primeiras 15 páginas (~120 registos) | A listagem (~500 registos) não está ordenada por data — mistura provas passadas e futuras pela ordem de inserção. O scraper descarta qualquer prova com data já passada. Sem distância na listagem (fica `null`). Foco na região do Porto. |
+| FPA Competições | `beta.fpacompeticoes.pt/calendar` | Janela mostrada por omissão pela página (~3-4 meses à frente) | Filtra `tipo=Estrada`. Os dados vêm de JSON embutido na página (`window.__remixContext`), não de HTML tradicional — é uma app Remix renderizada no servidor. Um pedido extra por prova a `/competition/{id}` obtém a distância real a partir dos escalões de inscrição. |
 
 ### Fontes deixadas para mais tarde
 
 - **correrporprazer.com/provas-de-estrada/** — a listagem só aparece depois de escolher um distrito, carregada via AJAX; precisa de um scraper diferente (simular os pedidos AJAX por distrito) ou de automação de browser.
-- **FPA (fpatletismo.pt/calendario-e-provas-homologadas/)** — calendário oficial, mas maioritariamente distribuído em PDF e páginas de notícia, não numa listagem HTML estruturada.
+- **FPA oficial (fpatletismo.pt/calendario-e-provas-homologadas/)** — calendário oficial, mas maioritariamente distribuído em PDF e páginas de notícia, não numa listagem HTML estruturada. Nota: isto é um sistema diferente de `fpacompeticoes.pt` (já coberto pelo `FpaCompeticoesScraper`, ver tabela acima).
 
 ## Como correr o scraper
 
@@ -140,5 +141,6 @@ O botão "Continuar com o Google" só aparece funcional se `scripts/config.php` 
 - Portugal Running só cobre os próximos ~2 meses por execução; AAAPorto cobre só a sua janela de paginação (ver tabela de fontes).
 - Tipo/região/distâncias de Portugal Running são heurísticos, baseados em classes CSS do site.
 - AAAPorto não expõe distância nas provas listadas.
+- FPA Competições depende da estrutura interna `window.__remixContext` de uma app ainda em beta (o próprio site tem um aviso de "nova versão") — se a FPA mudar a framework/estrutura da página, este scraper para de funcionar e precisa de atualização. Cobre só a janela de datas que `/calendar` mostra por omissão (sem paginação/filtro de datas implementado nesta primeira versão).
 - O login com Google exige credenciais próprias da Google Cloud Console (ver secção acima) — sem elas, só o login por email/password está disponível.
 - Sem verificação de email no registo local (uma conta fica ativa imediatamente após o registo).
