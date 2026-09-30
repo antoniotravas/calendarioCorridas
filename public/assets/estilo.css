@@ -156,51 +156,79 @@ button.favorito-btn {
 button.favorito-btn:hover { border-color: var(--accent); color: var(--accent); }
 button.favorito-btn.ativo { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-/* Exportar "o meu calendário" (.ics) */
-section.exportar {
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 14px 16px;
-    margin-bottom: 24px;
-}
-section.exportar h2 { margin: 0 0 6px; font-size: 1rem; }
-section.exportar p { margin: 0 0 10px; font-size: 0.88rem; }
-.exportar-botoes { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
-a.botao-exportar {
-    padding: 8px 14px;
-    border-radius: 6px;
-    background: var(--accent);
-    color: #fff;
-    font-size: 0.88rem;
-    text-decoration: none;
-}
-a.botao-exportar:hover { filter: brightness(1.1); }
-a.botao-exportar.secundario { background: #fff; color: var(--accent); border: 1px solid var(--accent); }
-.exportar-nota { color: var(--muted); font-size: 0.8rem !important; }
-.exportar-link summary { cursor: pointer; font-size: 0.85rem; color: var(--muted); margin-bottom: 8px; }
-.exportar-link input[type="text"] {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 8px 10px;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    font-size: 0.8rem;
-    font-family: monospace;
+/* Exportar "o meu calendário" (.ics): barra de ícones, sem texto visível */
+nav.exportar {
+    position: relative;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
     margin-bottom: 8px;
 }
-.exportar-link form { margin: 0; }
-button.link-botao {
-    background: none; border: none; padding: 0;
-    color: var(--erro); font-size: 0.82rem; cursor: pointer; text-decoration: underline;
-    font-family: inherit;
+.icone-botao {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    box-sizing: border-box;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--card);
+    color: var(--ink);
+    cursor: pointer;
+    transition: border-color .15s, color .15s;
 }
-.aviso-ok {
-    background: var(--accent-soft);
-    color: var(--accent);
-    border-radius: 6px;
-    padding: 8px 10px;
+.icone-botao:hover { border-color: var(--accent); color: var(--accent); }
+.icone-botao:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.icone-botao svg { width: 20px; height: 20px; }
+.icone-botao svg.traco {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
+.icone-perigo:hover { border-color: var(--erro); color: var(--erro); }
+
+/* Ícone do link: abre o painel com o link pessoal */
+details.exportar-link > summary { list-style: none; }
+details.exportar-link > summary::-webkit-details-marker { display: none; }
+details.exportar-link[open] > summary { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.exportar-painel {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    z-index: 5;
+    width: min(460px, 100%);
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(28, 31, 27, .12);
+}
+.exportar-painel input[type="text"] {
+    flex: 1;
+    min-width: 0;
+    height: 42px;
+    box-sizing: border-box;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 0.8rem;
+    color: var(--muted);
+    background: var(--bg);
+}
+.exportar-painel form { margin: 0; }
+#copiar-link-ics .icone-copiado { display: none; }
+#copiar-link-ics.copiado { border-color: var(--accent); color: var(--accent); }
+#copiar-link-ics.copiado .icone-copiar { display: none; }
+#copiar-link-ics.copiado .icone-copiado { display: block; }
+.link-renovado { color: var(--accent); font-weight: 700; padding: 0 4px; }
 
 /* Páginas de autenticação */
 .auth-wrap {
