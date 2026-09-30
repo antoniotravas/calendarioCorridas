@@ -30,7 +30,7 @@ $subtituloPagina = 'Provas de atletismo em estrada em Portugal, recolhidas autom
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= htmlspecialchars($tituloPagina) ?></title>
-<link rel="stylesheet" href="/assets/estilo.css">
+<link rel="stylesheet" href="<?= htmlspecialchars($urlEstilo) ?>">
 </head>
 <body>
 

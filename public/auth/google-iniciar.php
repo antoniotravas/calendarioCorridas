@@ -11,7 +11,7 @@ $redirectUri = (string) ($config['google_redirect_uri'] ?? '');
 if ($clientId === '' || $redirectUri === '') {
     ?><!DOCTYPE html>
     <html lang="pt-PT">
-    <head><meta charset="UTF-8"><title>Login com Google</title><link rel="stylesheet" href="/assets/estilo.css"></head>
+    <head><meta charset="UTF-8"><title>Login com Google</title><link rel="stylesheet" href="<?= htmlspecialchars($urlEstilo) ?>"></head>
     <body><main><div class="auth-wrap">
         <h1>Login com Google indisponível</h1>
         <p>Esta instalação ainda não tem as credenciais Google configuradas.
