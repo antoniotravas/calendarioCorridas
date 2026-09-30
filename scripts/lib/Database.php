@@ -504,6 +504,44 @@ final class Database
     }
 
     // ---------------------------------------------------------------------
+    // Link de subscrição do "meu calendário" (.ics)
+    // ---------------------------------------------------------------------
+
+    /**
+     * Código secreto do link de subscrição do utilizador; cria-o se ainda não existir.
+     */
+    public function obterOuCriarTokenIcs(int $utilizadorId): string
+    {
+        $utilizador = $this->encontrarUtilizadorPorId($utilizadorId);
+        if ($utilizador !== null && !empty($utilizador['ics_token'])) {
+            return $utilizador['ics_token'];
+        }
+
+        return $this->renovarTokenIcs($utilizadorId);
+    }
+
+    /**
+     * Gera um código novo — o link antigo deixa de funcionar.
+     */
+    public function renovarTokenIcs(int $utilizadorId): string
+    {
+        $token = bin2hex(random_bytes(16));
+        $stmt = $this->pdo->prepare('UPDATE utilizadores SET ics_token = :token WHERE id = :id');
+        $stmt->execute(['token' => $token, 'id' => $utilizadorId]);
+
+        return $token;
+    }
+
+    public function encontrarUtilizadorPorTokenIcs(string $token): ?array
+    {
+        $stmt = $this->pdo->prepare('SELECT * FROM utilizadores WHERE ics_token = :token');
+        $stmt->execute(['token' => $token]);
+        $utilizador = $stmt->fetch();
+
+        return $utilizador !== false ? $utilizador : null;
+    }
+
+    // ---------------------------------------------------------------------
     // Favoritos ("o meu calendário")
     // ---------------------------------------------------------------------
 

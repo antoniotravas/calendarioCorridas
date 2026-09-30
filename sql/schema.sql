@@ -64,10 +64,14 @@ CREATE TABLE IF NOT EXISTS utilizadores (
     email          VARCHAR(255) NOT NULL,
     password_hash  VARCHAR(255) NULL,
     google_id      VARCHAR(64) NULL,
+    -- Código secreto do link de subscrição do "meu calendário" (.ics), criado
+    -- na primeira visita a /meu-calendario.php; pode ser renovado pelo utilizador.
+    ics_token      CHAR(32) NULL,
     criado_em      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_email (email),
-    UNIQUE KEY uq_google_id (google_id)
+    UNIQUE KEY uq_google_id (google_id),
+    UNIQUE KEY uq_ics_token (ics_token)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- "Meu calendário": provas que cada utilizador marcou como suas.

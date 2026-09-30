@@ -28,3 +28,4 @@
     - Associações distritais como fontes: Braga, Leiria, São Miguel, Madeira e Santarém (as restantes só publicam em PDF ou não têm calendário legível — ver MANUAL.md).
     - Provas repetidas entre fontes: a mesma prova encontrada em vários sites passa a aparecer uma só vez, com a lista de todas as fontes onde foi encontrada (tabela corridas_fontes).
     - Aviso no scraper quando uma fonte falha ou deixa de devolver provas (provável mudança no site).
+    - Exportar "O meu calendário" para o calendário do telemóvel: subscrição por link pessoal (Google Calendar, iPhone/Mac, Outlook — atualiza-se sozinha) ou descarga de um ficheiro .ics.

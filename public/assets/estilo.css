@@ -156,6 +156,52 @@ button.favorito-btn {
 button.favorito-btn:hover { border-color: var(--accent); color: var(--accent); }
 button.favorito-btn.ativo { background: var(--accent); border-color: var(--accent); color: #fff; }
 
+/* Exportar "o meu calendário" (.ics) */
+section.exportar {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 24px;
+}
+section.exportar h2 { margin: 0 0 6px; font-size: 1rem; }
+section.exportar p { margin: 0 0 10px; font-size: 0.88rem; }
+.exportar-botoes { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+a.botao-exportar {
+    padding: 8px 14px;
+    border-radius: 6px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.88rem;
+    text-decoration: none;
+}
+a.botao-exportar:hover { filter: brightness(1.1); }
+a.botao-exportar.secundario { background: #fff; color: var(--accent); border: 1px solid var(--accent); }
+.exportar-nota { color: var(--muted); font-size: 0.8rem !important; }
+.exportar-link summary { cursor: pointer; font-size: 0.85rem; color: var(--muted); margin-bottom: 8px; }
+.exportar-link input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-family: monospace;
+    margin-bottom: 8px;
+}
+.exportar-link form { margin: 0; }
+button.link-botao {
+    background: none; border: none; padding: 0;
+    color: var(--erro); font-size: 0.82rem; cursor: pointer; text-decoration: underline;
+    font-family: inherit;
+}
+.aviso-ok {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+
 /* Páginas de autenticação */
 .auth-wrap {
     max-width: 380px;

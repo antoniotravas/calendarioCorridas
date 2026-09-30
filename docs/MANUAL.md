@@ -59,6 +59,7 @@ A fonte que criou a prova (`corridas.fonte`, "fonte principal") define os dados;
 ```
 sql/schema.sql                       -- schema completo (corridas, corridas_fontes, corridas_distancias, utilizadores, favoritos)
 sql/migracao_002_corridas_fontes.sql -- para BDs criadas antes de corridas_fontes (correr uma vez)
+sql/migracao_003_ics_token.sql       -- para BDs criadas antes do link de subscrição .ics (correr uma vez)
 
 scripts/config.example.php           -- template de credenciais (copiar para config.php)
 scripts/lib/Corrida.php              -- objeto de valor com os dados normalizados de uma prova
@@ -79,7 +80,9 @@ scripts/run_scraper.php              -- ponto de entrada do scraper (CLI)
 
 public/_bootstrap.php                -- sessão + ligação BD + $auth, incluído por todas as páginas
 public/index.php                     -- calendário público (filtros: mês, distância, fonte, pesquisa)
-public/meu-calendario.php            -- provas guardadas pelo utilizador autenticado
+public/meu-calendario.php            -- provas guardadas pelo utilizador autenticado + botões de exportação .ics
+public/meu-calendario-ics.php        -- "o meu calendário" em .ics (descarga com sessão, ou subscrição com ?token=)
+public/lib/CalendarioIcs.php         -- gera o texto iCalendar (RFC 5545) a partir das provas
 public/favorito.php                  -- endpoint POST: adiciona/remove uma prova do "meu calendário"
 public/login.php / registo.php / logout.php
 public/auth/google-iniciar.php       -- redireciona para o ecrã de login da Google
@@ -162,6 +165,18 @@ Em produção, aponta o *document root* do Apache/Nginx diretamente para `public
 - Um utilizador pode existir só com password, só com Google, ou com as duas (a conta é associada pelo email).
 - Sessão guardada em `$_SESSION['utilizador_id']`; todas as ações que alteram estado (favoritos, logout) validam um token CSRF guardado em sessão.
 - "O meu calendário" (`public/meu-calendario.php`) lista as provas marcadas pelo utilizador; o botão "+ Adicionar" / "✓ No meu calendário" em cada prova chama `public/favorito.php` (POST), que alterna a linha em `favoritos`.
+
+### Exportar "o meu calendário" (.ics)
+
+`public/meu-calendario-ics.php` devolve as provas do utilizador em formato iCalendar (RFC 5545), gerado por `public/lib/CalendarioIcs.php`:
+- **Com sessão iniciada, sem parâmetros** → descarga de um ficheiro `.ics` (cópia do momento, não se atualiza).
+- **Com `?token=...`** → link de **subscrição**: o Google Calendar, iPhone/Mac ou Outlook pedem o link periodicamente, sem sessão, e mostram as alterações sozinhos. O utilizador é identificado pelo código secreto `utilizadores.ics_token` (32 hex, criado na primeira visita a "O meu calendário"). O botão "Gerar novo link" substitui o código e o link antigo passa a devolver 404.
+
+Na página "O meu calendário" há três botões: Google Calendar (`calendar.google.com/calendar/render?cid=webcal://...`), iPhone/Mac/Outlook (link `webcal://`, que abre a app de calendário do sistema) e descarga do ficheiro. O link completo aparece numa secção expansível, para outras apps.
+
+Detalhes do formato: cada prova é um evento de **dia inteiro** (`DTSTART;VALUE=DATE`), porque as fontes não dão a hora de forma fiável; provas sem data ficam de fora; o `UID` é `corrida-{id}@calendariocorridas`, fixo por prova, para as apps atualizarem o evento em vez de o duplicar; linhas com mais de 75 octetos são partidas sem cortar caracteres UTF-8. O Google Calendar decide sozinho quando volta a ler subscrições (pode demorar até ~24 h); o `REFRESH-INTERVAL` de 12 h é só uma sugestão, que o iPhone e o Outlook respeitam melhor.
+
+**Base de dados criada antes desta funcionalidade:** correr uma vez `sql/migracao_003_ics_token.sql`.
 
 ### Configurar o login com Google
 
