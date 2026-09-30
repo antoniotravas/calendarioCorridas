@@ -37,6 +37,26 @@ CREATE TABLE IF NOT EXISTS corridas_distancias (
         REFERENCES corridas (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Fontes onde cada prova foi encontrada. A mesma prova pode aparecer em vários
+-- sites (ex. All4Running e a associação distrital); fica uma só linha em
+-- `corridas` e uma linha aqui por cada fonte. `hash_dedup` identifica a prova
+-- tal como essa fonte a publica (nome + data + local), para a reencontrar na
+-- próxima execução do scraper.
+CREATE TABLE IF NOT EXISTS corridas_fontes (
+    id             INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    corrida_id     INT UNSIGNED NOT NULL,
+    fonte          VARCHAR(100) NOT NULL,
+    url_fonte      VARCHAR(500) NULL,
+    url_evento     VARCHAR(500) NULL,
+    hash_dedup     CHAR(40) NOT NULL,
+    visto_em       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_fonte_hash (fonte, hash_dedup),
+    KEY idx_corrida (corrida_id),
+    CONSTRAINT fk_fontes_corrida FOREIGN KEY (corrida_id)
+        REFERENCES corridas (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Utilizadores registados (por email/password local, e/ou por login Google).
 CREATE TABLE IF NOT EXISTS utilizadores (
     id             INT UNSIGNED NOT NULL AUTO_INCREMENT,

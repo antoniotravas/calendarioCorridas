@@ -72,12 +72,15 @@ if ($grupos === []): ?>
                             </div>
                         <?php endif; ?>
                         <p class="fonte">
-                            Fonte:
-                            <?php if ($c['url_fonte']): ?>
-                                <a href="<?= htmlspecialchars($c['url_fonte']) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($c['fonte']) ?></a>
-                            <?php else: ?>
-                                <?= htmlspecialchars($c['fonte']) ?>
-                            <?php endif; ?>
+                            <?= count($c['fontes']) > 1 ? 'Fontes:' : 'Fonte:' ?>
+                            <?php foreach ($c['fontes'] as $i => $f): ?>
+                                <?= $i > 0 ? ' · ' : '' ?>
+                                <?php if ($f['url_fonte']): ?>
+                                    <a href="<?= htmlspecialchars($f['url_fonte']) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($f['fonte']) ?></a>
+                                <?php else: ?>
+                                    <?= htmlspecialchars($f['fonte']) ?>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
                         </p>
                     </div>
                 </li>

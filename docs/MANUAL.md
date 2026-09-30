@@ -27,32 +27,54 @@ docs/       → este manual
 Site de origem (HTML)
       │  HttpClient::get()
       ▼
-Scraper específico da fonte (All4RunningScraper / PortugalRunningScraper / AAAPortoScraper)
-      │  DOMDocument + DOMXPath → extrai e normaliza campos
+Scraper específico da fonte (All4RunningScraper, AABragaScraper, TheEventsCalendarScraper, ...)
+      │  DOMDocument + DOMXPath, JSON embutido na página ou API REST → extrai e normaliza campos
       ▼
 Corrida (objeto normalizado: nome, data, local, distâncias, tipo, região, url_evento, fonte, url_fonte)
-      │  Database::upsertCorrida()  (hash_dedup evita duplicados; sincroniza corridas_distancias)
+      │  Database::upsertCorrida()  (junta a mesma prova vinda de fontes diferentes; sincroniza corridas_distancias)
       ▼
-Tabelas `corridas` + `corridas_distancias` (MySQL)
+Tabelas `corridas` + `corridas_fontes` + `corridas_distancias` (MySQL)
+      │  no fim: Database::consolidarRepetidas()  (junta repetidas que já estejam na BD)
 ```
 
-`scripts/run_scraper.php` é o ponto de entrada: instancia todos os scrapers, corre cada um dentro de um `try/catch` (uma fonte a falhar não impede as restantes) e grava os resultados.
+`scripts/run_scraper.php` é o ponto de entrada: instancia todos os scrapers, corre cada um dentro de um `try/catch` (uma fonte a falhar não impede as restantes) e grava os resultados. No fim imprime (em STDERR) uma secção **"ATENÇÃO — fontes com problemas"** quando uma fonte falhou, ou quando devolveu 0 provas apesar de ter provas futuras na BD — sinal de que o site mudou e o scraper precisa de revisão.
+
+### A mesma prova em várias fontes
+
+A mesma prova aparece muitas vezes em vários sites (ex. All4Running, FPA Competições e a associação distrital), com nomes ligeiramente diferentes ("Meia Maratona Cidade Berço" / "Meia Maratona Cidade Berço - Guimarães"). Fica **uma só linha em `corridas`** e **uma linha em `corridas_fontes` por cada fonte** onde foi encontrada; o site público mostra todas ("Fontes: A · B · C").
+
+`Database::upsertCorrida()` decide, para cada prova recolhida:
+1. esta fonte já a tinha publicado (mesmo `fonte` + `hash_dedup` em `corridas_fontes`) → atualiza;
+2. há na **mesma data** uma prova de **outra** fonte com nome equivalente (`NomeProvaHelper::mesmaProva()`) → junta-lhe esta fonte;
+3. senão → cria prova nova.
+
+A fonte que criou a prova (`corridas.fonte`, "fonte principal") define os dados; as outras só preenchem campos vazios (local, distâncias, tipo, região, link do evento).
+
+`NomeProvaHelper::mesmaProva()` normaliza os nomes (minúsculas, sem acentos, sem números/ordinais/anos/distâncias, "GP" = "Grande Prémio", "S." = "São"), põe de parte palavras genéricas ("corrida", "meia", "maratona", "são silvestre", "cidade"...) e exige que pelo menos metade das palavras distintivas coincidam. Recusa sempre formatos diferentes ("Maratona do Porto" ≠ "Meia Maratona do Porto"). É conservadora de propósito: um par não detetado fica repetido, mas provas diferentes dificilmente são fundidas por engano (ex. "São Silvestre de Vizela" ≠ "São Silvestre de Amares"). Datas diferentes entre fontes (erro de um dia num dos sites) não são juntadas.
+
+`Database::consolidarRepetidas()` corre no fim de cada execução e aplica a mesma regra às provas já gravadas: a mais antiga fica, a outra passa-lhe as fontes e os favoritos dos utilizadores e é apagada.
 
 ## Estrutura de pastas
 
 ```
-sql/schema.sql                       -- schema completo (corridas, corridas_distancias, utilizadores, favoritos)
+sql/schema.sql                       -- schema completo (corridas, corridas_fontes, corridas_distancias, utilizadores, favoritos)
+sql/migracao_002_corridas_fontes.sql -- para BDs criadas antes de corridas_fontes (correr uma vez)
 
 scripts/config.example.php           -- template de credenciais (copiar para config.php)
 scripts/lib/Corrida.php              -- objeto de valor com os dados normalizados de uma prova
 scripts/lib/HttpClient.php           -- pedidos GET/POST via cURL
 scripts/lib/DateHelper.php           -- datas em português: parsing, formatação, agrupar por mês
 scripts/lib/DistanciaHelper.php      -- extrai distâncias (km) do texto livre; faixas do filtro de distância
-scripts/lib/Database.php             -- ligação PDO: upsert de corridas, listagem com filtros, utilizadores, favoritos
+scripts/lib/NomeProvaHelper.php      -- mesma prova com nomes diferentes? parece prova de estrada (pelo nome)?
+scripts/lib/Database.php             -- ligação PDO: upsert/junção de corridas, listagem com filtros, utilizadores, favoritos
 scripts/scrapers/ScraperInterface.php
 scripts/scrapers/All4RunningScraper.php
 scripts/scrapers/PortugalRunningScraper.php
 scripts/scrapers/AAAPortoScraper.php
+scripts/scrapers/FpaCompeticoesScraper.php
+scripts/scrapers/AABragaScraper.php
+scripts/scrapers/AdalLeiriaScraper.php
+scripts/scrapers/TheEventsCalendarScraper.php  -- genérico: sites WordPress com o plugin "The Events Calendar"
 scripts/run_scraper.php              -- ponto de entrada do scraper (CLI)
 
 public/_bootstrap.php                -- sessão + ligação BD + $auth, incluído por todas as páginas
@@ -79,6 +101,20 @@ docs/MANUAL.md                       -- este ficheiro
 | AAAPorto (Associação de Atletismo do Porto) | `aaporto.com/.../calendario-competitivo/estrada` | Primeiras 15 páginas (~120 registos) | A listagem (~500 registos) não está ordenada por data — mistura provas passadas e futuras pela ordem de inserção. O scraper descarta qualquer prova com data já passada. Sem distância na listagem (fica `null`). Foco na região do Porto. |
 | FPA Competições | `beta.fpacompeticoes.pt/calendar` | Janela mostrada por omissão pela página (~3-4 meses à frente) | Filtra `tipo=Estrada`. Os dados vêm de JSON embutido na página (`window.__remixContext`), não de HTML tradicional — é uma app Remix renderizada no servidor. Um pedido extra por prova a `/competition/{id}` obtém a distância real a partir dos escalões de inscrição. |
 
+| AA Braga | `aabraga.pt/pt/calendario` | Todos os eventos futuros | JSON embutido na página (`window.AABragaCalendarioEventos`, alimenta um FullCalendar). Usa o campo `type`; quando vem vazio decide pelo nome (`NomeProvaHelper::pareceEstrada`). Exclui âmbito "Internacional". |
+| ADA Leiria | `adal.pt/calendario.php` | Todos os eventos futuros | HTML sem tipo nem local: o tipo é deduzido do nome (exclui trail, marcha, convívios...). O link "Programa" (PDF do regulamento) é usado como link do evento. |
+| AA São Miguel, AA Madeira, AA Santarém | `/wp-json/tribe/events/v1/events` de cada site | Eventos futuros (API paginada) | `TheEventsCalendarScraper`, uma instância por site. Estrada = categoria com "estrada" (ou, sem categorias, pelo nome). Madeira e Santarém têm hoje poucos ou nenhuns eventos no calendário do site (publicam sobretudo em PDF), mas passam a entrar automaticamente se o usarem. |
+
+### Associações distritais (levantamento de 2026-09-30)
+
+Das 22 associações filiadas na FPA ([lista](https://fpatletismo.pt/atletismo/institucional/associados-efetivos/)), só as da tabela acima têm calendário legível automaticamente. O Porto já estava coberto (AAAPorto).
+- **Só em PDF** (frágil, fora de âmbito): Aveiro, Castelo Branco, Coimbra, Évora, Viana do Castelo, Setúbal.
+- **Sites Wix** (conteúdo gerado por JavaScript): Lisboa, Ilha Terceira.
+- **Sem calendário online / site indisponível**: Algarve (domínio não resolve), Beja, Guarda, Bragança, Viseu, Faial (calendário vazio), Vila Real (bloqueia pedidos automáticos, HTTP 406).
+- **Portalegre** (`aadp.pt/calendario/`): tabela HTML, mas com dados incoerentes (colunas trocadas, eventos de formação marcados como "Estrada") — adiado.
+
+Grande parte das provas das associações já aparece noutras fontes; o ganho está em confirmar provas e apanhar as pequenas provas locais.
+
 ### Fontes deixadas para mais tarde
 
 - **correrporprazer.com/provas-de-estrada/** — a listagem só aparece depois de escolher um distrito, carregada via AJAX; precisa de um scraper diferente (simular os pedidos AJAX por distrito) ou de automação de browser.
@@ -92,9 +128,11 @@ docs/MANUAL.md                       -- este ficheiro
    ```
    php scripts/run_scraper.php
    ```
-4. O script imprime, por fonte, quantas provas foram encontradas, quantas são novas e quantas foram atualizadas.
+4. O script imprime, por fonte, quantas provas foram encontradas, quantas são novas, quantas foram atualizadas e quantas já existiam noutra fonte (juntadas) e, no fim, eventuais avisos de fontes com problemas.
 
-Correr o script várias vezes é seguro: cada prova tem um `hash_dedup` (nome + data + local); se já existir, a linha é atualizada em vez de duplicada, e as distâncias em `corridas_distancias` são recalculadas a partir do texto de `distancias`.
+Correr o script várias vezes é seguro: cada fonte reencontra as suas provas pelo `hash_dedup` (nome + data + local) em `corridas_fontes` e atualiza-as em vez de as duplicar; as distâncias em `corridas_distancias` são recalculadas a partir do texto de `distancias`.
+
+**Base de dados criada antes de existir `corridas_fontes`:** correr uma vez `sql/migracao_002_corridas_fontes.sql` com a BD selecionada. A execução seguinte do scraper junta as provas repetidas antigas.
 
 ## Como adicionar uma nova fonte ao scraper
 
@@ -137,7 +175,8 @@ O botão "Continuar com o Google" só aparece funcional se `scripts/config.php` 
 
 ## Limitações conhecidas
 
-- Não há agendamento automático (cron) do scraper — corre manualmente.
+- O agendamento diário do scraper é feito por cron no alojamento (configurado no painel, fora do repositório).
+- A deteção de provas repetidas entre fontes exige a mesma data e é conservadora — pares com nomes muito diferentes ficam repetidos.
 - Portugal Running só cobre os próximos ~2 meses por execução; AAAPorto cobre só a sua janela de paginação (ver tabela de fontes).
 - Tipo/região/distâncias de Portugal Running são heurísticos, baseados em classes CSS do site.
 - AAAPorto não expõe distância nas provas listadas.

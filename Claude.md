@@ -24,3 +24,7 @@
     - Nova fonte de dados: AAAPorto (Associação de Atletismo do Porto), foco na região do Porto.
     - Contas de utilizador: registo/login por email e password, e login com Google (OAuth 2.0 — precisa de credenciais próprias na Google Cloud Console para ficar ativo, ver MANUAL.md).
     - "O meu calendário": qualquer utilizador com sessão iniciada pode marcar provas como suas (como um carrinho) a partir do calendário público, e consultá-las à parte em /meu-calendario.php.
+    - Nova fonte: FPA Competições (plataforma de competições da Federação Portuguesa de Atletismo).
+    - Associações distritais como fontes: Braga, Leiria, São Miguel, Madeira e Santarém (as restantes só publicam em PDF ou não têm calendário legível — ver MANUAL.md).
+    - Provas repetidas entre fontes: a mesma prova encontrada em vários sites passa a aparecer uma só vez, com a lista de todas as fontes onde foi encontrada (tabela corridas_fontes).
+    - Aviso no scraper quando uma fonte falha ou deixa de devolver provas (provável mudança no site).
