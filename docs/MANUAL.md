@@ -154,6 +154,12 @@ php -S localhost:8000 -t public
 ```
 Em produção, aponta o *document root* do Apache/Nginx diretamente para `public/`.
 
+### Domínio de produção
+
+O site público está em **https://corridas.eu** (antes: `corridas.espacodecodigo.eu`). O código não tem o domínio escrito: os links de subscrição .ics usam o `HTTP_HOST` do pedido. O domínio só aparece em dois sítios:
+- `public/.htaccess`: redireciona com 301 o endereço antigo, `www.corridas.eu` e `http://` para `https://corridas.eu`. Exceção: o endereço antigo continua a servir `meu-calendario-ics.php` diretamente, para que as subscrições já feitas não dependam de a app de calendário seguir redirecionamentos.
+- `google_redirect_uri` em `scripts/config.php` do servidor (e o URI correspondente na Google Cloud Console).
+
 ### Filtros do calendário
 
 `index.php` filtra por mês, **distância** (faixas pré-definidas em `DistanciaHelper::FAIXAS`, ex. "5 a 10 km", "21 a 42 km"), fonte, e pesquisa livre por nome/local. O filtro de distância usa a tabela `corridas_distancias`, sincronizada automaticamente pelo scraper a partir do texto em `corridas.distancias` (`DistanciaHelper::extrairKm()`).

@@ -1,0 +1,21 @@
+# Redirecionamentos de domínio (servidor de produção, LiteSpeed/Apache).
+# O servidor local de desenvolvimento (php -S) ignora este ficheiro.
+
+RewriteEngine On
+
+# Endereço antigo (corridas.espacodecodigo.eu) -> corridas.eu, mantendo o caminho.
+# Exceção: o feed .ics continua a ser servido no endereço antigo, para que as
+# subscrições já feitas nos telemóveis não dependam de a app de calendário
+# seguir redirecionamentos.
+RewriteCond %{HTTP_HOST} ^corridas\.espacodecodigo\.eu$ [NC]
+RewriteCond %{REQUEST_URI} !^/meu-calendario-ics\.php$
+RewriteRule ^ https://corridas.eu%{REQUEST_URI} [R=301,L]
+
+# www.corridas.eu -> corridas.eu
+RewriteCond %{HTTP_HOST} ^www\.corridas\.eu$ [NC]
+RewriteRule ^ https://corridas.eu%{REQUEST_URI} [R=301,L]
+
+# http -> https em corridas.eu
+RewriteCond %{HTTP_HOST} ^corridas\.eu$ [NC]
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://corridas.eu%{REQUEST_URI} [R=301,L]
