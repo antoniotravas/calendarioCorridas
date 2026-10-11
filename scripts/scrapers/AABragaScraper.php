@@ -3,7 +3,8 @@
 declare(strict_types=1);
 
 /**
- * Recolhe provas de estrada do calendário da Associação de Atletismo de Braga.
+ * Recolhe provas de estrada, trail e corta-mato do calendário da Associação de
+ * Atletismo de Braga.
  *
  * A página do calendário inclui todos os eventos (várias épocas, passadas e
  * futuras) num array JSON em "window.AABragaCalendarioEventos", usado pelo
@@ -51,8 +52,9 @@ final class AABragaScraper implements ScraperInterface
                 continue;
             }
 
-            $eEstrada = $tipo === 'estrada' || ($tipo === '' && NomeProvaHelper::pareceEstrada($nome));
-            if ($nome === '' || !$eEstrada) {
+            $eCorrida = preg_match('/^estrada|corta.?mato|trail|montanha/u', $tipo)
+                || ($tipo === '' && NomeProvaHelper::pareceCorrida($nome));
+            if ($nome === '' || !$eCorrida) {
                 continue;
             }
 
@@ -63,7 +65,7 @@ final class AABragaScraper implements ScraperInterface
                 dataProva: $data,
                 local: $local !== '' ? $local : null,
                 distancias: null,
-                tipo: 'Estrada',
+                tipo: $tipo !== '' ? trim((string) $extra['type']) : null,
                 regiao: 'Braga',
                 urlEvento: null,
                 fonte: $this->nome(),

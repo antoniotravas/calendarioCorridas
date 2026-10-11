@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Recolhe provas de estrada da plataforma de inscrições Acorrer.
+ * Recolhe provas de corrida (estrada, trail, corta-mato) da plataforma de inscrições Acorrer.
  *
  * A página /eventos é uma app Laravel Livewire: o HTML inicial vem sem
  * eventos e o browser pede-os logo a seguir, chamando o método "load" do
@@ -14,7 +14,7 @@ declare(strict_types=1);
  *
  * Cada cartão tem link, nome, data ("17 Out", sem ano) e local ("Chaves, Vila
  * Real"). O site não diz a modalidade e mistura trail, caminhadas, peddy
- * papers..., por isso só ficam as provas cujo nome parece de estrada.
+ * papers..., por isso só ficam as provas cujo nome parece de corrida.
  */
 final class AcorrerScraper implements ScraperInterface, FonteOrganizadora
 {
@@ -42,7 +42,7 @@ final class AcorrerScraper implements ScraperInterface, FonteOrganizadora
             $dataTexto = $this->limpar($xpath->query('.//div[@class="text-sm"]/span[1]', $cartao)->item(0)?->textContent);
             $local = $this->limpar($xpath->query('.//div[@class="text-sm"]/span[2]', $cartao)->item(0)?->textContent);
 
-            if ($nome === '' || !NomeProvaHelper::pareceEstrada($nome)) {
+            if ($nome === '' || !NomeProvaHelper::pareceCorrida($nome)) {
                 continue;
             }
 

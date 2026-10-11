@@ -39,7 +39,7 @@ $googleUrl = '/auth/google-iniciar.php?next=' . urlencode($next);
 ?><!DOCTYPE html>
 <html lang="pt-PT">
 <head>
-<?php $tituloDocumento = 'Entrar — Corridas de estrada'; require __DIR__ . '/partials/head.php'; ?>
+<?php $tituloDocumento = 'Entrar — Calendário de corridas'; require __DIR__ . '/partials/head.php'; ?>
 </head>
 <body>
 <?php require __DIR__ . '/partials/cabecalho.php'; ?>

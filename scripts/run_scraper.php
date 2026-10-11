@@ -128,6 +128,9 @@ $organizadoras = array_map(
 );
 $linksOrganizador = $db->aplicarLinksOrganizadores($organizadoras);
 
+// Estrada, trail ou corta-mato, para o filtro "Tipo" do site.
+$db->atualizarCategorias();
+
 // Miniaturas: para as provas futuras ainda sem imagem, procura o cartaz nas
 // páginas do evento de cada fonte. Cada prova só é procurada uma vez, e há um
 // limite por execução para não fazer centenas de pedidos de seguida.

@@ -1,26 +1,30 @@
 /*
- * Tema "estrada portuguesa": fundo claro, texto cor de asfalto, azul das
- * placas de sinalização como destaque e o amarelo das marcações da estrada
- * usado com parcimónia (linha tracejada do topo e alfinetes do dorsal).
+ * Tema claro: fundo cinza muito claro, cartões brancos, texto cor de asfalto
+ * e o azul das placas de sinalização como cor de destaque.
  * Letra: Barlow Condensed (inspirada na sinalética de estrada) para nome,
- * meses, datas e números; Barlow para o texto.
+ * meses, dias e números; Barlow para o texto.
  */
 :root {
-    --papel: #f3f5f8;
+    --papel: #f5f7f9;
     --branco: #ffffff;
     --asfalto: #22262c;
     --cinza: #5d6672;
-    --linha: #dce1e7;
+    --linha: #e1e5ea;
+    --linha-forte: #c9d0d8;
     --sinal: #1c4fa0;
     --sinal-escuro: #163f80;
-    --sinal-suave: #e6edf8;
-    --marca: #f2c230;
+    --sinal-suave: #e8eef8;
+    --trail: #2f6b3f;
+    --trail-suave: #e6f1e8;
+    --corta-mato: #8a5a14;
+    --corta-mato-suave: #f6eedf;
     --erro: #b3261e;
     --erro-soft: #fbe9e7;
 
     --letra: "Barlow", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --letra-estreita: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
-    --largura: 880px;
+    --largura: 920px;
+    --altura-filtros: 61px;
 }
 
 * { box-sizing: border-box; }
@@ -40,19 +44,8 @@ a { color: inherit; }
     overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 
-/* Topo: claro, só o nome e a conta; por baixo, o eixo tracejado de uma estrada */
-header.topo {
-    position: relative;
-    background: var(--branco);
-    padding: 14px 16px 16px;
-}
-header.topo::after {
-    content: "";
-    position: absolute;
-    left: 0; right: 0; bottom: 0;
-    height: 4px;
-    background: repeating-linear-gradient(90deg, var(--marca) 0 32px, transparent 32px 56px);
-}
+/* Topo: da cor da página, só o nome e a conta */
+header.topo { padding: 16px 16px 6px; }
 .topo-linha {
     max-width: var(--largura);
     margin: 0 auto;
@@ -86,20 +79,19 @@ nav.conta button.link:hover { color: var(--sinal); }
     position: sticky;
     top: 0;
     z-index: 10;
-    background: rgba(243, 245, 248, 0.94);
+    background: rgba(245, 247, 249, 0.94);
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
-    border-bottom: 1px solid var(--linha);
     padding: 10px 16px;
 }
 form.filtros {
     max-width: var(--largura);
     margin: 0 auto;
     display: grid;
-    grid-template-columns: minmax(180px, 1.6fr) repeat(3, minmax(0, 1fr)) auto;
+    grid-template-columns: minmax(170px, 1.5fr) repeat(4, minmax(0, 1fr)) auto;
     gap: 8px;
 }
-form.filtros.com-js { grid-template-columns: minmax(180px, 1.6fr) repeat(3, minmax(0, 1fr)); }
+form.filtros.com-js { grid-template-columns: minmax(170px, 1.5fr) repeat(4, minmax(0, 1fr)); }
 form.filtros.com-js .filtrar { position: absolute; left: -9999px; }
 form.filtros label { display: block; min-width: 0; }
 form.filtros select,
@@ -116,7 +108,7 @@ form.filtros input[type="search"] {
 }
 form.filtros select { padding-right: 6px; text-overflow: ellipsis; }
 form.filtros select:hover,
-form.filtros input[type="search"]:hover { border-color: #c3cbd5; }
+form.filtros input[type="search"]:hover { border-color: var(--linha-forte); }
 .procura { position: relative; }
 .procura svg {
     position: absolute; left: 11px; top: 11px;
@@ -139,7 +131,7 @@ form.filtros .filtrar {
 main {
     max-width: var(--largura);
     margin: 0 auto;
-    padding: 18px 16px 40px;
+    padding: 10px 16px 40px;
 }
 .resumo {
     margin: 0 0 6px;
@@ -150,65 +142,43 @@ main {
 .resumo a:hover { text-decoration: underline; }
 
 /* Meses */
-section.mes h2 {
+section.mes > h2 {
     font-family: var(--letra-estreita);
     font-weight: 600;
     font-size: 1.9rem;
     line-height: 1.1;
-    margin: 26px 0 10px;
+    margin: 26px 0 12px;
 }
 
-/* Lista de provas: uma folha por mês, provas separadas por linhas finas */
-ul.lista {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    background: var(--branco);
-    border: 1px solid var(--linha);
-    border-radius: 12px;
-}
-li.prova {
+/* Dias: o dorsal com o dia à esquerda (fica à vista ao descer), as provas à direita */
+.dia {
     display: grid;
-    grid-template-columns: 96px minmax(0, 1fr) auto;
+    grid-template-columns: 76px minmax(0, 1fr);
     gap: 16px;
-    align-items: start;
-    padding: 16px;
+    margin-bottom: 18px;
 }
-li.prova + li.prova { border-top: 1px solid var(--linha); }
+.dia-marca {
+    position: sticky;
+    top: calc(var(--altura-filtros) + 12px);
+    align-self: start;
+}
+.dia-titulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: 0; }
 
-/* Miniatura: cartaz da prova por cima de um dorsal com o dia */
-.miniatura {
-    position: relative;
-    display: block;
-    width: 96px;
-    height: 96px;
-    border-radius: 8px;
-    overflow: hidden;
-}
-.miniatura img {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-/* O dorsal: faixa azul com o mês, número grande e quatro alfinetes */
+/* O dorsal: faixa azul com o dia da semana, número grande e quatro alfinetes */
 .dorsal {
-    position: absolute;
-    inset: 6px;
     display: flex;
     flex-direction: column;
+    width: 76px;
+    height: 80px;
     background:
-        radial-gradient(circle at 8px calc(100% - 8px), var(--marca) 2.5px, transparent 3px),
-        radial-gradient(circle at calc(100% - 8px) calc(100% - 8px), var(--marca) 2.5px, transparent 3px),
+        radial-gradient(circle at 8px calc(100% - 8px), var(--linha-forte) 2.5px, transparent 3px),
+        radial-gradient(circle at calc(100% - 8px) calc(100% - 8px), var(--linha-forte) 2.5px, transparent 3px),
         var(--branco);
-    border: 1.5px solid #c9d0d8;
-    border-radius: 4px;
-    transform: rotate(-2deg);
+    border: 1px solid var(--linha-forte);
+    border-radius: 6px;
+    overflow: hidden;
 }
-li.prova:nth-child(even) .dorsal { transform: rotate(1.5deg); }
-.dorsal-mes {
+.dorsal-topo {
     position: relative;
     height: 22px;
     background: var(--sinal);
@@ -218,20 +188,19 @@ li.prova:nth-child(even) .dorsal { transform: rotate(1.5deg); }
     font-size: 0.85rem;
     line-height: 22px;
     text-align: center;
-    border-radius: 2px 2px 0 0;
+    text-transform: lowercase;
 }
-/* Alfinetes de cima, sobre a faixa */
-.dorsal-mes::before,
-.dorsal-mes::after {
+.dorsal-topo::before,
+.dorsal-topo::after {
     content: "";
     position: absolute;
-    top: 6px;
+    top: 8px;
     width: 5px; height: 5px;
     border-radius: 50%;
-    background: var(--marca);
+    background: rgba(255, 255, 255, 0.75);
 }
-.dorsal-mes::before { left: 5.5px; }
-.dorsal-mes::after { right: 5.5px; }
+.dorsal-topo::before { left: 6px; }
+.dorsal-topo::after { right: 6px; }
 .dorsal-dia {
     flex: 1;
     display: flex;
@@ -239,29 +208,71 @@ li.prova:nth-child(even) .dorsal { transform: rotate(1.5deg); }
     justify-content: center;
     font-family: var(--letra-estreita);
     font-weight: 700;
-    font-size: 2.6rem;
+    font-size: 2.5rem;
     line-height: 1;
     letter-spacing: -0.02em;
 }
 
-.prova-corpo { min-width: 0; }
-.prova-data {
-    display: block;
-    font-family: var(--letra-estreita);
-    font-weight: 600;
-    font-size: 1.05rem;
-    color: var(--sinal);
-    margin-bottom: 2px;
+/* Cartões das provas */
+ul.provas {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
 }
-.prova-corpo h3 {
-    margin: 0 0 4px;
+li.prova {
+    position: relative;
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr) auto;
+    gap: 16px;
+    align-items: start;
+    padding: 14px;
+    background: var(--branco);
+    border: 1px solid var(--linha);
+    border-radius: 12px;
+    transition: border-color .15s, box-shadow .15s;
+}
+/* O cartão inteiro abre a página da prova: o ::after do link cobre-o todo */
+li.prova.com-link { cursor: pointer; }
+li.prova.com-link:hover { border-color: var(--linha-forte); box-shadow: 0 3px 12px rgba(34, 38, 44, 0.07); }
+li.prova.com-link:hover h4 { color: var(--sinal); }
+.prova-link { text-decoration: none; }
+.prova-link::after { content: ""; position: absolute; inset: 0; border-radius: 12px; }
+.prova-link:focus-visible { outline: none; }
+.prova-link:focus-visible::after { outline: 2px solid var(--sinal); outline-offset: 2px; }
+/* O que tem ação própria fica por cima do link do cartão */
+.prova-fontes a,
+form.favorito,
+li.prova > a.favorito-btn { position: relative; z-index: 1; }
+
+/* Miniatura: o cartaz da prova; sem cartaz, o desenho de uma estrada */
+.miniatura {
+    position: relative;
+    display: block;
+    width: 88px;
+    height: 88px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--papel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c3cbd5' stroke-width='1.4' stroke-linecap='round'%3E%3Cpath d='M5 21 10 3M19 21 14 3'/%3E%3Cpath d='M12 20v-2.5M12 14v-2M12 8.5V7' stroke-width='1.2'/%3E%3C/svg%3E") center / 40px no-repeat;
+}
+.miniatura img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.prova-corpo { min-width: 0; }
+.prova-corpo h4 {
+    margin: 2px 0 4px;
     font-size: 1.06rem;
     font-weight: 600;
     line-height: 1.3;
     overflow-wrap: anywhere;
+    transition: color .15s;
 }
-.prova-corpo h3 a { text-decoration: none; }
-.prova-corpo h3 a:hover { color: var(--sinal); text-decoration: underline; text-underline-offset: 3px; }
 .prova-local {
     display: flex;
     align-items: center;
@@ -291,9 +302,20 @@ ul.etiquetas li {
     border-radius: 4px;
     background: var(--papel);
 }
+ul.etiquetas li.etiqueta-trail { border-color: transparent; background: var(--trail-suave); color: var(--trail); }
+ul.etiquetas li.etiqueta-corta-mato { border-color: transparent; background: var(--corta-mato-suave); color: var(--corta-mato); }
 .prova-fontes { margin: 0; font-size: 0.8rem; color: var(--cinza); }
 .prova-fontes a { color: var(--cinza); }
 .prova-fontes a:hover { color: var(--sinal); }
+
+/* Entrada dos cartões: aparecem suavemente ao chegar ao ecrã (assets/app.js).
+   Só com JavaScript ativo (classe "js" no <html>), para nunca ficarem escondidos. */
+html.js li.prova {
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity .5s ease, transform .5s ease, border-color .15s, box-shadow .15s;
+}
+html.js li.prova.visivel { opacity: 1; transform: none; }
 
 /* Guardar no "meu calendário" */
 form.favorito { margin: 0; }
@@ -386,6 +408,9 @@ footer {
     flex-wrap: wrap;
     gap: 12px;
 }
+/* Sem barra de filtros fixa, o dia fica logo abaixo do topo da janela */
+.cabeca-pagina ~ section .dia-marca,
+.cabeca-pagina ~ .dia-marca { top: 12px; }
 
 /* Exportar "o meu calendário" (.ics): barra de ícones, sem texto visível */
 nav.exportar {
@@ -457,7 +482,7 @@ details.exportar-link[open] > summary { border-color: var(--sinal); color: var(-
 /* Páginas de autenticação */
 .auth-wrap {
     max-width: 380px;
-    margin: 48px auto;
+    margin: 40px auto;
     background: var(--branco);
     border: 1px solid var(--linha);
     border-radius: 12px;
@@ -525,22 +550,34 @@ details.exportar-link[open] > summary { border-color: var(--sinal); color: var(-
 
     .barra-filtros { padding: 8px 16px; }
     form.filtros,
-    form.filtros.com-js { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+    form.filtros.com-js { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
     form.filtros .procura { grid-column: 1 / -1; }
     form.filtros:not(.com-js) .filtrar { grid-column: 1 / -1; }
-    form.filtros select { font-size: 0.85rem; padding: 0 4px; }
+    form.filtros select { font-size: 0.82rem; padding: 0 2px; }
 
-    section.mes h2 { font-size: 1.6rem; margin-top: 22px; }
-    li.prova {
-        grid-template-columns: 72px minmax(0, 1fr);
-        gap: 12px;
-        padding: 14px 12px;
+    section.mes > h2 { font-size: 1.6rem; margin-top: 22px; }
+
+    /* O dia passa para cima das provas: dorsal pequeno + data por extenso */
+    .dia { grid-template-columns: 1fr; gap: 8px; }
+    .dia-marca { position: static; display: flex; align-items: center; gap: 10px; }
+    .dia-titulo {
+        position: static; width: auto; height: auto; overflow: visible; clip: auto;
+        font-family: var(--letra-estreita); font-weight: 600; font-size: 1.15rem;
     }
-    .miniatura { width: 72px; height: 72px; }
-    .dorsal { inset: 4px; }
-    .dorsal-mes { height: 18px; line-height: 18px; font-size: 0.75rem; }
-    .dorsal-mes::before, .dorsal-mes::after { top: 4.5px; width: 4px; height: 4px; }
-    .dorsal-dia { font-size: 1.9rem; }
+    .dorsal { width: 44px; height: 46px; border-radius: 5px; }
+    .dorsal-topo { height: 15px; line-height: 15px; font-size: 0.7rem; }
+    .dorsal-topo::before, .dorsal-topo::after { top: 5px; width: 3.5px; height: 3.5px; }
+    .dorsal-topo::before { left: 4px; }
+    .dorsal-topo::after { right: 4px; }
+    .dorsal-dia { font-size: 1.45rem; }
+    .dorsal { background-size: 0 0, 0 0, auto; }
+
+    li.prova {
+        grid-template-columns: 64px minmax(0, 1fr);
+        gap: 12px;
+        padding: 12px;
+    }
+    .miniatura { width: 64px; height: 64px; background-size: 30px; }
     /* O botão de guardar passa para baixo do texto, alinhado com ele */
     form.favorito,
     li.prova > a.favorito-btn { grid-column: 2; justify-self: start; }
@@ -549,4 +586,5 @@ details.exportar-link[open] > summary { border-color: var(--sinal); color: var(-
 
 @media (prefers-reduced-motion: reduce) {
     * { scroll-behavior: auto !important; }
+    html.js li.prova { opacity: 1; transform: none; transition: none; }
 }

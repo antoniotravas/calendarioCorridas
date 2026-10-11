@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS corridas (
     local          VARCHAR(255) NULL,
     distancias     VARCHAR(255) NULL,
     tipo           VARCHAR(100) NULL,
+    -- "estrada", "trail" ou "corta-mato" (NomeProvaHelper::categoria), para o filtro "Tipo".
+    categoria      VARCHAR(20) NOT NULL DEFAULT 'estrada',
     regiao         VARCHAR(100) NULL,
     url_evento     VARCHAR(500) NULL,
     fonte          VARCHAR(100) NOT NULL,
@@ -26,7 +28,8 @@ CREATE TABLE IF NOT EXISTS corridas (
     atualizado_em  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_hash_dedup (hash_dedup),
-    KEY idx_data_prova (data_prova)
+    KEY idx_data_prova (data_prova),
+    KEY idx_categoria (categoria)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Distâncias individuais de cada prova (uma corrida pode ter várias: 10K, 5K, ...),

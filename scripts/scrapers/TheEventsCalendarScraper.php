@@ -3,14 +3,14 @@
 declare(strict_types=1);
 
 /**
- * Recolhe provas de estrada de sites WordPress com o plugin "The Events
+ * Recolhe provas de estrada, trail e corta-mato de sites WordPress com o plugin "The Events
  * Calendar", através da API REST pública do plugin
  * (/wp-json/tribe/events/v1/events). Serve várias associações distritais com
  * o mesmo plugin — cada instância recebe o nome da fonte e o endereço do site.
  *
- * Uma prova conta como estrada se alguma das suas categorias tiver "estrada"
- * (ex. "Estrada Local", "Estrada Nacional"); se não tiver categorias, decide-se
- * pelo nome (NomeProvaHelper::pareceEstrada).
+ * Uma prova conta se alguma das suas categorias for de estrada, trail ou
+ * corta-mato (ex. "Estrada Local", "Trail", "Corta-Mato"); se não tiver
+ * categorias, decide-se pelo nome (NomeProvaHelper::pareceCorrida).
  */
 final class TheEventsCalendarScraper implements ScraperInterface
 {
@@ -71,10 +71,12 @@ final class TheEventsCalendarScraper implements ScraperInterface
             fn (array $c) => mb_strtolower((string) ($c['name'] ?? '')),
             is_array($evento['categories'] ?? null) ? $evento['categories'] : []
         );
-        $eEstrada = $categorias === []
-            ? NomeProvaHelper::pareceEstrada($nome)
-            : array_filter($categorias, fn (string $c) => str_contains($c, 'estrada')) !== [];
-        if (!$eEstrada) {
+        $categoriasCorrida = array_values(array_filter(
+            $categorias,
+            fn (string $c) => (bool) preg_match('/estrada|trail|corta.?mato|montanha/u', $c)
+        ));
+        $eCorrida = $categorias === [] ? NomeProvaHelper::pareceCorrida($nome) : $categoriasCorrida !== [];
+        if (!$eCorrida) {
             return null;
         }
 
@@ -105,7 +107,7 @@ final class TheEventsCalendarScraper implements ScraperInterface
             dataProva: $dataProva,
             local: $local,
             distancias: null,
-            tipo: 'Estrada',
+            tipo: $categoriasCorrida !== [] ? implode(', ', array_map('ucfirst', $categoriasCorrida)) : null,
             regiao: $this->regiao,
             urlEvento: $site !== '' ? $site : ($pagina !== '' ? $pagina : null),
             fonte: $this->nomeFonte,

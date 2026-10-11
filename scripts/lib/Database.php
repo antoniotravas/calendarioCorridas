@@ -335,6 +335,33 @@ final class Database
     }
 
     /**
+     * Recalcula a categoria (estrada, trail, corta-mato) das provas futuras a
+     * partir do nome e do tipo — corre no fim de cada execução, depois das
+     * junções entre fontes, que podem ter mudado o tipo.
+     *
+     * @return int número de provas cuja categoria mudou
+     */
+    public function atualizarCategorias(): int
+    {
+        $linhas = $this->pdo->query(
+            'SELECT id, nome, tipo, categoria FROM corridas WHERE data_prova >= CURDATE() OR data_prova IS NULL'
+        )->fetchAll();
+
+        $atualizar = $this->pdo->prepare('UPDATE corridas SET categoria = :categoria WHERE id = :id');
+        $mudadas = 0;
+
+        foreach ($linhas as $linha) {
+            $categoria = NomeProvaHelper::categoria($linha['nome'], $linha['tipo']);
+            if ($categoria !== $linha['categoria']) {
+                $atualizar->execute(['categoria' => $categoria, 'id' => $linha['id']]);
+                $mudadas++;
+            }
+        }
+
+        return $mudadas;
+    }
+
+    /**
      * Provas futuras ainda sem imagem e em que ainda não se procurou, com as
      * páginas de evento onde procurar (de todas as fontes da prova, sem PDFs).
      *
@@ -442,7 +469,8 @@ final class Database
     /**
      * Lista provas para apresentação, com filtros opcionais, a partir de hoje
      * (as provas sem data vão no fim). $distanciaFaixa é um par [min, max] em
-     * km (ver DistanciaHelper::FAIXAS). Com $limite, devolve só essa página.
+     * km (ver DistanciaHelper::FAIXAS); $categoria é "estrada", "trail" ou
+     * "corta-mato". Com $limite, devolve só essa página.
      *
      * @param array{0:float,1:float}|null $distanciaFaixa
      * @return array<int,array<string,mixed>>
@@ -454,9 +482,10 @@ final class Database
         ?array $distanciaFaixa = null,
         ?int $utilizadorIdParaFavoritos = null,
         ?int $limite = null,
-        int $deslocamento = 0
+        int $deslocamento = 0,
+        ?string $categoria = null
     ): array {
-        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa);
+        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria);
 
         $camposFavorito = '';
         $juncoes = '';
@@ -487,9 +516,10 @@ final class Database
         ?int $mes = null,
         ?string $fonte = null,
         ?string $procura = null,
-        ?array $distanciaFaixa = null
+        ?array $distanciaFaixa = null,
+        ?string $categoria = null
     ): int {
-        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa);
+        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria);
 
         $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM corridas c WHERE {$where}");
         $stmt->execute($params);
@@ -501,8 +531,13 @@ final class Database
      * @param array{0:float,1:float}|null $distanciaFaixa
      * @return array{0:string,1:array<string,mixed>} condição WHERE e parâmetros
      */
-    private function filtrosCorridas(?int $mes, ?string $fonte, ?string $procura, ?array $distanciaFaixa): array
-    {
+    private function filtrosCorridas(
+        ?int $mes,
+        ?string $fonte,
+        ?string $procura,
+        ?array $distanciaFaixa,
+        ?string $categoria
+    ): array {
         $condicoes = ['(c.data_prova >= CURDATE() OR c.data_prova IS NULL)'];
         $params = [];
 
@@ -527,6 +562,11 @@ final class Database
                 . 'WHERE cd.corrida_id = c.id AND cd.distancia_km BETWEEN :dist_min AND :dist_max)';
             $params['dist_min'] = $distanciaFaixa[0];
             $params['dist_max'] = $distanciaFaixa[1];
+        }
+
+        if ($categoria !== null && $categoria !== '') {
+            $condicoes[] = 'c.categoria = :categoria';
+            $params['categoria'] = $categoria;
         }
 
         return [implode(' AND ', $condicoes), $params];

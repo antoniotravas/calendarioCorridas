@@ -47,7 +47,7 @@ $googleUrl = '/auth/google-iniciar.php?next=' . urlencode($next);
 ?><!DOCTYPE html>
 <html lang="pt-PT">
 <head>
-<?php $tituloDocumento = 'Criar conta — Corridas de estrada'; require __DIR__ . '/partials/head.php'; ?>
+<?php $tituloDocumento = 'Criar conta — Calendário de corridas'; require __DIR__ . '/partials/head.php'; ?>
 </head>
 <body>
 <?php require __DIR__ . '/partials/cabecalho.php'; ?>

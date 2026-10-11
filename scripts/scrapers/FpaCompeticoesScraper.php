@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Recolhe provas de estrada da plataforma FPA Competições (Federação Portuguesa
+ * Recolhe provas de estrada, trail e corta-mato da plataforma FPA Competições (Federação Portuguesa
  * de Atletismo), beta.fpacompeticoes.pt.
  *
  * Ao contrário das outras fontes, esta é uma app Remix renderizada no servidor:
@@ -41,7 +41,7 @@ final class FpaCompeticoesScraper implements ScraperInterface
         $corridas = [];
 
         foreach ($resultados as $item) {
-            if (($item['tipo'] ?? null) !== 'Estrada') {
+            if (!in_array($item['tipo'] ?? null, ['Estrada', 'Trail', 'Corta-Mato'], true)) {
                 continue;
             }
 
@@ -60,7 +60,7 @@ final class FpaCompeticoesScraper implements ScraperInterface
                 dataProva: $dataProva,
                 local: !empty($item['local']) ? (string) $item['local'] : null,
                 distancias: $detalhes['distancias'],
-                tipo: 'Estrada',
+                tipo: $item['tipo'],
                 regiao: null,
                 urlEvento: $detalhes['urlEvento'],
                 fonte: $this->nome(),

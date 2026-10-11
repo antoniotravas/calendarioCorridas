@@ -6,14 +6,16 @@ declare(strict_types=1);
  * Recolhe provas de atletismo da plataforma de inscrições Stop and Go.
  *
  * A listagem /events aceita filtros na query string: status=S (próximos),
- * modality=1 (Atletismo) e country=178 (Portugal). Cada evento é um
+ * modality=1 (Atletismo) ou 5 (Trail) e country=178 (Portugal). Cada evento é um
  * <a href="/events/..."> com nome, modalidade, local ("Arouca, Portugal") e a
  * data por extenso ("17 de outubro 2026" ou "16 - 18 de outubro 2026"). Mesmo
- * em "Atletismo" aparecem caminhadas e ultras, excluídas pelo nome.
+ * em "Atletismo" aparecem caminhadas, excluídas pelo nome.
  */
 final class StopAndGoScraper implements ScraperInterface, FonteOrganizadora
 {
-    private const LISTA_URL = 'https://stopandgo.net/events?status=S&modality=1&country=178';
+    private const LISTA_URL = 'https://stopandgo.net/events?status=S&country=178&modality=';
+    /** @var array<int,string> modalidade do site => tipo de prova */
+    private const MODALIDADES = [1 => 'Atletismo', 5 => 'Trail'];
     private const MAX_PAGINAS = 10;
 
     public function __construct(private readonly HttpClient $http)
@@ -28,17 +30,20 @@ final class StopAndGoScraper implements ScraperInterface, FonteOrganizadora
     public function scrape(): array
     {
         $corridas = [];
-        $totalPaginas = 1;
 
-        for ($pagina = 1; $pagina <= min($totalPaginas, self::MAX_PAGINAS); $pagina++) {
-            $url = self::LISTA_URL . ($pagina > 1 ? "&page={$pagina}" : '');
-            $html = $this->http->get($url);
+        foreach (self::MODALIDADES as $modalidade => $tipo) {
+            $totalPaginas = 1;
 
-            if ($pagina === 1 && preg_match_all('/[?&;]page=(\d+)/', $html, $m)) {
-                $totalPaginas = max(array_map('intval', $m[1]));
+            for ($pagina = 1; $pagina <= min($totalPaginas, self::MAX_PAGINAS); $pagina++) {
+                $url = self::LISTA_URL . $modalidade . ($pagina > 1 ? "&page={$pagina}" : '');
+                $html = $this->http->get($url);
+
+                if ($pagina === 1 && preg_match_all('/[?&;]page=(\d+)/', $html, $m)) {
+                    $totalPaginas = max(array_map('intval', $m[1]));
+                }
+
+                $corridas = [...$corridas, ...$this->extrairCorridas($html, $url, $tipo)];
             }
-
-            $corridas = [...$corridas, ...$this->extrairCorridas($html, $url)];
         }
 
         return $corridas;
@@ -47,7 +52,7 @@ final class StopAndGoScraper implements ScraperInterface, FonteOrganizadora
     /**
      * @return Corrida[]
      */
-    private function extrairCorridas(string $html, string $urlFonte): array
+    private function extrairCorridas(string $html, string $urlFonte, string $tipo): array
     {
         $xpath = $this->criarXPath($html);
         $corridas = [];
@@ -70,7 +75,7 @@ final class StopAndGoScraper implements ScraperInterface, FonteOrganizadora
                 dataProva: $dataProva,
                 local: $local !== '' ? $local : null,
                 distancias: null,
-                tipo: null,
+                tipo: $tipo === 'Trail' ? 'Trail' : null,
                 regiao: null,
                 urlEvento: $cartao->getAttribute('href'),
                 fonte: $this->nome(),

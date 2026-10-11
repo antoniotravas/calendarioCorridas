@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Recolhe provas de estrada listadas em portugalrunning.com.
+ * Recolhe as provas listadas em portugalrunning.com (apesar do endereço, a página inclui trails, corta-mato e outras modalidades).
  *
  * A página só mostra os eventos do mês corrente e do seguinte (calendário
  * "Modern Events Calendar"); para cobrir mais meses seria necessário navegar

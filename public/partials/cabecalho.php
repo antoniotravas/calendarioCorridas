@@ -6,7 +6,7 @@ $utilizador = $auth->utilizadorAtual();
 ?>
 <header class="topo">
     <div class="topo-linha">
-        <a class="marca" href="/">Corridas de estrada</a>
+        <a class="marca" href="/">Calendário de corridas</a>
         <nav class="conta" aria-label="Conta">
             <?php if ($utilizador !== null): ?>
                 <a href="/meu-calendario.php">O meu calendário</a>

@@ -32,7 +32,7 @@ $urlSubscricao = ($https ? 'https://' : 'http://') . $enderecoIcs;
 $urlWebcal = 'webcal://' . $enderecoIcs;
 $urlGoogle = 'https://calendar.google.com/calendar/render?cid=' . rawurlencode($urlWebcal);
 
-$tituloDocumento = 'O meu calendário — Corridas de estrada';
+$tituloDocumento = 'O meu calendário — Calendário de corridas';
 $voltar = '/meu-calendario.php';
 
 ?><!DOCTYPE html>

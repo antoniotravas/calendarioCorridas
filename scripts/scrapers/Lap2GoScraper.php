@@ -8,8 +8,8 @@ declare(strict_types=1);
  * A página /pt/event/list traz todos os eventos (passados e futuros) como
  * <a class="event-item" data-day="25-10-2026" data-name="..." data-city="...">,
  * com ícones de modalidade (type-run, type-walk, type-bike...). O ícone de
- * corrida também marca trails, provas híbridas e de obstáculos, por isso ficam
- * só as provas futuras com esse ícone cujo nome parece de estrada.
+ * corrida também marca provas híbridas e de obstáculos, por isso ficam
+ * só as provas futuras com esse ícone cujo nome parece de corrida (estrada, trail ou corta-mato).
  */
 final class Lap2GoScraper implements ScraperInterface, FonteOrganizadora
 {
@@ -46,7 +46,7 @@ final class Lap2GoScraper implements ScraperInterface, FonteOrganizadora
             $nome = trim($item->getAttribute('data-name'));
             $eCorrida = $xpath->query('.//div[contains(@class,"type-run")]', $item)->length > 0;
 
-            if ($dataProva < $hoje || $nome === '' || !$eCorrida || !NomeProvaHelper::pareceEstrada($nome)) {
+            if ($dataProva < $hoje || $nome === '' || !$eCorrida || !NomeProvaHelper::pareceCorrida($nome)) {
                 continue;
             }
 

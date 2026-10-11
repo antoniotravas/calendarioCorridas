@@ -3,7 +3,8 @@
 declare(strict_types=1);
 
 /**
- * Recolhe provas de estrada listadas pela Associação de Atletismo do Porto.
+ * Recolhe provas de estrada e de corta-mato listadas pela Associação de
+ * Atletismo do Porto (uma listagem por tipo, com a mesma estrutura).
  *
  * A listagem (~500 registos, 8 por página) não está ordenada por data — mistura
  * provas passadas e futuras por página, aparentemente pela ordem de inserção.
@@ -13,7 +14,9 @@ declare(strict_types=1);
 final class AAAPortoScraper implements ScraperInterface
 {
     private const BASE_URL = 'https://www.aaporto.com';
-    private const LISTAGEM_URL = self::BASE_URL . '/index.php/competicoes/calendario-competitivo/estrada';
+    private const LISTAGEM_URL = self::BASE_URL . '/index.php/competicoes/calendario-competitivo/';
+    /** @var array<string,string> caminho da listagem => tipo de prova */
+    private const LISTAGENS = ['estrada' => 'Estrada', 'corta-mato' => 'Corta-mato'];
     private const TAMANHO_PAGINA = 8;
     private const MAX_PAGINAS = 15;
 
@@ -31,22 +34,26 @@ final class AAAPortoScraper implements ScraperInterface
         $hoje = date('Y-m-d');
         $corridas = [];
 
-        for ($pagina = 0; $pagina < self::MAX_PAGINAS; $pagina++) {
-            $start = $pagina * self::TAMANHO_PAGINA;
-            $url = $start === 0
-                ? self::LISTAGEM_URL
-                : self::LISTAGEM_URL . '?limit=' . self::TAMANHO_PAGINA . '&start=' . $start;
+        foreach (self::LISTAGENS as $caminho => $tipo) {
+            $listagem = self::LISTAGEM_URL . $caminho;
 
-            $html = $this->http->get($url);
-            $extraidas = $this->extrairCorridas($html, $url);
+            for ($pagina = 0; $pagina < self::MAX_PAGINAS; $pagina++) {
+                $start = $pagina * self::TAMANHO_PAGINA;
+                $url = $start === 0
+                    ? $listagem
+                    : $listagem . '?limit=' . self::TAMANHO_PAGINA . '&start=' . $start;
 
-            if ($extraidas === []) {
-                break;
-            }
+                $html = $this->http->get($url);
+                $extraidas = $this->extrairCorridas($html, $url, $tipo);
 
-            foreach ($extraidas as $corrida) {
-                if ($corrida->dataProva === null || $corrida->dataProva >= $hoje) {
-                    $corridas[] = $corrida;
+                if ($extraidas === []) {
+                    break;
+                }
+
+                foreach ($extraidas as $corrida) {
+                    if ($corrida->dataProva === null || $corrida->dataProva >= $hoje) {
+                        $corridas[] = $corrida;
+                    }
                 }
             }
         }
@@ -57,7 +64,7 @@ final class AAAPortoScraper implements ScraperInterface
     /**
      * @return Corrida[]
      */
-    private function extrairCorridas(string $html, string $urlFonte): array
+    private function extrairCorridas(string $html, string $urlFonte, string $tipo): array
     {
         $xpath = $this->criarXPath($html);
         $cards = $xpath->query('//div[@id="eb-events"]/div[contains(@class,"eb-event")]');
@@ -104,7 +111,7 @@ final class AAAPortoScraper implements ScraperInterface
                 dataProva: $dataProva,
                 local: $local,
                 distancias: null,
-                tipo: 'Estrada',
+                tipo: $tipo,
                 regiao: 'Porto',
                 urlEvento: $urlEvento !== '' ? $urlEvento : $urlDetalhes,
                 fonte: $this->nome(),

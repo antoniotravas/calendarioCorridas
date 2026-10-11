@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Aplicação para listar o calendário de corridas de estrada (atletismo) em Portugal, com filtros por mês e distância, dados em português europeu, e ligação ao site do evento e à fonte onde foi encontrado. Cada utilizador pode ainda criar conta e guardar as suas próprias provas, como um "carrinho" pessoal ("O meu calendário").
+Aplicação para listar o calendário de corridas em Portugal — estrada, trail (incluindo ultra trail) e corta-mato — com filtros por mês e distância, dados em português europeu, e ligação ao site do evento e à fonte onde foi encontrado. Cada utilizador pode ainda criar conta e guardar as suas próprias provas, como um "carrinho" pessoal ("O meu calendário").
 
 ## Tecnologias
 
@@ -65,13 +65,14 @@ sql/schema.sql                       -- schema completo (corridas, corridas_font
 sql/migracao_002_corridas_fontes.sql -- para BDs criadas antes de corridas_fontes (correr uma vez)
 sql/migracao_003_ics_token.sql       -- para BDs criadas antes do link de subscrição .ics (correr uma vez)
 sql/migracao_004_imagens.sql         -- para BDs criadas antes das miniaturas (correr uma vez)
+sql/migracao_005_categoria.sql       -- para BDs criadas antes do filtro "Tipo" (correr uma vez)
 
 scripts/config.example.php           -- template de credenciais (copiar para config.php)
 scripts/lib/Corrida.php              -- objeto de valor com os dados normalizados de uma prova
 scripts/lib/HttpClient.php           -- pedidos GET/POST via cURL
 scripts/lib/DateHelper.php           -- datas em português: parsing, formatação, agrupar por mês
 scripts/lib/DistanciaHelper.php      -- extrai distâncias (km) do texto livre; faixas do filtro de distância
-scripts/lib/NomeProvaHelper.php      -- mesma prova com nomes diferentes? parece prova de estrada (pelo nome)?
+scripts/lib/NomeProvaHelper.php      -- mesma prova com nomes diferentes? parece corrida (pelo nome)? estrada, trail ou corta-mato?
 scripts/lib/Database.php             -- ligação PDO: upsert/junção de corridas, listagem com filtros, utilizadores, favoritos
 scripts/scrapers/ScraperInterface.php
 scripts/scrapers/All4RunningScraper.php
@@ -111,18 +112,18 @@ docs/MANUAL.md                       -- este ficheiro
 
 | Fonte | URL | Cobertura | Notas |
 |---|---|---|---|
-| All4Running | `all4running.pt/provas/provas-de-estrada/` | Todas as páginas de paginação (~10 provas/página) | Nome, data, local, tipo e distâncias vêm diretamente do HTML da listagem. |
-| Portugal Running | `portugalrunning.com/calendario-de-corridas-de-estrada/` | Só o mês corrente e o seguinte (o que a página mostra por omissão) | Tipo, região e distâncias são **inferidos** a partir das classes CSS de categorização do site (ex.: `evo_corrida-10-km`, `evo_algarve-e-sul`); podem ficar vazios para eventos com etiquetagem atípica. |
-| AAAPorto (Associação de Atletismo do Porto) | `aaporto.com/.../calendario-competitivo/estrada` | Primeiras 15 páginas (~120 registos) | A listagem (~500 registos) não está ordenada por data — mistura provas passadas e futuras pela ordem de inserção. O scraper descarta qualquer prova com data já passada. Sem distância na listagem (fica `null`). Foco na região do Porto. |
-| FPA Competições | `beta.fpacompeticoes.pt/calendar` | Janela mostrada por omissão pela página (~3-4 meses à frente) | Filtra `tipo=Estrada`. Os dados vêm de JSON embutido na página (`window.__remixContext`), não de HTML tradicional — é uma app Remix renderizada no servidor. Um pedido extra por prova a `/competition/{id}` obtém a distância real a partir dos escalões de inscrição. |
+| All4Running | `all4running.pt/provas/provas-de-estrada/` e `/provas-de-trail/` | Todas as páginas de paginação das duas listagens (~10 provas/página) | Nome, data, local, tipo e distâncias vêm diretamente do HTML da listagem. Inclui algumas provas no estrangeiro (ex. Maratona de Chicago). |
+| Portugal Running | `portugalrunning.com/calendario-de-corridas-de-estrada/` | Só o mês corrente e o seguinte (o que a página mostra por omissão) | Apesar do endereço, inclui trails, corta-mato e outras modalidades (duatlo, Hyrox...), sem filtro. Tipo, região e distâncias são **inferidos** a partir das classes CSS de categorização do site (ex.: `evo_corrida-10-km`, `evo_algarve-e-sul`); podem ficar vazios para eventos com etiquetagem atípica. |
+| AAAPorto (Associação de Atletismo do Porto) | `aaporto.com/.../calendario-competitivo/estrada` e `/corta-mato` | Primeiras 15 páginas de cada listagem (~120 registos) | A listagem não está ordenada por data — mistura provas passadas e futuras pela ordem de inserção. O scraper descarta qualquer prova com data já passada. Sem distância na listagem (fica `null`). Foco na região do Porto. |
+| FPA Competições | `beta.fpacompeticoes.pt/calendar` | Janela mostrada por omissão pela página (~3-4 meses à frente) | Aceita `tipo` Estrada, Trail e Corta-Mato. Os dados vêm de JSON embutido na página (`window.__remixContext`), não de HTML tradicional — é uma app Remix renderizada no servidor. Um pedido extra por prova a `/competition/{id}` obtém a distância real a partir dos escalões de inscrição. |
 
-| AA Braga | `aabraga.pt/pt/calendario` | Todos os eventos futuros | JSON embutido na página (`window.AABragaCalendarioEventos`, alimenta um FullCalendar). Usa o campo `type`; quando vem vazio decide pelo nome (`NomeProvaHelper::pareceEstrada`). Exclui âmbito "Internacional". |
-| ADA Leiria | `adal.pt/calendario.php` | Todos os eventos futuros | HTML sem tipo nem local: o tipo é deduzido do nome (exclui trail, marcha, convívios...). O link "Programa" (PDF do regulamento) é usado como link do evento. |
-| AA São Miguel, AA Madeira, AA Santarém | `/wp-json/tribe/events/v1/events` de cada site | Eventos futuros (API paginada) | `TheEventsCalendarScraper`, uma instância por site. Estrada = categoria com "estrada" (ou, sem categorias, pelo nome). Madeira e Santarém têm hoje poucos ou nenhuns eventos no calendário do site (publicam sobretudo em PDF), mas passam a entrar automaticamente se o usarem. |
-| Lap2Go | `lap2go.com/pt/event/list` | Todos os eventos futuros | Plataforma de inscrições/cronometragem. Os dados vêm de atributos `data-day`, `data-name`, `data-city` de cada `a.event-item`. Fica só o que tem ícone de corrida (`type-run`) **e** nome de estrada (`NomeProvaHelper::pareceEstrada`), porque o ícone também marca trails, provas híbridas e de obstáculos. |
+| AA Braga | `aabraga.pt/pt/calendario` | Todos os eventos futuros | JSON embutido na página (`window.AABragaCalendarioEventos`, alimenta um FullCalendar). Aceita os tipos Estrada, Corta-mato, Trail e Montanha (campo `type`); quando vem vazio decide pelo nome (`NomeProvaHelper::pareceCorrida`). Exclui âmbito "Internacional". |
+| ADA Leiria | `adal.pt/calendario.php` | Todos os eventos futuros | HTML sem tipo nem local: decide-se pelo nome (`pareceCorrida`: entram estrada, trail e corta-mato; ficam de fora marcha, convívios, pista, formação...). O link "Programa" (PDF do regulamento) é usado como link do evento. |
+| AA São Miguel, AA Madeira, AA Santarém | `/wp-json/tribe/events/v1/events` de cada site | Eventos futuros (API paginada) | `TheEventsCalendarScraper`, uma instância por site. Entra se uma categoria for de estrada, trail, corta-mato ou montanha (ou, sem categorias, pelo nome). Madeira e Santarém têm hoje poucos ou nenhuns eventos no calendário do site (publicam sobretudo em PDF), mas passam a entrar automaticamente se o usarem. |
+| Lap2Go | `lap2go.com/pt/event/list` | Todos os eventos futuros | Plataforma de inscrições/cronometragem. Os dados vêm de atributos `data-day`, `data-name`, `data-city` de cada `a.event-item`. Fica só o que tem ícone de corrida (`type-run`) **e** nome de corrida (`NomeProvaHelper::pareceCorrida`), porque o ícone também marca provas híbridas e de obstáculos. |
 | Xistarca | `xistarca.pt/eventos/` | Próximos eventos (lista única) | Organizador de corridas de estrada da região de Lisboa. A data não tem ano ("18 de Outubro"): `DateHelper::proximaOcorrencia()` usa o ano corrente ou o seguinte. Exclui só o que pelo nome é outra modalidade (`NomeProvaHelper::eOutraModalidade`). |
-| Stop and Go | `stopandgo.net/events?status=S&modality=1&country=178` | Próximos eventos, todas as páginas | Filtros na query string: próximos, modalidade "Atletismo", Portugal. Data da etiqueta "17 de outubro 2026" (em provas de vários dias, "16 - 18 de outubro 2026", fica o 1.º dia). Exclui caminhadas/ultras pelo nome. |
-| Acorrer | `acorrer.pt/eventos` | Todos os eventos futuros | App Laravel **Livewire**: o HTML inicial vem sem eventos. O scraper repete o que o browser faz — GET da página (com cookies de sessão, `new HttpClient(guardarCookies: true)`), lê `window.livewireScriptConfig` (CSRF + endereço de atualização) e o `wire:snapshot` do componente `provas-grid`, e faz POST JSON com a chamada `load`; a resposta traz o HTML da grelha. Sem modalidade nem ano: decide-se pelo nome (`pareceEstrada`) e o ano por `proximaOcorrencia()`. |
+| Stop and Go | `stopandgo.net/events?status=S&country=178&modality=1` (Atletismo) e `modality=5` (Trail) | Próximos eventos, todas as páginas | Filtros na query string: próximos, modalidade, Portugal. Data da etiqueta "17 de outubro 2026" (em provas de vários dias, "16 - 18 de outubro 2026", fica o 1.º dia). Exclui caminhadas pelo nome. |
+| Acorrer | `acorrer.pt/eventos` | Todos os eventos futuros | App Laravel **Livewire**: o HTML inicial vem sem eventos. O scraper repete o que o browser faz — GET da página (com cookies de sessão, `new HttpClient(guardarCookies: true)`), lê `window.livewireScriptConfig` (CSRF + endereço de atualização) e o `wire:snapshot` do componente `provas-grid`, e faz POST JSON com a chamada `load`; a resposta traz o HTML da grelha. Sem modalidade nem ano: decide-se pelo nome (`pareceCorrida`) e o ano por `proximaOcorrencia()`. |
 
 ### Associações distritais (levantamento de 2026-09-30)
 
@@ -159,7 +160,7 @@ Correr o script várias vezes é seguro: cada fonte reencontra as suas provas pe
    - `nome(): string` — nome curto da fonte (vai para o campo `fonte`).
    - `scrape(): array` — devolve uma lista de objetos `Corrida`.
 2. Usar `HttpClient` para os pedidos e `DOMDocument`/`DOMXPath` para o parsing (ver `All4RunningScraper` como exemplo direto, `PortugalRunningScraper` para heurísticas em classes CSS, ou `AAAPortoScraper` para uma listagem paginada não ordenada por data).
-3. Usar `DateHelper::parseTextoLivre()` ou `DateHelper::toIso()` para normalizar datas em português (`DateHelper::proximaOcorrencia()` quando a fonte só dá dia e mês). Para decidir se é estrada: `NomeProvaHelper::pareceEstrada()` quando a fonte não diz a modalidade, `NomeProvaHelper::eOutraModalidade()` quando já diz que é corrida/atletismo mas mistura trail, caminhadas, obstáculos...
+3. Usar `DateHelper::parseTextoLivre()` ou `DateHelper::toIso()` para normalizar datas em português (`DateHelper::proximaOcorrencia()` quando a fonte só dá dia e mês). Para decidir se é corrida (estrada, trail ou corta-mato): `NomeProvaHelper::pareceCorrida()` quando a fonte não diz a modalidade, `NomeProvaHelper::eOutraModalidade()` quando já diz que é corrida/atletismo mas mistura pista, caminhadas, obstáculos... Passar em `tipo` o tipo que a fonte indicar (ex. "Trail", "Corta-mato") ajuda a classificar a prova (ver filtro "Tipo").
 4. Registar a nova classe em `scripts/run_scraper.php` (`require` + adicionar ao array `$scrapers`).
 
 ## Site público (`public/`)
@@ -178,7 +179,7 @@ O site público está em **https://corridas.eu** (antes: `corridas.espacodecodig
 
 ### Filtros do calendário
 
-`index.php` filtra por mês, **distância** (faixas pré-definidas em `DistanciaHelper::FAIXAS`, ex. "5 a 10 km", "21 a 42 km"), fonte, e pesquisa livre por nome/local. O filtro de distância usa a tabela `corridas_distancias`, sincronizada automaticamente pelo scraper a partir do texto em `corridas.distancias` (`DistanciaHelper::extrairKm()`).
+`index.php` filtra por **tipo** (estrada, trail, corta-mato — coluna `corridas.categoria`, calculada no fim de cada execução do scraper por `Database::atualizarCategorias()` a partir do nome e do tipo, com `NomeProvaHelper::categoria()`; ultra trail e montanha contam como trail), mês, **distância** (faixas pré-definidas em `DistanciaHelper::FAIXAS`, ex. "5 a 10 km", "21 a 42 km"), fonte, e pesquisa livre por nome/local. O filtro de distância usa a tabela `corridas_distancias`, sincronizada automaticamente pelo scraper a partir do texto em `corridas.distancias` (`DistanciaHelper::extrairKm()`).
 
 ### Lista de provas, carregamento progressivo e miniaturas
 
@@ -186,7 +187,11 @@ O site público está em **https://corridas.eu** (antes: `corridas.espacodecodig
 - A página abre com 20 provas (`PROVAS_POR_PAGINA` em `index.php`). No fim da lista há um link "Mostrar mais provas" para `?pagina=N`; o `assets/app.js` observa-o (`IntersectionObserver`) e, ao aproximar-se, pede `?pagina=N&parcial=1`, que devolve só as secções de meses dessa página. Provas de um mês que já está na página juntam-se à secção desse mês. Sem JavaScript o link continua a funcionar (abre a página seguinte).
 - "Guardar" (`form.favorito`) é enviado por `fetch` com `Accept: application/json`, para não recarregar a página nem perder as provas já carregadas; se o pedido falhar, o formulário é enviado da forma normal.
 - **Miniaturas** (`corridas.imagem_url`): a Acorrer e a Stop and Go dão o cartaz na listagem; para as restantes, no fim de cada execução o scraper abre as páginas do evento de todas as fontes da prova e usa o `og:image`/`twitter:image` (ou a imagem de destaque WordPress, `img.wp-post-image`) — `ImagemEventoHelper`. Cada prova só é procurada uma vez (`imagem_procurada_em`) e há um limite de 80 provas por execução. Imagens usadas por 3 ou mais provas são descartadas (quase sempre o logótipo do site). As imagens são mostradas diretamente do site de origem (`referrerpolicy="no-referrer"`); sem imagem, ou se ela falhar, vê-se um **dorsal** desenhado em CSS com o mês e o dia.
-- **Base de dados criada antes das miniaturas:** correr uma vez `sql/migracao_004_imagens.sql`.
+- **Agrupada por dia:** dentro de cada mês, o dia aparece uma vez (`div.dia`): um dorsal com o dia da semana e o número, que fica fixo ao descer enquanto há provas desse dia, e ao lado os cartões das provas. No telemóvel o dorsal fica por cima, com a data por extenso. Ao carregar mais provas, as de um dia que já está na página juntam-se a esse dia (`data-dia`).
+- **Cartão inteiro clicável:** o link do nome da prova tem um `::after` que cobre o cartão (`.com-link`); o botão "Guardar" e os links das fontes ficam por cima (`z-index`).
+- **Fade in:** os cartões aparecem ao chegar ao ecrã (`IntersectionObserver` em `app.js`, classe `visivel`). Só com a classe `js` no `<html>`, posta por um script no `<head>`, que a retira se o `app.js` não correr em 3 s — os cartões nunca ficam escondidos. Respeita "reduzir movimento".
+- **Frase do total** de acordo com os filtros, ex. "3 provas de trail em dezembro, de 5 a 10 km".
+- **Base de dados criada antes das miniaturas:** correr uma vez `sql/migracao_004_imagens.sql`; antes do filtro "Tipo": `sql/migracao_005_categoria.sql`.
 
 ### Contas e "o meu calendário"
 

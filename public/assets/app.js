@@ -3,12 +3,42 @@
  *  1. filtros aplicam-se ao mudar uma lista, sem carregar em "Procurar";
  *  2. mais provas carregam sozinhas ao chegar ao fim da lista;
  *  3. guardar uma prova no "meu calendário" sem recarregar a página;
- *  4. botão para voltar ao topo depois de descer bastante.
+ *  4. botão para voltar ao topo depois de descer bastante;
+ *  5. os cartões das provas aparecem com fade in ao chegar ao ecrã.
  */
 (function () {
     'use strict';
 
+    window.calendarioPronto = true; // ver partials/head.php
     var reduzirMovimento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // 5. Fade in dos cartões ----------------------------------------------------
+    // Os que entram juntos aparecem em cascata (40 ms de diferença, no máximo 240 ms).
+    var revelador = 'IntersectionObserver' in window
+        ? new IntersectionObserver(function (entradas) {
+            var ordem = 0;
+            entradas.forEach(function (entrada) {
+                if (!entrada.isIntersecting) { return; }
+                var prova = entrada.target;
+                prova.style.transitionDelay = Math.min(ordem++ * 40, 240) + 'ms';
+                prova.classList.add('visivel');
+                // Depois de aparecer, o atraso deixa de se aplicar (ex. ao passar o rato).
+                prova.addEventListener('transitionend', function () { prova.style.transitionDelay = ''; }, { once: true });
+                revelador.unobserve(entrada.target);
+            });
+        }, { rootMargin: '0px 0px -40px 0px' })
+        : null;
+
+    function revelar(raiz) {
+        raiz.querySelectorAll('li.prova:not(.visivel)').forEach(function (prova) {
+            if (revelador && !reduzirMovimento) {
+                revelador.observe(prova);
+            } else {
+                prova.classList.add('visivel');
+            }
+        });
+    }
+    revelar(document);
 
     // 1. Filtros ---------------------------------------------------------------
     var filtros = document.querySelector('form.filtros');
@@ -58,16 +88,27 @@
                 var modelo = document.createElement('template');
                 modelo.innerHTML = html;
 
-                // Provas do mesmo mês juntam-se à secção desse mês que já está na página.
+                // Provas de um mês (ou dia) que já está na página juntam-se a esse
+                // mês (ou dia), em vez de o repetir.
                 modelo.content.querySelectorAll('section.mes').forEach(function (seccao) {
                     var seccoes = listaProvas.querySelectorAll('section.mes');
-                    var ultima = seccoes[seccoes.length - 1];
-                    if (ultima && ultima.dataset.mes === seccao.dataset.mes) {
-                        var destino = ultima.querySelector('ul.lista');
-                        seccao.querySelectorAll('li.prova').forEach(function (prova) { destino.appendChild(prova); });
-                    } else {
+                    var ultimaSeccao = seccoes[seccoes.length - 1];
+                    if (!ultimaSeccao || ultimaSeccao.dataset.mes !== seccao.dataset.mes) {
                         listaProvas.appendChild(seccao);
+                        revelar(seccao);
+                        return;
                     }
+                    seccao.querySelectorAll('.dia').forEach(function (dia) {
+                        var dias = ultimaSeccao.querySelectorAll('.dia');
+                        var ultimoDia = dias[dias.length - 1];
+                        if (ultimoDia && ultimoDia.dataset.dia === dia.dataset.dia) {
+                            var destino = ultimoDia.querySelector('ul.provas');
+                            dia.querySelectorAll('li.prova').forEach(function (prova) { destino.appendChild(prova); });
+                        } else {
+                            ultimaSeccao.appendChild(dia);
+                        }
+                    });
+                    revelar(ultimaSeccao);
                 });
 
                 if (observador) { observador.unobserve(link); }

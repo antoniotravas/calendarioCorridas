@@ -3,14 +3,18 @@
 declare(strict_types=1);
 
 /**
- * Recolhe provas de estrada listadas em all4running.pt.
+ * Recolhe provas de estrada e de trail listadas em all4running.pt (uma
+ * listagem por tipo, com a mesma estrutura).
  *
  * A listagem é paginada (cerca de 10 provas por página); a primeira página
  * é usada para descobrir quantas páginas existem no total.
  */
 final class All4RunningScraper implements ScraperInterface
 {
-    private const BASE_URL = 'https://www.all4running.pt/provas/provas-de-estrada/';
+    private const LISTAGENS = [
+        'https://www.all4running.pt/provas/provas-de-estrada/',
+        'https://www.all4running.pt/provas/provas-de-trail/',
+    ];
 
     public function __construct(private readonly HttpClient $http)
     {
@@ -23,15 +27,19 @@ final class All4RunningScraper implements ScraperInterface
 
     public function scrape(): array
     {
-        $primeiraPagina = $this->http->get(self::BASE_URL);
-        $totalPaginas = $this->descobrirTotalPaginas($primeiraPagina);
+        $corridas = [];
 
-        $corridas = $this->extrairCorridas($primeiraPagina, self::BASE_URL);
+        foreach (self::LISTAGENS as $listagem) {
+            $primeiraPagina = $this->http->get($listagem);
+            $totalPaginas = $this->descobrirTotalPaginas($primeiraPagina);
 
-        for ($pagina = 2; $pagina <= $totalPaginas; $pagina++) {
-            $url = self::BASE_URL . "page/{$pagina}/";
-            $html = $this->http->get($url);
-            $corridas = [...$corridas, ...$this->extrairCorridas($html, $url)];
+            $corridas = [...$corridas, ...$this->extrairCorridas($primeiraPagina, $listagem)];
+
+            for ($pagina = 2; $pagina <= $totalPaginas; $pagina++) {
+                $url = $listagem . "page/{$pagina}/";
+                $html = $this->http->get($url);
+                $corridas = [...$corridas, ...$this->extrairCorridas($html, $url)];
+            }
         }
 
         return $corridas;
@@ -39,7 +47,7 @@ final class All4RunningScraper implements ScraperInterface
 
     private function descobrirTotalPaginas(string $html): int
     {
-        if (preg_match_all('#/provas-de-estrada/page/(\d+)/#', $html, $matches)) {
+        if (preg_match_all('#/provas-de-(?:estrada|trail)/page/(\d+)/#', $html, $matches)) {
             return max(array_map('intval', $matches[1]));
         }
 

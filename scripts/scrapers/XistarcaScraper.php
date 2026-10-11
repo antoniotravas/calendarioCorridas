@@ -58,7 +58,7 @@ final class XistarcaScraper implements ScraperInterface, FonteOrganizadora
                 dataProva: $dataProva,
                 local: $local !== '' ? $local : null,
                 distancias: null,
-                tipo: 'Estrada',
+                tipo: null,
                 regiao: null,
                 urlEvento: $urlEvento,
                 fonte: $this->nome(),
