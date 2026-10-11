@@ -24,7 +24,10 @@
     --letra: "Barlow", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --letra-estreita: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
     --largura: 920px;
-    --altura-filtros: 61px;
+    /* Alturas da barra de filtros e do título do mês: o título do mês fica
+       fixo por baixo da barra, e o dorsal do dia por baixo do título. */
+    --altura-filtros: 60px;
+    --altura-mes: 56px;
 }
 
 * { box-sizing: border-box; }
@@ -141,13 +144,22 @@ main {
 .resumo a { margin-left: 10px; color: var(--sinal); font-weight: 600; text-decoration: none; }
 .resumo a:hover { text-decoration: underline; }
 
-/* Meses */
+/* Meses: o título fica fixo ao descer (até o mês seguinte o empurrar) */
+section.mes { margin-top: 14px; }
 section.mes > h2 {
+    position: sticky;
+    top: var(--altura-filtros);
+    z-index: 5;
+    height: var(--altura-mes);
+    margin: 0 0 4px;
+    padding: 12px 0 8px;
     font-family: var(--letra-estreita);
     font-weight: 600;
     font-size: 1.9rem;
-    line-height: 1.1;
-    margin: 26px 0 12px;
+    line-height: 36px;
+    background: rgba(245, 247, 249, 0.94);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
 }
 
 /* Dias: o dorsal com o dia à esquerda (fica à vista ao descer), as provas à direita */
@@ -159,7 +171,7 @@ section.mes > h2 {
 }
 .dia-marca {
     position: sticky;
-    top: calc(var(--altura-filtros) + 12px);
+    top: calc(var(--altura-filtros) + var(--altura-mes) + 8px);
     align-self: start;
 }
 .dia-titulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: 0; }
@@ -408,9 +420,9 @@ footer {
     flex-wrap: wrap;
     gap: 12px;
 }
-/* Sem barra de filtros fixa, o dia fica logo abaixo do topo da janela */
-.cabeca-pagina ~ section .dia-marca,
-.cabeca-pagina ~ .dia-marca { top: 12px; }
+/* Sem barra de filtros fixa, o mês fica no topo da janela e o dia logo abaixo */
+.cabeca-pagina ~ section.mes > h2 { top: 0; }
+.cabeca-pagina ~ section .dia-marca { top: calc(var(--altura-mes) + 8px); }
 
 /* Exportar "o meu calendário" (.ics): barra de ícones, sem texto visível */
 nav.exportar {
@@ -555,7 +567,8 @@ details.exportar-link[open] > summary { border-color: var(--sinal); color: var(-
     form.filtros:not(.com-js) .filtrar { grid-column: 1 / -1; }
     form.filtros select { font-size: 0.82rem; padding: 0 2px; }
 
-    section.mes > h2 { font-size: 1.6rem; margin-top: 22px; }
+    :root { --altura-filtros: 102px; --altura-mes: 48px; }
+    section.mes > h2 { font-size: 1.6rem; line-height: 30px; padding: 10px 0 8px; }
 
     /* O dia passa para cima das provas: dorsal pequeno + data por extenso */
     .dia { grid-template-columns: 1fr; gap: 8px; }
