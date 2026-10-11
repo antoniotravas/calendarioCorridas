@@ -32,22 +32,21 @@ $urlSubscricao = ($https ? 'https://' : 'http://') . $enderecoIcs;
 $urlWebcal = 'webcal://' . $enderecoIcs;
 $urlGoogle = 'https://calendar.google.com/calendar/render?cid=' . rawurlencode($urlWebcal);
 
-$tituloPagina = 'O Meu Calendário';
-$subtituloPagina = 'Provas que guardaste, ' . $utilizador['nome'] . '.';
+$tituloDocumento = 'O meu calendário — Corridas de estrada';
+$voltar = '/meu-calendario.php';
 
 ?><!DOCTYPE html>
 <html lang="pt-PT">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= htmlspecialchars($tituloPagina) ?> — Calendário de Corridas</title>
-<link rel="stylesheet" href="<?= htmlspecialchars($urlEstilo) ?>">
+<?php require __DIR__ . '/partials/head.php'; ?>
 </head>
 <body>
 
 <?php require __DIR__ . '/partials/cabecalho.php'; ?>
 
 <main>
+    <div class="cabeca-pagina">
+    <h1 class="pagina-titulo">O meu calendário</h1>
     <?php /* Exportar para o calendário do telemóvel: só ícones; a explicação
              fica no title/aria-label de cada botão. */ ?>
     <nav class="exportar" aria-label="Exportar o meu calendário">
@@ -106,6 +105,7 @@ $subtituloPagina = 'Provas que guardaste, ' . $utilizador['nome'] . '.';
             </div>
         </details>
     </nav>
+    </div>
     <script>
         document.getElementById('copiar-link-ics').addEventListener('click', function () {
             var botao = this;
@@ -118,8 +118,8 @@ $subtituloPagina = 'Provas que guardaste, ' . $utilizador['nome'] . '.';
 
     <?php if ($corridas === []): ?>
         <p class="vazio">
-            Ainda não guardaste nenhuma prova. Vai ao <a href="/">calendário</a> e clica em
-            "+ Adicionar" nas provas que queres seguir.
+            Ainda não guardaste nenhuma prova.
+            <a href="/">Escolher provas no calendário</a>
         </p>
     <?php else: ?>
         <?php require __DIR__ . '/partials/lista-corridas.php'; ?>
@@ -127,7 +127,7 @@ $subtituloPagina = 'Provas que guardaste, ' . $utilizador['nome'] . '.';
 </main>
 
 <footer>
-    <?= count($corridas) ?> provas no teu calendário · CalendarioCorridas
+    <?= count($corridas) === 1 ? '1 prova guardada' : count($corridas) . ' provas guardadas' ?>
 </footer>
 
 </body>

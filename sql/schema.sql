@@ -17,6 +17,10 @@ CREATE TABLE IF NOT EXISTS corridas (
     url_evento     VARCHAR(500) NULL,
     fonte          VARCHAR(100) NOT NULL,
     url_fonte      VARCHAR(500) NULL,
+    -- Miniatura da prova: vem da listagem da fonte ou do og:image da página
+    -- do evento (procurada uma vez; imagem_procurada_em evita repetir).
+    imagem_url     VARCHAR(500) NULL,
+    imagem_procurada_em DATETIME NULL,
     hash_dedup     CHAR(40) NOT NULL,
     criado_em      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     atualizado_em  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

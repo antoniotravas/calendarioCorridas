@@ -104,6 +104,20 @@ final class DateHelper
     }
 
     /**
+     * Formata uma data "Y-m-d" sem o ano, ex: "Domingo, 18 de outubro".
+     */
+    public static function formatarDiaMes(string $dataIso): string
+    {
+        $ts = strtotime($dataIso);
+        if ($ts === false) {
+            return $dataIso;
+        }
+
+        return ucfirst(self::DIAS_SEMANA[(int) date('w', $ts)]) . ', ' . (int) date('j', $ts)
+            . ' de ' . self::MESES_NOMES[(int) date('n', $ts)];
+    }
+
+    /**
      * Nome do mês em português a partir do número (1-12).
      */
     public static function nomeMes(int $mes): string

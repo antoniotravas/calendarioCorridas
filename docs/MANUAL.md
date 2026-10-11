@@ -35,6 +35,8 @@ Corrida (objeto normalizado: nome, data, local, distâncias, tipo, região, url_
       ▼
 Tabelas `corridas` + `corridas_fontes` + `corridas_distancias` (MySQL)
       │  no fim: Database::consolidarRepetidas()  (junta repetidas que já estejam na BD)
+      │          Database::aplicarLinksOrganizadores()
+      │          miniaturas: ImagemEventoHelper (og:image das páginas de evento, até 80 provas por execução)
 ```
 
 `scripts/run_scraper.php` é o ponto de entrada: instancia todos os scrapers, corre cada um dentro de um `try/catch` (uma fonte a falhar não impede as restantes) e grava os resultados. No fim imprime (em STDERR) uma secção **"ATENÇÃO — fontes com problemas"** quando uma fonte falhou, ou quando devolveu 0 provas apesar de ter provas futuras na BD — sinal de que o site mudou e o scraper precisa de revisão.
@@ -62,6 +64,7 @@ A fonte que criou a prova (`corridas.fonte`, "fonte principal") define os dados;
 sql/schema.sql                       -- schema completo (corridas, corridas_fontes, corridas_distancias, utilizadores, favoritos)
 sql/migracao_002_corridas_fontes.sql -- para BDs criadas antes de corridas_fontes (correr uma vez)
 sql/migracao_003_ics_token.sql       -- para BDs criadas antes do link de subscrição .ics (correr uma vez)
+sql/migracao_004_imagens.sql         -- para BDs criadas antes das miniaturas (correr uma vez)
 
 scripts/config.example.php           -- template de credenciais (copiar para config.php)
 scripts/lib/Corrida.php              -- objeto de valor com os dados normalizados de uma prova
@@ -86,18 +89,20 @@ scripts/scrapers/FonteOrganizadora.php        -- marca fontes cujo link do event
 scripts/run_scraper.php              -- ponto de entrada do scraper (CLI)
 
 public/_bootstrap.php                -- sessão + ligação BD + $auth, incluído por todas as páginas
-public/index.php                     -- calendário público (filtros: mês, distância, fonte, pesquisa)
+public/index.php                     -- calendário público (filtros: mês, distância, fonte, pesquisa), 20 provas por página; ?parcial=1 devolve só a lista (carregamento progressivo)
 public/meu-calendario.php            -- provas guardadas pelo utilizador autenticado + botões de exportação .ics
 public/meu-calendario-ics.php        -- "o meu calendário" em .ics (descarga com sessão, ou subscrição com ?token=)
 public/lib/CalendarioIcs.php         -- gera o texto iCalendar (RFC 5545) a partir das provas
-public/favorito.php                  -- endpoint POST: adiciona/remove uma prova do "meu calendário"
+public/favorito.php                  -- endpoint POST: adiciona/remove uma prova do "meu calendário" (responde JSON se o pedido aceitar application/json)
 public/login.php / registo.php / logout.php
 public/auth/google-iniciar.php       -- redireciona para o ecrã de login da Google
 public/auth/google-callback.php      -- troca o "code" por perfil e inicia sessão
 public/lib/Auth.php                  -- sessão atual, CSRF, exigirLogin()
-public/partials/cabecalho.php        -- nav com estado de sessão, reutilizado em todas as páginas
-public/partials/lista-corridas.php   -- listagem de provas agrupada por mês, com botão de favorito
-public/assets/estilo.css             -- CSS partilhado
+public/partials/head.php             -- <head> comum (letra Barlow do Google Fonts, CSS e JS com versão)
+public/partials/cabecalho.php        -- topo: nome do site e conta, reutilizado em todas as páginas
+public/partials/lista-corridas.php   -- provas agrupadas por mês (<section data-mes>), com miniatura/dorsal e botão "Guardar"
+public/assets/estilo.css             -- CSS partilhado (tema e cores em variáveis no :root)
+public/assets/app.js                 -- filtros automáticos, carregamento progressivo, "Guardar" sem recarregar, voltar ao topo
 
 docs/MANUAL.md                       -- este ficheiro
 ```
@@ -175,13 +180,21 @@ O site público está em **https://corridas.eu** (antes: `corridas.espacodecodig
 
 `index.php` filtra por mês, **distância** (faixas pré-definidas em `DistanciaHelper::FAIXAS`, ex. "5 a 10 km", "21 a 42 km"), fonte, e pesquisa livre por nome/local. O filtro de distância usa a tabela `corridas_distancias`, sincronizada automaticamente pelo scraper a partir do texto em `corridas.distancias` (`DistanciaHelper::extrairKm()`).
 
+### Lista de provas, carregamento progressivo e miniaturas
+
+- Só aparecem provas **a partir de hoje** (`Database::filtrosCorridas()`); as sem data vão no fim. O filtro de mês dá a próxima ocorrência desse mês.
+- A página abre com 20 provas (`PROVAS_POR_PAGINA` em `index.php`). No fim da lista há um link "Mostrar mais provas" para `?pagina=N`; o `assets/app.js` observa-o (`IntersectionObserver`) e, ao aproximar-se, pede `?pagina=N&parcial=1`, que devolve só as secções de meses dessa página. Provas de um mês que já está na página juntam-se à secção desse mês. Sem JavaScript o link continua a funcionar (abre a página seguinte).
+- "Guardar" (`form.favorito`) é enviado por `fetch` com `Accept: application/json`, para não recarregar a página nem perder as provas já carregadas; se o pedido falhar, o formulário é enviado da forma normal.
+- **Miniaturas** (`corridas.imagem_url`): a Acorrer e a Stop and Go dão o cartaz na listagem; para as restantes, no fim de cada execução o scraper abre as páginas do evento de todas as fontes da prova e usa o `og:image`/`twitter:image` (ou a imagem de destaque WordPress, `img.wp-post-image`) — `ImagemEventoHelper`. Cada prova só é procurada uma vez (`imagem_procurada_em`) e há um limite de 80 provas por execução. Imagens usadas por 3 ou mais provas são descartadas (quase sempre o logótipo do site). As imagens são mostradas diretamente do site de origem (`referrerpolicy="no-referrer"`); sem imagem, ou se ela falhar, vê-se um **dorsal** desenhado em CSS com o mês e o dia.
+- **Base de dados criada antes das miniaturas:** correr uma vez `sql/migracao_004_imagens.sql`.
+
 ### Contas e "o meu calendário"
 
 - Registo por email/password (`public/registo.php`) — password guardada com `password_hash()`.
 - Login por email/password (`public/login.php`) ou com Google (`public/auth/google-iniciar.php` → `google-callback.php`), fluxo OAuth 2.0 "authorization code": troca o `code` por um `access_token` e pede o perfil ao endpoint `userinfo` da Google (não valida o `id_token` manualmente — evita reimplementar a verificação de assinatura JWT).
 - Um utilizador pode existir só com password, só com Google, ou com as duas (a conta é associada pelo email).
 - Sessão guardada em `$_SESSION['utilizador_id']`; todas as ações que alteram estado (favoritos, logout) validam um token CSRF guardado em sessão.
-- "O meu calendário" (`public/meu-calendario.php`) lista as provas marcadas pelo utilizador; o botão "+ Adicionar" / "✓ No meu calendário" em cada prova chama `public/favorito.php` (POST), que alterna a linha em `favoritos`.
+- "O meu calendário" (`public/meu-calendario.php`) lista as provas marcadas pelo utilizador; o botão "Guardar" / "Guardada" em cada prova chama `public/favorito.php` (POST), que alterna a linha em `favoritos`. Sem sessão, o botão leva ao login e volta à mesma página.
 
 ### Exportar "o meu calendário" (.ics)
 

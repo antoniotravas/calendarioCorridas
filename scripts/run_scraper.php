@@ -6,6 +6,7 @@ require __DIR__ . '/lib/Corrida.php';
 require __DIR__ . '/lib/DateHelper.php';
 require __DIR__ . '/lib/DistanciaHelper.php';
 require __DIR__ . '/lib/NomeProvaHelper.php';
+require __DIR__ . '/lib/ImagemEventoHelper.php';
 require __DIR__ . '/lib/HttpClient.php';
 require __DIR__ . '/lib/Database.php';
 require __DIR__ . '/scrapers/ScraperInterface.php';
@@ -126,6 +127,35 @@ $organizadoras = array_map(
     array_values(array_filter($scrapers, fn (ScraperInterface $s) => $s instanceof FonteOrganizadora))
 );
 $linksOrganizador = $db->aplicarLinksOrganizadores($organizadoras);
+
+// Miniaturas: para as provas futuras ainda sem imagem, procura o cartaz nas
+// páginas do evento de cada fonte. Cada prova só é procurada uma vez, e há um
+// limite por execução para não fazer centenas de pedidos de seguida.
+$httpImagens = new HttpClient(10);
+$imagensEncontradas = 0;
+$provasSemImagem = $db->provasParaProcurarImagem(80);
+foreach ($provasSemImagem as $corridaId => $paginas) {
+    $imagem = null;
+    foreach ($paginas as $pagina) {
+        try {
+            $imagem = ImagemEventoHelper::extrair($httpImagens->get($pagina), $pagina);
+        } catch (Throwable) {
+            continue; // página em baixo ou a recusar o pedido: tenta a seguinte
+        }
+        if ($imagem !== null) {
+            break;
+        }
+    }
+    $db->gravarImagemProcurada($corridaId, $imagem);
+    $imagensEncontradas += $imagem !== null ? 1 : 0;
+}
+$imagensDescartadas = $db->descartarImagensGenericas();
+printf(
+    "\nImagens: procuradas em %d provas, %d encontradas, %d descartadas por serem logótipos repetidos.\n",
+    count($provasSemImagem),
+    $imagensEncontradas,
+    $imagensDescartadas
+);
 
 printf(
     "\nTotal: %d novas, %d atualizadas, %d juntas a provas de outras fontes, %d repetidas antigas consolidadas, "

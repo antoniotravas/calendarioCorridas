@@ -39,12 +39,10 @@ $googleUrl = '/auth/google-iniciar.php?next=' . urlencode($next);
 ?><!DOCTYPE html>
 <html lang="pt-PT">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Entrar — Calendário de Corridas</title>
-<link rel="stylesheet" href="<?= htmlspecialchars($urlEstilo) ?>">
+<?php $tituloDocumento = 'Entrar — Corridas de estrada'; require __DIR__ . '/partials/head.php'; ?>
 </head>
 <body>
+<?php require __DIR__ . '/partials/cabecalho.php'; ?>
 <main>
     <div class="auth-wrap">
         <h1>Entrar</h1>

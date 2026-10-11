@@ -4,79 +4,135 @@ declare(strict_types=1);
 
 require __DIR__ . '/_bootstrap.php';
 
+/** Provas por página: as seguintes carregam à medida que se desce (assets/app.js). */
+const PROVAS_POR_PAGINA = 20;
+
 $mes = isset($_GET['mes']) && $_GET['mes'] !== '' ? (int) $_GET['mes'] : null;
 $fonte = isset($_GET['fonte']) && $_GET['fonte'] !== '' ? (string) $_GET['fonte'] : null;
 $procura = isset($_GET['procura']) && trim((string) $_GET['procura']) !== '' ? trim((string) $_GET['procura']) : null;
 $distanciaChave = isset($_GET['distancia']) && $_GET['distancia'] !== '' ? (string) $_GET['distancia'] : null;
 $distanciaFaixa = DistanciaHelper::intervaloPorChave($distanciaChave);
+$pagina = max(1, (int) ($_GET['pagina'] ?? 1));
+// ?parcial=1: só a lista desta página, para o JavaScript a acrescentar à que já está à vista.
+$parcial = isset($_GET['parcial']);
 
 $utilizadorAtual = $auth->utilizadorAtual();
+$total = $db->contarCorridas($mes, $fonte, $procura, $distanciaFaixa);
 $corridas = $db->listarCorridas(
     $mes,
     $fonte,
     $procura,
     $distanciaFaixa,
-    $utilizadorAtual['id'] ?? null
+    $utilizadorAtual['id'] ?? null,
+    PROVAS_POR_PAGINA,
+    ($pagina - 1) * PROVAS_POR_PAGINA
 );
-$fontesDisponiveis = $db->listarFontes();
 $grupos = DateHelper::agruparPorMes($corridas);
 
-$tituloPagina = 'Calendário de Corridas de Estrada';
-$subtituloPagina = 'Provas de atletismo em estrada em Portugal, recolhidas automaticamente de fontes portuguesas.';
+$filtrosAtivos = array_filter(
+    ['mes' => $mes, 'distancia' => $distanciaChave, 'fonte' => $fonte, 'procura' => $procura],
+    static fn ($v) => $v !== null
+);
+$voltar = '/' . ($filtrosAtivos !== [] ? '?' . http_build_query($filtrosAtivos) : '');
+$haMais = $pagina * PROVAS_POR_PAGINA < $total;
+$urlSeguinte = '/?' . http_build_query($filtrosAtivos + ['pagina' => $pagina + 1]);
+
+$blocoMais = static function () use ($haMais, $urlSeguinte): void {
+    if ($haMais): ?>
+        <a class="mais" href="<?= htmlspecialchars($urlSeguinte) ?>"
+           data-parcial="<?= htmlspecialchars($urlSeguinte . '&parcial=1') ?>">Mostrar mais provas</a>
+    <?php endif;
+};
+
+if ($parcial) {
+    require __DIR__ . '/partials/lista-corridas.php';
+    $blocoMais();
+    exit;
+}
+
+$fontesDisponiveis = $db->listarFontes();
+$tituloDocumento = 'Corridas de estrada em Portugal — calendário';
 
 ?><!DOCTYPE html>
 <html lang="pt-PT">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= htmlspecialchars($tituloPagina) ?></title>
-<link rel="stylesheet" href="<?= htmlspecialchars($urlEstilo) ?>">
+<?php require __DIR__ . '/partials/head.php'; ?>
 </head>
 <body>
 
 <?php require __DIR__ . '/partials/cabecalho.php'; ?>
 
-<main>
-    <form class="filtros" method="get">
-        <select name="mes">
-            <option value="">Todos os meses</option>
-            <?php for ($m = 1; $m <= 12; $m++): ?>
-                <option value="<?= $m ?>" <?= $mes === $m ? 'selected' : '' ?>>
-                    <?= ucfirst(DateHelper::nomeMes($m)) ?>
-                </option>
-            <?php endfor; ?>
-        </select>
+<div class="barra-filtros">
+    <form class="filtros" method="get" action="/" role="search">
+        <label class="procura">
+            <span class="sr-only">Procurar prova ou localidade</span>
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+            <input type="search" name="procura" placeholder="Prova ou localidade"
+                   value="<?= htmlspecialchars($procura ?? '') ?>" autocomplete="off">
+        </label>
 
-        <select name="distancia">
-            <option value="">Todas as distâncias</option>
-            <?php foreach (DistanciaHelper::FAIXAS as $chave => $faixa): ?>
-                <option value="<?= htmlspecialchars($chave) ?>" <?= $distanciaChave === $chave ? 'selected' : '' ?>>
-                    <?= htmlspecialchars($faixa['label']) ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
+        <label>
+            <span class="sr-only">Mês</span>
+            <select name="mes">
+                <option value="">Mês</option>
+                <?php for ($m = 1; $m <= 12; $m++): ?>
+                    <option value="<?= $m ?>" <?= $mes === $m ? 'selected' : '' ?>><?= ucfirst(DateHelper::nomeMes($m)) ?></option>
+                <?php endfor; ?>
+            </select>
+        </label>
 
-        <select name="fonte">
-            <option value="">Todas as fontes</option>
-            <?php foreach ($fontesDisponiveis as $f): ?>
-                <option value="<?= htmlspecialchars($f) ?>" <?= $fonte === $f ? 'selected' : '' ?>>
-                    <?= htmlspecialchars($f) ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
+        <label>
+            <span class="sr-only">Distância</span>
+            <select name="distancia">
+                <option value="">Distância</option>
+                <?php foreach (DistanciaHelper::FAIXAS as $chave => $faixa): ?>
+                    <option value="<?= htmlspecialchars($chave) ?>" <?= $distanciaChave === $chave ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($faixa['label']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </label>
 
-        <input type="text" name="procura" placeholder="Pesquisar por nome ou local..."
-               value="<?= htmlspecialchars($procura ?? '') ?>">
+        <label>
+            <span class="sr-only">Fonte</span>
+            <select name="fonte">
+                <option value="">Fonte</option>
+                <?php foreach ($fontesDisponiveis as $f): ?>
+                    <option value="<?= htmlspecialchars($f) ?>" <?= $fonte === $f ? 'selected' : '' ?>><?= htmlspecialchars($f) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </label>
 
-        <button type="submit">Filtrar</button>
-        <a class="limpar" href="?">Limpar filtros</a>
+        <button type="submit" class="filtrar">Procurar</button>
     </form>
+</div>
 
-    <?php require __DIR__ . '/partials/lista-corridas.php'; ?>
+<main>
+    <h1 class="sr-only">Calendário de corridas de estrada em Portugal</h1>
+
+    <p class="resumo" aria-live="polite">
+        <?= $total === 1 ? '1 prova' : $total . ' provas' ?> a partir de hoje
+        <?php if ($filtrosAtivos !== []): ?>
+            <a href="/">Limpar filtros</a>
+        <?php endif; ?>
+    </p>
+
+    <?php if ($corridas === []): ?>
+        <p class="vazio">Nenhuma prova com estes filtros.</p>
+    <?php else: ?>
+        <div id="lista-provas">
+            <?php require __DIR__ . '/partials/lista-corridas.php'; ?>
+        </div>
+        <?php $blocoMais(); ?>
+    <?php endif; ?>
 </main>
 
+<button type="button" class="voltar-topo" hidden aria-label="Voltar ao topo">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
+</button>
+
 <footer>
-    <?= count($corridas) ?> provas encontradas · CalendarioCorridas
+    Provas recolhidas automaticamente de sites portugueses de atletismo. Confirma sempre no site da prova.
 </footer>
 
 </body>

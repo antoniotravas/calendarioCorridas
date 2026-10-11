@@ -25,7 +25,7 @@ final class Database
     }
 
     /** Campos que uma fonte secundária pode preencher quando a fonte principal os deixou vazios. */
-    private const CAMPOS_COMPLEMENTARES = ['local', 'distancias', 'tipo', 'regiao', 'url_evento'];
+    private const CAMPOS_COMPLEMENTARES = ['local', 'distancias', 'tipo', 'regiao', 'url_evento', 'imagem_url'];
 
     /**
      * Grava uma prova vinda de uma fonte:
@@ -67,9 +67,9 @@ final class Database
 
         $stmt = $this->pdo->prepare(<<<SQL
             INSERT INTO corridas
-                (nome, data_prova, local, distancias, tipo, regiao, url_evento, fonte, url_fonte, hash_dedup)
+                (nome, data_prova, local, distancias, tipo, regiao, url_evento, fonte, url_fonte, imagem_url, hash_dedup)
             VALUES
-                (:nome, :data_prova, :local, :distancias, :tipo, :regiao, :url_evento, :fonte, :url_fonte, :hash_dedup)
+                (:nome, :data_prova, :local, :distancias, :tipo, :regiao, :url_evento, :fonte, :url_fonte, :imagem_url, :hash_dedup)
             SQL);
         $stmt->execute([
             'nome' => $corrida->nome,
@@ -81,6 +81,7 @@ final class Database
             'url_evento' => $corrida->urlEvento,
             'fonte' => $corrida->fonte,
             'url_fonte' => $corrida->urlFonte,
+            'imagem_url' => $corrida->imagemUrl,
             'hash_dedup' => $hash,
         ]);
         $corridaId = (int) $this->pdo->lastInsertId();
@@ -156,6 +157,12 @@ final class Database
             foreach ($novos as $campo => $valor) {
                 $valores[$campo] = ($atual[$campo] === null || $atual[$campo] === '') ? $valor : $atual[$campo];
             }
+        }
+
+        // A imagem nunca é apagada por uma fonte que não a tem: pode ter sido
+        // encontrada noutra fonte ou na página do evento (provasParaProcurarImagem).
+        if ($corrida->imagemUrl !== null && ($atual['fonte'] === $corrida->fonte || empty($atual['imagem_url']))) {
+            $valores['imagem_url'] = $corrida->imagemUrl;
         }
 
         $this->atualizarCampos($corridaId, $valores);
@@ -328,6 +335,76 @@ final class Database
     }
 
     /**
+     * Provas futuras ainda sem imagem e em que ainda não se procurou, com as
+     * páginas de evento onde procurar (de todas as fontes da prova, sem PDFs).
+     *
+     * @return array<int,string[]> id da prova => URLs das páginas do evento
+     */
+    public function provasParaProcurarImagem(int $limite): array
+    {
+        $stmt = $this->pdo->prepare(sprintf(<<<'SQL'
+            SELECT c.id, c.url_evento, cf.url_evento AS url_evento_fonte
+            FROM (
+                SELECT id, url_evento FROM corridas
+                WHERE imagem_url IS NULL AND imagem_procurada_em IS NULL AND data_prova >= CURDATE()
+                ORDER BY data_prova, id
+                LIMIT %d
+            ) c
+            LEFT JOIN corridas_fontes cf ON cf.corrida_id = c.id
+            ORDER BY c.id, cf.id
+            SQL, $limite));
+        $stmt->execute();
+
+        $paginas = [];
+        foreach ($stmt->fetchAll() as $linha) {
+            $id = (int) $linha['id'];
+            $paginas[$id] ??= [];
+            foreach ([$linha['url_evento'], $linha['url_evento_fonte']] as $url) {
+                if (is_string($url) && preg_match('#^https?://#i', $url) && !preg_match('/\.pdf($|\?)/i', $url)
+                    && !in_array($url, $paginas[$id], true)
+                ) {
+                    $paginas[$id][] = $url;
+                }
+            }
+        }
+
+        return $paginas;
+    }
+
+    /**
+     * Regista o resultado da procura de imagem (encontrada ou não), para não
+     * voltar a procurar na próxima execução.
+     */
+    public function gravarImagemProcurada(int $corridaId, ?string $imagemUrl): void
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE corridas SET imagem_url = COALESCE(imagem_url, :imagem), imagem_procurada_em = NOW() WHERE id = :id'
+        );
+        $stmt->execute(['imagem' => $imagemUrl, 'id' => $corridaId]);
+    }
+
+    /**
+     * Apaga imagens usadas por 3 ou mais provas: quase sempre o logótipo do
+     * site (og:image por omissão), não o cartaz da prova.
+     *
+     * @return int número de provas que ficaram sem imagem
+     */
+    public function descartarImagensGenericas(): int
+    {
+        return (int) $this->pdo->exec(<<<'SQL'
+            UPDATE corridas SET imagem_url = NULL
+            WHERE imagem_url IN (
+                SELECT imagem_url FROM (
+                    SELECT imagem_url FROM corridas
+                    WHERE imagem_url IS NOT NULL
+                    GROUP BY imagem_url
+                    HAVING COUNT(*) >= 3
+                ) repetidas
+            )
+            SQL);
+    }
+
+    /**
      * Provas futuras que uma fonte tem publicadas na base de dados — usado para
      * avisar quando uma fonte que costumava ter provas deixa de devolver alguma.
      */
@@ -363,8 +440,9 @@ final class Database
     }
 
     /**
-     * Lista corridas para apresentação, com filtros opcionais.
-     * $distanciaFaixa é um par [min, max] em km (ver DistanciaFaixas na página pública).
+     * Lista provas para apresentação, com filtros opcionais, a partir de hoje
+     * (as provas sem data vão no fim). $distanciaFaixa é um par [min, max] em
+     * km (ver DistanciaHelper::FAIXAS). Com $limite, devolve só essa página.
      *
      * @param array{0:float,1:float}|null $distanciaFaixa
      * @return array<int,array<string,mixed>>
@@ -374,11 +452,59 @@ final class Database
         ?string $fonte = null,
         ?string $procura = null,
         ?array $distanciaFaixa = null,
-        ?int $utilizadorIdParaFavoritos = null
+        ?int $utilizadorIdParaFavoritos = null,
+        ?int $limite = null,
+        int $deslocamento = 0
     ): array {
-        $condicoes = [];
-        $params = [];
+        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa);
+
+        $camposFavorito = '';
         $juncoes = '';
+        if ($utilizadorIdParaFavoritos !== null) {
+            $camposFavorito = ', (f.id IS NOT NULL) AS e_favorito';
+            $juncoes = ' LEFT JOIN favoritos f ON f.corrida_id = c.id AND f.utilizador_id = :utilizador_id';
+            $params['utilizador_id'] = $utilizadorIdParaFavoritos;
+        }
+
+        $sql = "SELECT c.*{$camposFavorito} FROM corridas c{$juncoes} WHERE {$where}"
+            . ' ORDER BY (c.data_prova IS NULL) ASC, c.data_prova ASC, c.nome ASC, c.id ASC';
+        if ($limite !== null) {
+            $sql .= sprintf(' LIMIT %d OFFSET %d', $limite, max(0, $deslocamento));
+        }
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+
+        return $this->anexarFontes($stmt->fetchAll());
+    }
+
+    /**
+     * Total de provas com os mesmos filtros de listarCorridas().
+     *
+     * @param array{0:float,1:float}|null $distanciaFaixa
+     */
+    public function contarCorridas(
+        ?int $mes = null,
+        ?string $fonte = null,
+        ?string $procura = null,
+        ?array $distanciaFaixa = null
+    ): int {
+        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa);
+
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM corridas c WHERE {$where}");
+        $stmt->execute($params);
+
+        return (int) $stmt->fetchColumn();
+    }
+
+    /**
+     * @param array{0:float,1:float}|null $distanciaFaixa
+     * @return array{0:string,1:array<string,mixed>} condição WHERE e parâmetros
+     */
+    private function filtrosCorridas(?int $mes, ?string $fonte, ?string $procura, ?array $distanciaFaixa): array
+    {
+        $condicoes = ['(c.data_prova >= CURDATE() OR c.data_prova IS NULL)'];
+        $params = [];
 
         if ($mes !== null) {
             $condicoes[] = 'MONTH(c.data_prova) = :mes';
@@ -391,8 +517,9 @@ final class Database
         }
 
         if ($procura !== null && $procura !== '') {
-            $condicoes[] = '(c.nome LIKE :procura OR c.local LIKE :procura)';
+            $condicoes[] = '(c.nome LIKE :procura OR c.local LIKE :procura_local)';
             $params['procura'] = '%' . $procura . '%';
+            $params['procura_local'] = '%' . $procura . '%';
         }
 
         if ($distanciaFaixa !== null) {
@@ -402,23 +529,7 @@ final class Database
             $params['dist_max'] = $distanciaFaixa[1];
         }
 
-        $camposFavorito = '';
-        if ($utilizadorIdParaFavoritos !== null) {
-            $camposFavorito = ', (f.id IS NOT NULL) AS e_favorito';
-            $juncoes = ' LEFT JOIN favoritos f ON f.corrida_id = c.id AND f.utilizador_id = :utilizador_id';
-            $params['utilizador_id'] = $utilizadorIdParaFavoritos;
-        }
-
-        $sql = "SELECT c.*{$camposFavorito} FROM corridas c{$juncoes}";
-        if ($condicoes !== []) {
-            $sql .= ' WHERE ' . implode(' AND ', $condicoes);
-        }
-        $sql .= ' ORDER BY (c.data_prova IS NULL) ASC, c.data_prova ASC, c.nome ASC';
-
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($params);
-
-        return $this->anexarFontes($stmt->fetchAll());
+        return [implode(' AND ', $condicoes), $params];
     }
 
     /**

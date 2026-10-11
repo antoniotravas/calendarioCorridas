@@ -17,6 +17,7 @@ final class Corrida
         public readonly ?string $urlEvento,
         public readonly string $fonte,
         public readonly ?string $urlFonte,
+        public readonly ?string $imagemUrl = null, // cartaz/logótipo, quando a listagem o mostra
     ) {
     }
 

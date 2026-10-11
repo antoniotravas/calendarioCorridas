@@ -31,3 +31,4 @@
     - Exportar "O meu calendário" para o calendário do telemóvel: subscrição por link pessoal (Google Calendar, iPhone/Mac, Outlook — atualiza-se sozinha) ou descarga de um ficheiro .ics.
     - Novas fontes: plataformas de inscrições Lap2Go, Stop and Go e Acorrer, e o organizador Xistarca (região de Lisboa).
     - Fontes organizadoras (Xistarca, Lap2Go, Stop and Go, Acorrer): quando uma prova aparece numa delas, o link do evento aponta sempre para a página delas, mesmo que a prova venha também de outras fontes.
+    - Novo visual (topo claro, letra Barlow, tema "estrada"): miniatura (cartaz) em cada prova, ou um dorsal com o dia quando não há imagem; só provas a partir de hoje; 20 provas de cada vez, com as seguintes a carregar ao descer; filtros aplicam-se sozinhos; "Guardar" sem recarregar a página; botão para voltar ao topo.

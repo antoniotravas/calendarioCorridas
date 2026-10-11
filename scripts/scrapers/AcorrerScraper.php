@@ -61,6 +61,7 @@ final class AcorrerScraper implements ScraperInterface, FonteOrganizadora
                 urlEvento: $cartao->getAttribute('href'),
                 fonte: $this->nome(),
                 urlFonte: self::LISTA_URL,
+                imagemUrl: $xpath->query('.//img', $cartao)->item(0)?->getAttribute('src') ?: null,
             );
         }
 

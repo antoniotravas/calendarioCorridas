@@ -25,3 +25,4 @@ $auth = new Auth($db);
 // O alojamento manda os browsers guardar o CSS durante 7 dias; a versão no
 // endereço muda sempre que o ficheiro muda, para o browser ir buscar o novo.
 $urlEstilo = '/assets/estilo.css?v=' . filemtime(__DIR__ . '/assets/estilo.css');
+$urlScript = '/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js');

@@ -75,6 +75,7 @@ final class StopAndGoScraper implements ScraperInterface, FonteOrganizadora
                 urlEvento: $cartao->getAttribute('href'),
                 fonte: $this->nome(),
                 urlFonte: $urlFonte,
+                imagemUrl: $xpath->query('.//img[contains(@src,"/storage/events/")]', $cartao)->item(0)?->getAttribute('src') ?: null,
             );
         }
 
