@@ -11,7 +11,7 @@ declare(strict_types=1);
  * data por extenso ("17 de outubro 2026" ou "16 - 18 de outubro 2026"). Mesmo
  * em "Atletismo" aparecem caminhadas e ultras, excluídas pelo nome.
  */
-final class StopAndGoScraper implements ScraperInterface
+final class StopAndGoScraper implements ScraperInterface, FonteOrganizadora
 {
     private const LISTA_URL = 'https://stopandgo.net/events?status=S&modality=1&country=178';
     private const MAX_PAGINAS = 10;
