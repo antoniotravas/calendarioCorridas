@@ -568,11 +568,30 @@ details.exportar-link[open] > summary { border-color: var(--sinal); color: var(-
     form.filtros select { font-size: 0.82rem; padding: 0 2px; }
 
     :root { --altura-filtros: 102px; --altura-mes: 48px; }
-    section.mes > h2 { font-size: 1.6rem; line-height: 30px; padding: 10px 0 8px; }
+    /* No telemóvel fixa-se o dia (que já diz o mês, "Domingo, 11 de outubro")
+       em vez do título do mês: fixar os dois ocupava demasiado ecrã. */
+    section.mes > h2 {
+        position: static; height: auto; background: none;
+        -webkit-backdrop-filter: none; backdrop-filter: none;
+        font-size: 1.6rem; line-height: 30px; padding: 10px 0 4px;
+    }
 
     /* O dia passa para cima das provas: dorsal pequeno + data por extenso */
     .dia { grid-template-columns: 1fr; gap: 8px; }
-    .dia-marca { position: static; display: flex; align-items: center; gap: 10px; }
+    .dia-marca {
+        position: sticky;
+        top: var(--altura-filtros);
+        z-index: 4;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0 -16px;
+        padding: 6px 16px;
+        background: rgba(245, 247, 249, 0.94);
+        -webkit-backdrop-filter: blur(8px);
+        backdrop-filter: blur(8px);
+    }
+    .cabeca-pagina ~ section .dia-marca { top: 0; }
     .dia-titulo {
         position: static; width: auto; height: auto; overflow: visible; clip: auto;
         font-family: var(--letra-estreita); font-weight: 600; font-size: 1.15rem;
