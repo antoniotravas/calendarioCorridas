@@ -9,6 +9,7 @@ require __DIR__ . '/lib/NomeProvaHelper.php';
 require __DIR__ . '/lib/HttpClient.php';
 require __DIR__ . '/lib/Database.php';
 require __DIR__ . '/scrapers/ScraperInterface.php';
+require __DIR__ . '/scrapers/FonteOrganizadora.php';
 require __DIR__ . '/scrapers/All4RunningScraper.php';
 require __DIR__ . '/scrapers/PortugalRunningScraper.php';
 require __DIR__ . '/scrapers/AAAPortoScraper.php';
@@ -117,12 +118,23 @@ foreach ($scrapers as $scraper) {
 
 $consolidadas = $db->consolidarRepetidas();
 
+// O link das fontes organizadoras é a página oficial da prova: tem prioridade
+// sobre o de qualquer outra fonte (inclui as que falharam nesta execução, pelos
+// links gravados em execuções anteriores).
+$organizadoras = array_map(
+    fn (ScraperInterface $s) => $s->nome(),
+    array_values(array_filter($scrapers, fn (ScraperInterface $s) => $s instanceof FonteOrganizadora))
+);
+$linksOrganizador = $db->aplicarLinksOrganizadores($organizadoras);
+
 printf(
-    "\nTotal: %d novas, %d atualizadas, %d juntas a provas de outras fontes, %d repetidas antigas consolidadas.\n",
+    "\nTotal: %d novas, %d atualizadas, %d juntas a provas de outras fontes, %d repetidas antigas consolidadas, "
+    . "%d links do organizador (re)aplicados.\n",
     $totalInseridas,
     $totalAtualizadas,
     $totalJuntadas,
-    $consolidadas
+    $consolidadas,
+    $linksOrganizador
 );
 
 if ($avisos !== []) {

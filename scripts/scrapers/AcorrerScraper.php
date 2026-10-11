@@ -16,7 +16,7 @@ declare(strict_types=1);
  * Real"). O site não diz a modalidade e mistura trail, caminhadas, peddy
  * papers..., por isso só ficam as provas cujo nome parece de estrada.
  */
-final class AcorrerScraper implements ScraperInterface
+final class AcorrerScraper implements ScraperInterface, FonteOrganizadora
 {
     private const LISTA_URL = 'https://acorrer.pt/eventos';
 

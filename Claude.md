@@ -30,3 +30,4 @@
     - Aviso no scraper quando uma fonte falha ou deixa de devolver provas (provável mudança no site).
     - Exportar "O meu calendário" para o calendário do telemóvel: subscrição por link pessoal (Google Calendar, iPhone/Mac, Outlook — atualiza-se sozinha) ou descarga de um ficheiro .ics.
     - Novas fontes: plataformas de inscrições Lap2Go, Stop and Go e Acorrer, e o organizador Xistarca (região de Lisboa).
+    - Fontes organizadoras (Xistarca, Lap2Go, Acorrer): quando uma prova aparece numa delas, o link do evento aponta sempre para a página delas, mesmo que a prova venha também de outras fontes.

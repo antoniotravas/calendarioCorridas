@@ -52,6 +52,8 @@ A fonte que criou a prova (`corridas.fonte`, "fonte principal") define os dados;
 
 `NomeProvaHelper::mesmaProva()` normaliza os nomes (minúsculas, sem acentos, sem números/ordinais/anos/distâncias, "GP" = "Grande Prémio", "S." = "São"), põe de parte palavras genéricas ("corrida", "meia", "maratona", "são silvestre", "cidade"...) e exige que pelo menos metade das palavras distintivas coincidam. Recusa sempre formatos diferentes ("Maratona do Porto" ≠ "Meia Maratona do Porto"). É conservadora de propósito: um par não detetado fica repetido, mas provas diferentes dificilmente são fundidas por engano (ex. "São Silvestre de Vizela" ≠ "São Silvestre de Amares"). Datas diferentes entre fontes (erro de um dia num dos sites) não são juntadas.
 
+**Exceção — fontes organizadoras (Xistarca, Lap2Go, Acorrer):** são organizadores ou plataformas de inscrição, por isso o link delas é a página oficial da prova. Os scrapers implementam a interface vazia `FonteOrganizadora` e, no fim de cada execução, `Database::aplicarLinksOrganizadores()` põe em `corridas.url_evento` o link da fonte organizadora sempre que a prova aparece numa delas, mesmo que a fonte principal seja outra (usa os links guardados em `corridas_fontes`, por isso vale mesmo quando a organizadora falhou nessa execução). Para tornar outra fonte organizadora, basta acrescentar `, FonteOrganizadora` ao `implements` do scraper; a ordem em `$scrapers` define a prioridade.
+
 `Database::consolidarRepetidas()` corre no fim de cada execução e aplica a mesma regra às provas já gravadas: a mais antiga fica, a outra passa-lhe as fontes e os favoritos dos utilizadores e é apagada.
 
 ## Estrutura de pastas
@@ -80,6 +82,7 @@ scripts/scrapers/Lap2GoScraper.php
 scripts/scrapers/XistarcaScraper.php
 scripts/scrapers/StopAndGoScraper.php
 scripts/scrapers/AcorrerScraper.php           -- app Livewire: simula a chamada "load" do browser
+scripts/scrapers/FonteOrganizadora.php        -- marca fontes cujo link do evento tem prioridade
 scripts/run_scraper.php              -- ponto de entrada do scraper (CLI)
 
 public/_bootstrap.php                -- sessão + ligação BD + $auth, incluído por todas as páginas

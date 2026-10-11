@@ -11,7 +11,7 @@ declare(strict_types=1);
  * corrida também marca trails, provas híbridas e de obstáculos, por isso ficam
  * só as provas futuras com esse ícone cujo nome parece de estrada.
  */
-final class Lap2GoScraper implements ScraperInterface
+final class Lap2GoScraper implements ScraperInterface, FonteOrganizadora
 {
     private const BASE_URL = 'https://lap2go.com';
     private const LISTA_URL = self::BASE_URL . '/pt/event/list';

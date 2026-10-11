@@ -10,7 +10,7 @@ declare(strict_types=1);
  * evento (no atributo onclick). A Xistarca organiza sobretudo corridas de
  * estrada, por isso só se excluem as provas que pelo nome são outra modalidade.
  */
-final class XistarcaScraper implements ScraperInterface
+final class XistarcaScraper implements ScraperInterface, FonteOrganizadora
 {
     private const LISTA_URL = 'https://xistarca.pt/eventos/';
 

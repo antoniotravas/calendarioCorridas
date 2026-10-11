@@ -290,6 +290,44 @@ final class Database
     }
 
     /**
+     * Faz o link do evento de cada prova apontar para a página de uma fonte
+     * organizadora (ver FonteOrganizadora), quando a prova foi encontrada numa
+     * delas — mesmo que tenha sido criada por outra fonte. Corre no fim de cada
+     * execução, depois das junções, para valer também para provas juntadas e
+     * para links que a fonte principal voltou a escrever.
+     * Se a prova estiver em várias organizadoras, ganha a primeira da lista.
+     *
+     * @param string[] $fontes nomes das fontes organizadoras, por prioridade
+     * @return int número de provas cujo link mudou (repete-se em cada execução
+     *             para as provas cuja fonte principal voltou a escrever o seu link)
+     */
+    public function aplicarLinksOrganizadores(array $fontes): int
+    {
+        if ($fontes === []) {
+            return 0;
+        }
+
+        $marcadores = implode(',', array_fill(0, count($fontes), '?'));
+        $stmt = $this->pdo->prepare(<<<SQL
+            UPDATE corridas c
+            INNER JOIN (
+                SELECT cf.corrida_id, cf.url_evento,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY cf.corrida_id
+                           ORDER BY FIELD(cf.fonte, {$marcadores}), cf.visto_em DESC
+                       ) AS ordem
+                FROM corridas_fontes cf
+                WHERE cf.fonte IN ({$marcadores}) AND cf.url_evento IS NOT NULL AND cf.url_evento <> ''
+            ) org ON org.corrida_id = c.id AND org.ordem = 1
+            SET c.url_evento = org.url_evento
+            WHERE NOT (c.url_evento <=> org.url_evento)
+            SQL);
+        $stmt->execute([...$fontes, ...$fontes]);
+
+        return $stmt->rowCount();
+    }
+
+    /**
      * Provas futuras que uma fonte tem publicadas na base de dados — usado para
      * avisar quando uma fonte que costumava ter provas deixa de devolver alguma.
      */
