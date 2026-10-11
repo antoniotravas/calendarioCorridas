@@ -16,6 +16,10 @@ require __DIR__ . '/scrapers/FpaCompeticoesScraper.php';
 require __DIR__ . '/scrapers/AABragaScraper.php';
 require __DIR__ . '/scrapers/AdalLeiriaScraper.php';
 require __DIR__ . '/scrapers/TheEventsCalendarScraper.php';
+require __DIR__ . '/scrapers/Lap2GoScraper.php';
+require __DIR__ . '/scrapers/XistarcaScraper.php';
+require __DIR__ . '/scrapers/StopAndGoScraper.php';
+require __DIR__ . '/scrapers/AcorrerScraper.php';
 
 $configPath = __DIR__ . '/config.php';
 
@@ -46,6 +50,11 @@ $scrapers = [
     new TheEventsCalendarScraper($http, 'AA São Miguel', 'https://aatletismosmiguel.pt', 'Açores'),
     new TheEventsCalendarScraper($http, 'AA Madeira', 'http://atletismodamadeira.pt', 'Madeira'),
     new TheEventsCalendarScraper($http, 'AA Santarém', 'https://www.aasantarem.pt', 'Santarém'),
+    new Lap2GoScraper($http),
+    new XistarcaScraper($http),
+    new StopAndGoScraper($http),
+    // A Acorrer só devolve os eventos a pedidos feitos na mesma sessão (cookies).
+    new AcorrerScraper(new HttpClient(guardarCookies: true)),
 ];
 
 $totalInseridas = 0;

@@ -76,6 +76,10 @@ scripts/scrapers/FpaCompeticoesScraper.php
 scripts/scrapers/AABragaScraper.php
 scripts/scrapers/AdalLeiriaScraper.php
 scripts/scrapers/TheEventsCalendarScraper.php  -- genérico: sites WordPress com o plugin "The Events Calendar"
+scripts/scrapers/Lap2GoScraper.php
+scripts/scrapers/XistarcaScraper.php
+scripts/scrapers/StopAndGoScraper.php
+scripts/scrapers/AcorrerScraper.php           -- app Livewire: simula a chamada "load" do browser
 scripts/run_scraper.php              -- ponto de entrada do scraper (CLI)
 
 public/_bootstrap.php                -- sessão + ligação BD + $auth, incluído por todas as páginas
@@ -107,6 +111,10 @@ docs/MANUAL.md                       -- este ficheiro
 | AA Braga | `aabraga.pt/pt/calendario` | Todos os eventos futuros | JSON embutido na página (`window.AABragaCalendarioEventos`, alimenta um FullCalendar). Usa o campo `type`; quando vem vazio decide pelo nome (`NomeProvaHelper::pareceEstrada`). Exclui âmbito "Internacional". |
 | ADA Leiria | `adal.pt/calendario.php` | Todos os eventos futuros | HTML sem tipo nem local: o tipo é deduzido do nome (exclui trail, marcha, convívios...). O link "Programa" (PDF do regulamento) é usado como link do evento. |
 | AA São Miguel, AA Madeira, AA Santarém | `/wp-json/tribe/events/v1/events` de cada site | Eventos futuros (API paginada) | `TheEventsCalendarScraper`, uma instância por site. Estrada = categoria com "estrada" (ou, sem categorias, pelo nome). Madeira e Santarém têm hoje poucos ou nenhuns eventos no calendário do site (publicam sobretudo em PDF), mas passam a entrar automaticamente se o usarem. |
+| Lap2Go | `lap2go.com/pt/event/list` | Todos os eventos futuros | Plataforma de inscrições/cronometragem. Os dados vêm de atributos `data-day`, `data-name`, `data-city` de cada `a.event-item`. Fica só o que tem ícone de corrida (`type-run`) **e** nome de estrada (`NomeProvaHelper::pareceEstrada`), porque o ícone também marca trails, provas híbridas e de obstáculos. |
+| Xistarca | `xistarca.pt/eventos/` | Próximos eventos (lista única) | Organizador de corridas de estrada da região de Lisboa. A data não tem ano ("18 de Outubro"): `DateHelper::proximaOcorrencia()` usa o ano corrente ou o seguinte. Exclui só o que pelo nome é outra modalidade (`NomeProvaHelper::eOutraModalidade`). |
+| Stop and Go | `stopandgo.net/events?status=S&modality=1&country=178` | Próximos eventos, todas as páginas | Filtros na query string: próximos, modalidade "Atletismo", Portugal. Data da etiqueta "17 de outubro 2026" (em provas de vários dias, "16 - 18 de outubro 2026", fica o 1.º dia). Exclui caminhadas/ultras pelo nome. |
+| Acorrer | `acorrer.pt/eventos` | Todos os eventos futuros | App Laravel **Livewire**: o HTML inicial vem sem eventos. O scraper repete o que o browser faz — GET da página (com cookies de sessão, `new HttpClient(guardarCookies: true)`), lê `window.livewireScriptConfig` (CSRF + endereço de atualização) e o `wire:snapshot` do componente `provas-grid`, e faz POST JSON com a chamada `load`; a resposta traz o HTML da grelha. Sem modalidade nem ano: decide-se pelo nome (`pareceEstrada`) e o ano por `proximaOcorrencia()`. |
 
 ### Associações distritais (levantamento de 2026-09-30)
 
@@ -143,7 +151,7 @@ Correr o script várias vezes é seguro: cada fonte reencontra as suas provas pe
    - `nome(): string` — nome curto da fonte (vai para o campo `fonte`).
    - `scrape(): array` — devolve uma lista de objetos `Corrida`.
 2. Usar `HttpClient` para os pedidos e `DOMDocument`/`DOMXPath` para o parsing (ver `All4RunningScraper` como exemplo direto, `PortugalRunningScraper` para heurísticas em classes CSS, ou `AAAPortoScraper` para uma listagem paginada não ordenada por data).
-3. Usar `DateHelper::parseTextoLivre()` ou `DateHelper::toIso()` para normalizar datas em português.
+3. Usar `DateHelper::parseTextoLivre()` ou `DateHelper::toIso()` para normalizar datas em português (`DateHelper::proximaOcorrencia()` quando a fonte só dá dia e mês). Para decidir se é estrada: `NomeProvaHelper::pareceEstrada()` quando a fonte não diz a modalidade, `NomeProvaHelper::eOutraModalidade()` quando já diz que é corrida/atletismo mas mistura trail, caminhadas, obstáculos...
 4. Registar a nova classe em `scripts/run_scraper.php` (`require` + adicionar ao array `$scrapers`).
 
 ## Site público (`public/`)

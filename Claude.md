@@ -29,3 +29,4 @@
     - Provas repetidas entre fontes: a mesma prova encontrada em vários sites passa a aparecer uma só vez, com a lista de todas as fontes onde foi encontrada (tabela corridas_fontes).
     - Aviso no scraper quando uma fonte falha ou deixa de devolver provas (provável mudança no site).
     - Exportar "O meu calendário" para o calendário do telemóvel: subscrição por link pessoal (Google Calendar, iPhone/Mac, Outlook — atualiza-se sozinha) ou descarga de um ficheiro .ics.
+    - Novas fontes: plataformas de inscrições Lap2Go, Stop and Go e Acorrer, e o organizador Xistarca (região de Lisboa).

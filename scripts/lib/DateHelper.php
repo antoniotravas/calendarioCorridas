@@ -56,6 +56,24 @@ final class DateHelper
         return self::toIso((int) $m[1], $m[2], (int) $m[3]);
     }
 
+    /**
+     * Para listagens de próximas provas que só mostram dia e mês ("18 de Outubro"):
+     * usa o ano corrente, ou o seguinte se a data já tiver passado há mais de
+     * 60 dias (uma listagem de dezembro que mostra "3 de Janeiro" é do ano seguinte).
+     */
+    public static function proximaOcorrencia(int $dia, string $mesPt, ?string $hoje = null): ?string
+    {
+        $hoje ??= date('Y-m-d');
+        $ano = (int) substr($hoje, 0, 4);
+        $data = self::toIso($dia, $mesPt, $ano);
+
+        if ($data !== null && $data < date('Y-m-d', strtotime($hoje . ' -60 days'))) {
+            $data = self::toIso($dia, $mesPt, $ano + 1);
+        }
+
+        return $data;
+    }
+
     private const DIAS_SEMANA = [
         0 => 'domingo', 1 => 'segunda-feira', 2 => 'terça-feira', 3 => 'quarta-feira',
         4 => 'quinta-feira', 5 => 'sexta-feira', 6 => 'sábado',

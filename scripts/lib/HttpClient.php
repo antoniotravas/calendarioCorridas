@@ -11,8 +11,25 @@ final class HttpClient
         . 'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36 '
         . 'CalendarioCorridasBot/1.0';
 
-    public function __construct(private readonly int $timeoutSegundos = 20)
+    /** Ficheiro temporário onde o cURL guarda os cookies entre pedidos (só com $guardarCookies). */
+    private ?string $ficheiroCookies = null;
+
+    /**
+     * @param bool $guardarCookies mantém os cookies entre pedidos (sessão), para sites
+     *                             que só respondem a pedidos feitos na mesma sessão.
+     */
+    public function __construct(private readonly int $timeoutSegundos = 20, bool $guardarCookies = false)
     {
+        if ($guardarCookies) {
+            $this->ficheiroCookies = tempnam(sys_get_temp_dir(), 'cookies') ?: null;
+        }
+    }
+
+    public function __destruct()
+    {
+        if ($this->ficheiroCookies !== null && is_file($this->ficheiroCookies)) {
+            unlink($this->ficheiroCookies);
+        }
     }
 
     /**
@@ -34,6 +51,16 @@ final class HttpClient
     }
 
     /**
+     * POST com corpo JSON (usado para falar com componentes Livewire).
+     */
+    public function postJson(string $url, array $dados, array $cabecalhos = []): string
+    {
+        $corpo = json_encode($dados, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        return $this->executar($url, 'POST', $corpo, array_merge(['Content-Type: application/json'], $cabecalhos));
+    }
+
+    /**
      * @param array<string,string> $cabecalhos
      */
     private function executar(string $url, string $metodo, ?string $corpo, array $cabecalhos): string
@@ -49,6 +76,11 @@ final class HttpClient
             CURLOPT_HTTPHEADER     => array_merge(['Accept-Language: pt-PT,pt;q=0.9'], $cabecalhos),
             CURLOPT_SSL_VERIFYPEER => true,
         ];
+
+        if ($this->ficheiroCookies !== null) {
+            $opcoes[CURLOPT_COOKIEFILE] = $this->ficheiroCookies;
+            $opcoes[CURLOPT_COOKIEJAR] = $this->ficheiroCookies;
+        }
 
         if ($metodo === 'POST') {
             $opcoes[CURLOPT_POST] = true;

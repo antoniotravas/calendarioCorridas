@@ -112,19 +112,35 @@ final class NomeProvaHelper
      */
     public static function pareceEstrada(string $nome): bool
     {
-        $texto = strtr(mb_strtolower($nome), self::ACENTOS);
-
-        if (preg_match(
-            '/trail|trilho|marcha|corta.?mato|\bcross\b|conviv|kids|benjamins|torneio|lancamentos|pista|'
-            . 'triatlo|pentatlo|jornadas|formacao|estagio|exames|meeting|concentracao|juiz|juizes/',
-            $texto
-        )) {
+        if (self::eOutraModalidade($nome)) {
             return false;
         }
 
         return (bool) preg_match(
-            '/corrida|maratona|milha|legua|silvestre|grande premio|\bgp\b|\bestrada\b|\brun\b|\d+\s?km?\b/',
-            $texto
+            '/corrida|\bcorre\b|maratona|milha|legua|silvestre|grande premio|\bgp\b|\bestrada\b|\brun\b|\broad\b|\d+\s?(k|km|kms)\b/',
+            strtr(mb_strtolower($nome), self::ACENTOS)
         );
+    }
+
+    /**
+     * Para fontes que já dizem que a prova é de corrida/atletismo, mas misturam
+     * trail, pista, caminhadas, provas de obstáculos...: diz se o nome mostra que
+     * não é uma corrida de estrada.
+     */
+    public static function eOutraModalidade(string $nome): bool
+    {
+        $texto = strtr(mb_strtolower($nome), self::ACENTOS);
+
+        if (preg_match(
+            '/trail|trilho|marcha|corta.?mato|\bcross\b|conviv|kids|benjamins|torneio|lancamentos|pista|'
+            . 'triatlo|pentatlo|duatlo|jornadas|formacao|estagio|exames|meeting|concentracao|juiz|juizes|'
+            . 'hybrid|hibrid|obstac|\bultra\b|\bbtt\b|peddy/',
+            $texto
+        )) {
+            return true;
+        }
+
+        // "Caminhada X" sozinha não é corrida; "Corrida e Caminhada X" é.
+        return str_contains($texto, 'caminhada') && !preg_match('/corrida|\brun\b|maratona|silvestre/', $texto);
     }
 }
