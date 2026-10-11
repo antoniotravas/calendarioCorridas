@@ -8,9 +8,18 @@ declare(strict_types=1);
  *
  * A listagem é paginada (cerca de 10 provas por página); a primeira página
  * é usada para descobrir quantas páginas existem no total.
+ *
+ * A listagem só tem o link para a página da prova na própria All4Running. O
+ * link oficial (botão "Visitar o site oficial") só está nessa página: no fim
+ * de cada execução, o run_scraper.php lê as páginas ainda não lidas
+ * (PREFIXO_PAGINA_PROVA + extrairLinkOficial) e o link da prova passa a ser o
+ * oficial. A página da All4Running fica como link da fonte ("Encontrada em").
  */
 final class All4RunningScraper implements ScraperInterface
 {
+    /** Início do endereço das páginas de prova (ex. https://www.all4running.pt/prova/volta-a-silgueiros/). */
+    public const PREFIXO_PAGINA_PROVA = 'https://www.all4running.pt/prova/';
+
     private const LISTAGENS = [
         'https://www.all4running.pt/provas/provas-de-estrada/',
         'https://www.all4running.pt/provas/provas-de-trail/',
@@ -59,7 +68,7 @@ final class All4RunningScraper implements ScraperInterface
      */
     private function extrairCorridas(string $html, string $urlFonte): array
     {
-        $xpath = $this->criarXPath($html);
+        $xpath = self::criarXPath($html);
         $cards = $xpath->query('//div[@class="brxe-fieixw brxe-div"]');
 
         $corridas = [];
@@ -98,14 +107,40 @@ final class All4RunningScraper implements ScraperInterface
                 regiao: null,
                 urlEvento: $urlEvento !== '' ? $urlEvento : null,
                 fonte: $this->nome(),
-                urlFonte: $urlFonte,
+                urlFonte: $urlEvento !== '' ? $urlEvento : $urlFonte,
             );
         }
 
         return $corridas;
     }
 
-    private function criarXPath(string $html): DOMXPath
+    /**
+     * Link oficial da prova na página da All4Running: o site oficial; senão, o
+     * link de inscrição; senão, o site da entidade organizadora.
+     */
+    public static function extrairLinkOficial(string $html): ?string
+    {
+        $xpath = self::criarXPath($html);
+
+        foreach ([
+            '//a[@title="Site oficial da prova"]/@href',
+            '//a[normalize-space(.)="Fazer inscrição"]/@href',
+            '//a[contains(@class,"org-contact-link")]/@href',
+        ] as $consulta) {
+            foreach ($xpath->query($consulta) as $atributo) {
+                $url = trim(html_entity_decode($atributo->value, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                if (preg_match('#^https?://#i', $url) && !preg_match('#^https?://(www\.)?all4running\.pt#i', $url)
+                    && strlen($url) <= 500
+                ) {
+                    return $url;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static function criarXPath(string $html): DOMXPath
     {
         $dom = new DOMDocument();
         libxml_use_internal_errors(true);

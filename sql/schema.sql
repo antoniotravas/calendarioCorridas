@@ -44,6 +44,17 @@ CREATE TABLE IF NOT EXISTS corridas_distancias (
         REFERENCES corridas (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Link oficial (site do organizador / inscrições) de provas que algumas fontes
+-- só mostram na página de detalhe (ex. All4Running). Cada página é lida uma vez;
+-- o scraper troca depois o link da prova pelo oficial (Database::aplicarLinksOficiais).
+CREATE TABLE IF NOT EXISTS links_oficiais (
+    hash_pagina    CHAR(40) NOT NULL,          -- sha1(url_pagina), para indexar URLs compridos
+    url_pagina     VARCHAR(500) NOT NULL,      -- página da prova na fonte
+    url_oficial    VARCHAR(500) NULL,          -- site oficial/inscrições; NULL se a página não o tiver
+    procurado_em   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (hash_pagina)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Fontes onde cada prova foi encontrada. A mesma prova pode aparecer em vários
 -- sites (ex. All4Running e a associação distrital); fica uma só linha em
 -- `corridas` e uma linha aqui por cada fonte. `hash_dedup` identifica a prova

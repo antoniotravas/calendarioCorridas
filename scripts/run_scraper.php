@@ -119,6 +119,60 @@ foreach ($scrapers as $scraper) {
 
 $consolidadas = $db->consolidarRepetidas();
 
+// Pedidos às páginas das provas (links oficiais e imagens): no máximo um
+// pedido de 5 em 5 segundos ao mesmo site — a All4Running recusa pedidos
+// seguidos (HTTP 429). Um site que recuse deixa de ser contactado nesta
+// execução; o que ficar por fazer fica para a próxima.
+$httpPaginas = new HttpClient(10, false, 5000);
+$sitesRecusados = [];
+$recusou = static function (Throwable $e, string $url) use (&$sitesRecusados): void {
+    if ($e->getCode() === HttpClient::DEMASIADOS_PEDIDOS) {
+        $sitesRecusados[(string) parse_url($url, PHP_URL_HOST)] = true;
+    }
+};
+$siteRecusado = static function (string $url) use (&$sitesRecusados): bool {
+    return isset($sitesRecusados[(string) parse_url($url, PHP_URL_HOST)]);
+};
+
+// Link oficial das provas da All4Running: a listagem só tem a página da prova
+// na All4Running; o site oficial está nessa página. Cada página é lida uma vez
+// (tabela links_oficiais), até 50 por execução; o link da prova passa depois a
+// ser o oficial. Aproveita-se a mesma página para a imagem da prova.
+$paginasLidas = 0;
+$linksOficiaisEncontrados = 0;
+$jaEsperou = false;
+foreach ($db->paginasSemLinkOficial(All4RunningScraper::PREFIXO_PAGINA_PROVA, 50) as $pagina) {
+    try {
+        $html = $httpPaginas->get($pagina);
+    } catch (Throwable $e) {
+        if ($e->getCode() !== HttpClient::DEMASIADOS_PEDIDOS) {
+            continue; // página com problemas: fica para a próxima execução
+        }
+        if ($jaEsperou) {
+            $recusou($e, $pagina);
+            break; // voltou a recusar: o resto fica para a próxima execução
+        }
+        $jaEsperou = true;
+        sleep(30); // a primeira recusa costuma ser passageira
+        continue;
+    }
+    $linkOficial = All4RunningScraper::extrairLinkOficial($html);
+    $db->gravarLinkOficial($pagina, $linkOficial);
+    $imagem = ImagemEventoHelper::extrair($html, $pagina);
+    if ($imagem !== null) {
+        $db->gravarImagemDaPagina($pagina, $imagem);
+    }
+    $paginasLidas++;
+    $linksOficiaisEncontrados += $linkOficial !== null ? 1 : 0;
+}
+$db->aplicarLinksOficiais();
+printf(
+    "\nLinks oficiais (All4Running): %d páginas lidas, %d com link oficial%s.\n",
+    $paginasLidas,
+    $linksOficiaisEncontrados,
+    $sitesRecusados !== [] ? ' (o site recusou mais pedidos; continua na próxima execução)' : ''
+);
+
 // O link das fontes organizadoras é a página oficial da prova: tem prioridade
 // sobre o de qualquer outra fonte (inclui as que falharam nesta execução, pelos
 // links gravados em execuções anteriores).
@@ -134,22 +188,31 @@ $db->atualizarCategorias();
 // Miniaturas: para as provas futuras ainda sem imagem, procura o cartaz nas
 // páginas do evento de cada fonte. Cada prova só é procurada uma vez, e há um
 // limite por execução para não fazer centenas de pedidos de seguida.
-$httpImagens = new HttpClient(10);
 $imagensEncontradas = 0;
 $provasSemImagem = $db->provasParaProcurarImagem(80);
 foreach ($provasSemImagem as $corridaId => $paginas) {
     $imagem = null;
+    $algumaRespondeu = $paginas === [];
     foreach ($paginas as $pagina) {
+        if ($siteRecusado($pagina)) {
+            continue;
+        }
         try {
-            $imagem = ImagemEventoHelper::extrair($httpImagens->get($pagina), $pagina);
-        } catch (Throwable) {
+            $imagem = ImagemEventoHelper::extrair($httpPaginas->get($pagina), $pagina);
+            $algumaRespondeu = true;
+        } catch (Throwable $e) {
+            $recusou($e, $pagina);
             continue; // página em baixo ou a recusar o pedido: tenta a seguinte
         }
         if ($imagem !== null) {
             break;
         }
     }
-    $db->gravarImagemProcurada($corridaId, $imagem);
+    // Só se dá a prova como "procurada" se alguma página respondeu; senão
+    // (ex. todas recusaram), volta a tentar na próxima execução.
+    if ($algumaRespondeu) {
+        $db->gravarImagemProcurada($corridaId, $imagem);
+    }
     $imagensEncontradas += $imagem !== null ? 1 : 0;
 }
 $imagensDescartadas = $db->descartarImagensGenericas();

@@ -11,15 +11,26 @@ final class HttpClient
         . 'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36 '
         . 'CalendarioCorridasBot/1.0';
 
+    /** Código das exceções lançadas quando o site recusa por excesso de pedidos (HTTP 429). */
+    public const DEMASIADOS_PEDIDOS = 429;
+
     /** Ficheiro temporário onde o cURL guarda os cookies entre pedidos (só com $guardarCookies). */
     private ?string $ficheiroCookies = null;
 
+    /** @var array<string,float> site => momento (microtime) do último pedido */
+    private array $ultimoPedidoPorSite = [];
+
     /**
-     * @param bool $guardarCookies mantém os cookies entre pedidos (sessão), para sites
-     *                             que só respondem a pedidos feitos na mesma sessão.
+     * @param bool $guardarCookies     mantém os cookies entre pedidos (sessão), para sites
+     *                                 que só respondem a pedidos feitos na mesma sessão.
+     * @param int  $intervaloPorSiteMs espera mínima entre dois pedidos ao mesmo site, para
+     *                                 sites que recusam pedidos seguidos (ex. All4Running).
      */
-    public function __construct(private readonly int $timeoutSegundos = 20, bool $guardarCookies = false)
-    {
+    public function __construct(
+        private readonly int $timeoutSegundos = 20,
+        bool $guardarCookies = false,
+        private readonly int $intervaloPorSiteMs = 0,
+    ) {
         if ($guardarCookies) {
             $this->ficheiroCookies = tempnam(sys_get_temp_dir(), 'cookies') ?: null;
         }
@@ -65,6 +76,7 @@ final class HttpClient
      */
     private function executar(string $url, string $metodo, ?string $corpo, array $cabecalhos): string
     {
+        $this->esperarVez($url);
         $ch = curl_init($url);
 
         $opcoes = [
@@ -99,9 +111,33 @@ final class HttpClient
         }
 
         if ($codigo < 200 || $codigo >= 300) {
-            throw new RuntimeException("Resposta HTTP {$codigo} ao pedir {$url}: {$body}");
+            throw new RuntimeException(
+                "Resposta HTTP {$codigo} ao pedir {$url}: " . mb_substr($body, 0, 300),
+                $codigo === self::DEMASIADOS_PEDIDOS ? self::DEMASIADOS_PEDIDOS : 0
+            );
         }
 
         return $body;
+    }
+
+    /**
+     * Com $intervaloPorSiteMs, espera o necessário para não pedir duas páginas
+     * do mesmo site mais depressa do que esse intervalo.
+     */
+    private function esperarVez(string $url): void
+    {
+        if ($this->intervaloPorSiteMs <= 0) {
+            return;
+        }
+
+        $site = (string) parse_url($url, PHP_URL_HOST);
+        $ultimo = $this->ultimoPedidoPorSite[$site] ?? null;
+        if ($ultimo !== null) {
+            $faltaMs = $this->intervaloPorSiteMs - (microtime(true) - $ultimo) * 1000;
+            if ($faltaMs > 0) {
+                usleep((int) ($faltaMs * 1000));
+            }
+        }
+        $this->ultimoPedidoPorSite[$site] = microtime(true);
     }
 }

@@ -35,6 +35,7 @@ Corrida (objeto normalizado: nome, data, local, distâncias, tipo, região, url_
       ▼
 Tabelas `corridas` + `corridas_fontes` + `corridas_distancias` (MySQL)
       │  no fim: Database::consolidarRepetidas()  (junta repetidas que já estejam na BD)
+      │          links oficiais da All4Running (botão "Visitar o site oficial" de cada página, até 50 por execução)
       │          Database::aplicarLinksOrganizadores()
       │          miniaturas: ImagemEventoHelper (og:image das páginas de evento, até 80 provas por execução)
 ```
@@ -66,6 +67,7 @@ sql/migracao_002_corridas_fontes.sql -- para BDs criadas antes de corridas_fonte
 sql/migracao_003_ics_token.sql       -- para BDs criadas antes do link de subscrição .ics (correr uma vez)
 sql/migracao_004_imagens.sql         -- para BDs criadas antes das miniaturas (correr uma vez)
 sql/migracao_005_categoria.sql       -- para BDs criadas antes do filtro "Tipo" (correr uma vez)
+sql/migracao_006_links_oficiais.sql  -- tabela links_oficiais (link oficial lido das páginas da All4Running)
 
 scripts/config.example.php           -- template de credenciais (copiar para config.php)
 scripts/lib/Corrida.php              -- objeto de valor com os dados normalizados de uma prova
@@ -112,7 +114,7 @@ docs/MANUAL.md                       -- este ficheiro
 
 | Fonte | URL | Cobertura | Notas |
 |---|---|---|---|
-| All4Running | `all4running.pt/provas/provas-de-estrada/` e `/provas-de-trail/` | Todas as páginas de paginação das duas listagens (~10 provas/página) | Nome, data, local, tipo e distâncias vêm diretamente do HTML da listagem. Inclui algumas provas no estrangeiro (ex. Maratona de Chicago). |
+| All4Running | `all4running.pt/provas/provas-de-estrada/` e `/provas-de-trail/` | Todas as páginas de paginação das duas listagens (~10 provas/página) | Nome, data, local, tipo e distâncias vêm diretamente do HTML da listagem. Inclui algumas provas no estrangeiro (ex. Maratona de Chicago). **Link da prova:** a listagem só tem a página da prova na All4Running; o link oficial está nessa página (botão com `title="Site oficial da prova"`; senão "Fazer inscrição"; senão o "Visitar website" do organizador — `All4RunningScraper::extrairLinkOficial`). Cada página é lida uma vez (tabela `links_oficiais`) e o link da prova passa a ser o oficial (`Database::aplicarLinksOficiais`); a página da All4Running fica como link da fonte. **A All4Running recusa pedidos seguidos (HTTP 429):** as páginas são pedidas de 5 em 5 segundos, até 50 por execução; se recusar duas vezes, pára e continua na execução seguinte. A imagem da prova é aproveitada da mesma página. |
 | Portugal Running | `portugalrunning.com/calendario-de-corridas-de-estrada/` | Só o mês corrente e o seguinte (o que a página mostra por omissão) | Apesar do endereço, inclui trails, corta-mato e outras modalidades (duatlo, Hyrox...), sem filtro. Tipo, região e distâncias são **inferidos** a partir das classes CSS de categorização do site (ex.: `evo_corrida-10-km`, `evo_algarve-e-sul`); podem ficar vazios para eventos com etiquetagem atípica. |
 | AAAPorto (Associação de Atletismo do Porto) | `aaporto.com/.../calendario-competitivo/estrada` e `/corta-mato` | Primeiras 15 páginas de cada listagem (~120 registos) | A listagem não está ordenada por data — mistura provas passadas e futuras pela ordem de inserção. O scraper descarta qualquer prova com data já passada. Sem distância na listagem (fica `null`). Foco na região do Porto. |
 | FPA Competições | `beta.fpacompeticoes.pt/calendar` | Janela mostrada por omissão pela página (~3-4 meses à frente) | Aceita `tipo` Estrada, Trail e Corta-Mato. Os dados vêm de JSON embutido na página (`window.__remixContext`), não de HTML tradicional — é uma app Remix renderizada no servidor. Um pedido extra por prova a `/competition/{id}` obtém a distância real a partir dos escalões de inscrição. |

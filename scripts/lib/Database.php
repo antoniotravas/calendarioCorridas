@@ -335,6 +335,76 @@ final class Database
     }
 
     /**
+     * Páginas de provas futuras (de qualquer fonte) que começam por $prefixo e
+     * em que ainda não se procurou o link oficial.
+     *
+     * @return string[]
+     */
+    public function paginasSemLinkOficial(string $prefixo, int $limite): array
+    {
+        $stmt = $this->pdo->prepare(sprintf(<<<'SQL'
+            SELECT DISTINCT cf.url_evento
+            FROM corridas_fontes cf
+            INNER JOIN corridas c ON c.id = cf.corrida_id
+            LEFT JOIN links_oficiais l ON l.hash_pagina = SHA1(cf.url_evento)
+            WHERE cf.url_evento LIKE :prefixo AND l.hash_pagina IS NULL AND c.data_prova >= CURDATE()
+            ORDER BY c.data_prova
+            LIMIT %d
+            SQL, $limite));
+        $stmt->execute(['prefixo' => addcslashes($prefixo, '%_') . '%']);
+
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+
+    /**
+     * Guarda o link oficial encontrado numa página (ou NULL, se não tinha), para
+     * não voltar a ler essa página.
+     */
+    public function gravarLinkOficial(string $urlPagina, ?string $urlOficial): void
+    {
+        $stmt = $this->pdo->prepare(<<<'SQL'
+            INSERT INTO links_oficiais (hash_pagina, url_pagina, url_oficial)
+            VALUES (SHA1(:pagina), :pagina2, :oficial)
+            ON DUPLICATE KEY UPDATE url_oficial = VALUES(url_oficial), procurado_em = CURRENT_TIMESTAMP
+            SQL);
+        $stmt->execute(['pagina' => $urlPagina, 'pagina2' => $urlPagina, 'oficial' => $urlOficial]);
+    }
+
+    /**
+     * Usa a imagem encontrada numa página de fonte (ex. All4Running) nas provas
+     * dessa página que ainda não têm imagem — evita voltar a pedir a página
+     * só para procurar a imagem.
+     */
+    public function gravarImagemDaPagina(string $urlPagina, string $imagemUrl): void
+    {
+        $stmt = $this->pdo->prepare(<<<'SQL'
+            UPDATE corridas c
+            INNER JOIN corridas_fontes cf ON cf.corrida_id = c.id
+            SET c.imagem_url = :imagem, c.imagem_procurada_em = NOW()
+            WHERE cf.url_evento = :pagina AND c.imagem_url IS NULL
+            SQL);
+        $stmt->execute(['imagem' => $imagemUrl, 'pagina' => $urlPagina]);
+    }
+
+    /**
+     * Troca o link das provas que apontam para a página de uma fonte (ex. a
+     * página da prova na All4Running) pelo link oficial encontrado nessa página.
+     * Corre no fim de cada execução, antes de aplicarLinksOrganizadores() — que
+     * continua a ter a última palavra.
+     *
+     * @return int número de provas cujo link mudou
+     */
+    public function aplicarLinksOficiais(): int
+    {
+        return (int) $this->pdo->exec(<<<'SQL'
+            UPDATE corridas c
+            INNER JOIN links_oficiais l ON l.hash_pagina = SHA1(c.url_evento)
+            SET c.url_evento = l.url_oficial
+            WHERE l.url_oficial IS NOT NULL AND c.url_evento <> l.url_oficial
+            SQL);
+    }
+
+    /**
      * Recalcula a categoria (estrada, trail, corta-mato) das provas futuras a
      * partir do nome e do tipo — corre no fim de cada execução, depois das
      * junções entre fontes, que podem ter mudado o tipo.
