@@ -38,6 +38,7 @@ Tabelas `corridas` + `corridas_fontes` + `corridas_distancias` (MySQL)
       │          links oficiais da All4Running (botão "Visitar o site oficial" de cada página, até 50 por execução)
       │          Database::aplicarLinksOrganizadores()
       │          miniaturas: ImagemEventoHelper (og:image das páginas de evento, até 80 provas por execução)
+      │          prémios monetários: PremiosHelper + PdfTextoHelper (página e regulamento, até 40 provas por execução)
 ```
 
 `scripts/run_scraper.php` é o ponto de entrada: instancia todos os scrapers, corre cada um dentro de um `try/catch` (uma fonte a falhar não impede as restantes) e grava os resultados. No fim imprime (em STDERR) uma secção **"ATENÇÃO — fontes com problemas"** quando uma fonte falhou, ou quando devolveu 0 provas apesar de ter provas futuras na BD — sinal de que o site mudou e o scraper precisa de revisão.
@@ -68,6 +69,7 @@ sql/migracao_003_ics_token.sql       -- para BDs criadas antes do link de subscr
 sql/migracao_004_imagens.sql         -- para BDs criadas antes das miniaturas (correr uma vez)
 sql/migracao_005_categoria.sql       -- para BDs criadas antes do filtro "Tipo" (correr uma vez)
 sql/migracao_006_links_oficiais.sql  -- tabela links_oficiais (link oficial lido das páginas da All4Running)
+sql/migracao_007_premios.sql         -- colunas premios_* em corridas (ícone "€" e filtro "Prémios")
 
 scripts/config.example.php           -- template de credenciais (copiar para config.php)
 scripts/lib/Corrida.php              -- objeto de valor com os dados normalizados de uma prova
@@ -75,6 +77,8 @@ scripts/lib/HttpClient.php           -- pedidos GET/POST via cURL
 scripts/lib/DateHelper.php           -- datas em português: parsing, formatação, agrupar por mês
 scripts/lib/DistanciaHelper.php      -- extrai distâncias (km) do texto livre; faixas do filtro de distância
 scripts/lib/NomeProvaHelper.php      -- mesma prova com nomes diferentes? parece corrida / prova de pista (pelo nome)? estrada, trail, corta-mato ou pista?
+scripts/lib/PremiosHelper.php        -- há prémios monetários? (analisa o texto; segue os links do regulamento)
+scripts/lib/PdfTextoHelper.php       -- extrai o texto de PDFs (regulamentos) em PHP puro
 scripts/lib/Database.php             -- ligação PDO: upsert/junção de corridas, listagem com filtros, utilizadores, favoritos
 scripts/scrapers/ScraperInterface.php
 scripts/scrapers/All4RunningScraper.php
@@ -188,7 +192,7 @@ O site público está em **https://corridas.eu** (antes: `corridas.espacodecodig
 
 ### Filtros do calendário
 
-`index.php` filtra por **tipo** (estrada, trail, corta-mato, pista — coluna `corridas.categoria`, calculada no fim de cada execução do scraper por `Database::atualizarCategorias()` a partir do nome e do tipo, com `NomeProvaHelper::categoria()`; ultra trail e montanha contam como trail; pista inclui ar livre, coberta e pista curta), mês, **distância** (faixas pré-definidas em `DistanciaHelper::FAIXAS`, ex. "5 a 10 km", "21 a 42 km"), fonte, e pesquisa livre por nome/local. O filtro de distância usa a tabela `corridas_distancias`, sincronizada automaticamente pelo scraper a partir do texto em `corridas.distancias` (`DistanciaHelper::extrairKm()`). As provas de pista ficam sem distância (não há uma distância de corrida), por isso não aparecem quando se escolhe uma faixa de distância.
+`index.php` filtra por **tipo** (estrada, trail, corta-mato, pista — coluna `corridas.categoria`, calculada no fim de cada execução do scraper por `Database::atualizarCategorias()` a partir do nome e do tipo, com `NomeProvaHelper::categoria()`; ultra trail e montanha contam como trail; pista inclui ar livre, coberta e pista curta), mês, **distância** (faixas pré-definidas em `DistanciaHelper::FAIXAS`, ex. "5 a 10 km", "21 a 42 km"), fonte, e pesquisa livre por nome/local. O filtro de distância usa a tabela `corridas_distancias`, sincronizada automaticamente pelo scraper a partir do texto em `corridas.distancias` (`DistanciaHelper::extrairKm()`). As provas de pista ficam sem distância (não há uma distância de corrida), por isso não aparecem quando se escolhe uma faixa de distância. O filtro **Prémios** (`?premios=sim` / `?premios=nao`) usa `corridas.premios_monetarios` (ver "Prémios monetários" abaixo).
 
 ### Lista de provas, carregamento progressivo e miniaturas
 
@@ -200,7 +204,20 @@ O site público está em **https://corridas.eu** (antes: `corridas.espacodecodig
 - **Cartão inteiro clicável:** o link do nome da prova tem um `::after` que cobre o cartão (`.com-link`); o botão "Guardar" e os links das fontes ficam por cima (`z-index`).
 - **Fade in:** os cartões aparecem ao chegar ao ecrã (`IntersectionObserver` em `app.js`, classe `visivel`). Só com a classe `js` no `<html>`, posta por um script no `<head>`, que a retira se o `app.js` não correr em 3 s — os cartões nunca ficam escondidos. Respeita "reduzir movimento".
 - **Frase do total** de acordo com os filtros, ex. "3 provas de trail em dezembro, de 5 a 10 km".
-- **Base de dados criada antes das miniaturas:** correr uma vez `sql/migracao_004_imagens.sql`; antes do filtro "Tipo": `sql/migracao_005_categoria.sql`.
+- **Base de dados criada antes das miniaturas:** correr uma vez `sql/migracao_004_imagens.sql`; antes do filtro "Tipo": `sql/migracao_005_categoria.sql`; antes dos prémios monetários: `sql/migracao_007_premios.sql`.
+
+### Prémios monetários
+
+Cada prova pode ter um ícone "€" ao lado do nome: **verde** se os mais bem classificados recebem dinheiro, **cinzento riscado** se o regulamento diz que os prémios são troféus/medalhas (ou que não há prémios monetários); sem ícone enquanto não se sabe. O ícone liga ao documento onde a informação foi lida (`premios_url`) e mostra o excerto (`premios_excerto`) como dica.
+
+**Recolha** (no fim de `run_scraper.php`): até 40 provas por execução — primeiro as nunca vistas; as que ficaram por saber voltam a ser vistas ao fim de 7 dias (o regulamento costuma sair mais tarde) e as "sem prémios" ao fim de 30. Para cada prova, `PremiosHelper::procurar()` lê as páginas do evento (de todas as fontes; da All4Running também a página da prova) e segue os links do regulamento (`PremiosHelper::linksRegulamento()`: links com "regulamento" no endereço ou no texto, a página `/rules` da Stop and Go, o campo JSON `"Regulamento"` da Lap2Go), até 5 documentos por prova. Os PDF são lidos por `PdfTextoHelper` (PHP puro: objetos, object streams, FlateDecode, mapas ToUnicode, codificações Windows-1252 e Mac Roman); PDFs digitalizados (só imagens) ou cifrados ficam sem texto.
+
+**Decisão** (`PremiosHelper::analisar()`), sobre o texto sem acentos:
+1. **Sim** — frase explícita não negada ("prémios monetários", "prémio pecuniário", "prize money", "prémios em dinheiro"...), ou um valor em euros (≥ 10 €) com uma palavra de prémio/classificação pouco antes ("1.º lugar – 100 €", "Troféu + 50€") e sem sinais de preço de inscrição, seguro, caução, vales de compras... por perto (`PADRAO_NAO_PREMIO`, `PADRAO_TABELA_PRECOS`). Vales/cartões de compras com valor contam como prémio monetário quando a prova os anuncia como tal.
+2. **Não** — "não há prémios monetários", ou o texto descreve os prémios dos primeiros classificados (troféu, medalha, "prémios aos 3 primeiros") sem dinheiro. Numa página de evento só conta se disser o que é o prémio (troféu, medalha...); no regulamento basta "prémios aos 3 primeiros" (quem dá dinheiro diz quanto).
+3. **Por saber** — o texto não fala de prémios, diz que serão anunciados mais tarde, ou não houve documento legível.
+
+É uma heurística: pode falhar em tabelas de prémios que o PDF parte de forma estranha ou em regulamentos muito informais — o link para o documento permite confirmar.
 
 ### Contas e "o meu calendário"
 

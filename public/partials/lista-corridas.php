@@ -31,6 +31,27 @@ $etiquetasProva = static function (array $c) use ($nomesCategoria): array {
     return $etiquetas;
 };
 
+/**
+ * Ícone "€" dos prémios monetários (verde: há; cinzento riscado: o regulamento
+ * diz que não há; nada: por saber). Liga ao documento onde foi lido, com o
+ * excerto como dica.
+ */
+$iconePremios = static function (array $c): void {
+    if (!isset($c['premios_monetarios'])) {
+        return;
+    }
+    $sim = (int) $c['premios_monetarios'] === 1;
+    $texto = $sim ? 'Com prémios monetários' : 'Sem prémios monetários';
+    $dica = $texto . (!empty($c['premios_excerto']) ? ': ' . $c['premios_excerto'] : '');
+    $classe = 'premios ' . ($sim ? 'premios-sim' : 'premios-nao');
+    if (!empty($c['premios_url'])): ?>
+        <a class="<?= $classe ?>" href="<?= htmlspecialchars($c['premios_url']) ?>" target="_blank" rel="noopener"
+           title="<?= htmlspecialchars($dica) ?>" aria-label="<?= htmlspecialchars($texto) ?> (ver onde foi lido)">€</a>
+    <?php else: ?>
+        <span class="<?= $classe ?>" title="<?= htmlspecialchars($dica) ?>" role="img" aria-label="<?= htmlspecialchars($texto) ?>">€</span>
+    <?php endif;
+};
+
 /** "A", "A e B", "A, B e C". */
 $juntarFontes = static function (array $fontes): string {
     $links = array_map(
@@ -93,6 +114,7 @@ foreach ($grupos as $chaveMes => $grupo):
                                     <?php else: ?>
                                         <?= htmlspecialchars($c['nome']) ?>
                                     <?php endif; ?>
+                                    <?php $iconePremios($c); ?>
                                 </h4>
                                 <?php if ($c['local']): ?>
                                     <p class="prova-local">

@@ -20,6 +20,8 @@
     --corta-mato-suave: #f6eedf;
     --pista: #a3361f;          /* tartan das pistas */
     --pista-suave: #f9e9e4;
+    --premios: #1f7a4d;        /* verde das notas */
+    --premios-escuro: #17603c;
     --erro: #b3261e;
     --erro-soft: #fbe9e7;
 
@@ -93,10 +95,10 @@ form.filtros {
     max-width: var(--largura);
     margin: 0 auto;
     display: grid;
-    grid-template-columns: minmax(170px, 1.5fr) repeat(4, minmax(0, 1fr)) auto;
+    grid-template-columns: minmax(170px, 1.5fr) repeat(5, minmax(0, 1fr)) auto;
     gap: 8px;
 }
-form.filtros.com-js { grid-template-columns: minmax(170px, 1.5fr) repeat(4, minmax(0, 1fr)); }
+form.filtros.com-js { grid-template-columns: minmax(170px, 1.5fr) repeat(5, minmax(0, 1fr)); }
 form.filtros.com-js .filtrar { position: absolute; left: -9999px; }
 form.filtros label { display: block; min-width: 0; }
 form.filtros select,
@@ -257,6 +259,7 @@ li.prova.com-link:hover h4 { color: var(--sinal); }
 .prova-link:focus-visible::after { outline: 2px solid var(--sinal); outline-offset: 2px; }
 /* O que tem ação própria fica por cima do link do cartão */
 .prova-fontes a,
+.prova-corpo .premios,
 form.favorito,
 li.prova > a.favorito-btn { position: relative; z-index: 1; }
 
@@ -287,6 +290,40 @@ li.prova > a.favorito-btn { position: relative; z-index: 1; }
     overflow-wrap: anywhere;
     transition: color .15s;
 }
+/* Prémios monetários: moeda "€" ao lado do nome (verde: há; riscada: não há) */
+.premios {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-left: 6px;
+    border-radius: 50%;
+    vertical-align: 2px;
+    font-family: var(--letra-estreita);
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none;
+    cursor: help;
+}
+a.premios { cursor: pointer; }
+.premios-sim { background: var(--premios); color: var(--branco); }
+.premios-sim:hover { background: var(--premios-escuro); }
+.premios-nao {
+    position: relative;
+    border: 1px solid var(--linha-forte);
+    color: var(--cinza);
+    background: var(--branco);
+}
+.premios-nao::after {
+    content: "";
+    position: absolute;
+    left: 2px; right: 2px; top: 50%;
+    border-top: 1.5px solid var(--cinza);
+    transform: rotate(-45deg);
+}
+
 .prova-local {
     display: flex;
     align-items: center;
@@ -566,7 +603,9 @@ details.exportar-link[open] > summary { border-color: var(--sinal); color: var(-
     .barra-filtros { padding: 8px 16px; }
     form.filtros,
     form.filtros.com-js { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-    form.filtros .procura { grid-column: 1 / -1; }
+    /* Telemóvel: procura e "Prémios" na 1.ª linha, os outros quatro na 2.ª. */
+    form.filtros .procura { grid-column: 1 / 4; grid-row: 1; }
+    form.filtros .filtro-premios { grid-column: 4; grid-row: 1; }
     form.filtros:not(.com-js) .filtrar { grid-column: 1 / -1; }
     form.filtros select { font-size: 0.82rem; padding: 0 2px; }
 

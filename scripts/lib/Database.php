@@ -490,6 +490,75 @@ final class Database
     }
 
     /**
+     * Provas futuras onde procurar prémios monetários: as nunca vistas
+     * primeiro (pela data da prova), depois as que ficaram por saber há mais
+     * de 7 dias (o regulamento costuma sair mais tarde) e as que não tinham
+     * prémios há mais de 30 dias (o regulamento pode mudar).
+     *
+     * Para cada prova, as páginas a ler: os links do evento da prova e de
+     * cada fonte e, das fontes cujo link da fonte é a página da própria prova
+     * (ex. All4Running, $prefixosPaginaProva), também esse.
+     *
+     * @param string[] $prefixosPaginaProva
+     * @return array<int,string[]> id da prova => endereços
+     */
+    public function provasParaProcurarPremios(int $limite, array $prefixosPaginaProva = []): array
+    {
+        $stmt = $this->pdo->prepare(sprintf(<<<'SQL'
+            SELECT c.id, c.url_evento, cf.url_evento AS url_evento_fonte, cf.url_fonte
+            FROM (
+                SELECT id, url_evento, premios_procurado_em FROM corridas
+                WHERE data_prova >= CURDATE()
+                  AND (premios_procurado_em IS NULL
+                       OR (premios_monetarios IS NULL AND premios_procurado_em < NOW() - INTERVAL 7 DAY)
+                       OR (premios_monetarios = 0 AND premios_procurado_em < NOW() - INTERVAL 30 DAY))
+                ORDER BY (premios_procurado_em IS NOT NULL), data_prova, id
+                LIMIT %d
+            ) c
+            LEFT JOIN corridas_fontes cf ON cf.corrida_id = c.id
+            ORDER BY (c.premios_procurado_em IS NOT NULL), c.id, cf.id
+            SQL, $limite));
+        $stmt->execute();
+
+        $paginas = [];
+        foreach ($stmt->fetchAll() as $linha) {
+            $id = (int) $linha['id'];
+            $paginas[$id] ??= [];
+            $candidatas = [$linha['url_evento'], $linha['url_evento_fonte']];
+            foreach ($prefixosPaginaProva as $prefixo) {
+                if (is_string($linha['url_fonte']) && str_starts_with($linha['url_fonte'], $prefixo)) {
+                    $candidatas[] = $linha['url_fonte'];
+                }
+            }
+            foreach ($candidatas as $url) {
+                if (is_string($url) && preg_match('#^https?://#i', $url) && !in_array($url, $paginas[$id], true)) {
+                    $paginas[$id][] = $url;
+                }
+            }
+        }
+
+        return $paginas;
+    }
+
+    /**
+     * Grava o resultado da procura de prémios monetários (true/false, ou null
+     * se não deu para saber), com o excerto e o endereço onde foi lido.
+     */
+    public function gravarPremios(int $corridaId, ?bool $monetarios, ?string $excerto, ?string $url): void
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE corridas SET premios_monetarios = :monetarios, premios_excerto = :excerto, premios_url = :url,'
+            . ' premios_procurado_em = NOW() WHERE id = :id'
+        );
+        $stmt->execute([
+            'monetarios' => $monetarios === null ? null : (int) $monetarios,
+            'excerto' => $excerto !== null ? mb_substr($excerto, 0, 300) : null,
+            'url' => $url !== null ? mb_substr($url, 0, 500) : null,
+            'id' => $corridaId,
+        ]);
+    }
+
+    /**
      * Apaga imagens usadas por 3 ou mais provas: quase sempre o logótipo do
      * site (og:image por omissão), não o cartaz da prova.
      *
@@ -562,9 +631,10 @@ final class Database
         ?int $utilizadorIdParaFavoritos = null,
         ?int $limite = null,
         int $deslocamento = 0,
-        ?string $categoria = null
+        ?string $categoria = null,
+        ?bool $premios = null
     ): array {
-        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria);
+        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria, $premios);
 
         $camposFavorito = '';
         $juncoes = '';
@@ -596,9 +666,10 @@ final class Database
         ?string $fonte = null,
         ?string $procura = null,
         ?array $distanciaFaixa = null,
-        ?string $categoria = null
+        ?string $categoria = null,
+        ?bool $premios = null
     ): int {
-        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria);
+        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria, $premios);
 
         $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM corridas c WHERE {$where}");
         $stmt->execute($params);
@@ -615,7 +686,8 @@ final class Database
         ?string $fonte,
         ?string $procura,
         ?array $distanciaFaixa,
-        ?string $categoria
+        ?string $categoria,
+        ?bool $premios = null
     ): array {
         $condicoes = ['(c.data_prova >= CURDATE() OR c.data_prova IS NULL)'];
         $params = [];
@@ -646,6 +718,12 @@ final class Database
         if ($categoria !== null && $categoria !== '') {
             $condicoes[] = 'c.categoria = :categoria';
             $params['categoria'] = $categoria;
+        }
+
+        // Prémios monetários: true só as que têm; false as que o regulamento diz que não têm.
+        if ($premios !== null) {
+            $condicoes[] = 'c.premios_monetarios = :premios';
+            $params['premios'] = $premios ? 1 : 0;
         }
 
         return [implode(' AND ', $condicoes), $params];

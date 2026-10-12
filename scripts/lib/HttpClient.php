@@ -84,6 +84,13 @@ final class HttpClient
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_MAXREDIRS      => 5,
             CURLOPT_TIMEOUT        => $this->timeoutSegundos,
+            // Ligações penduradas: o CURLOPT_TIMEOUT sozinho chegou a deixar um
+            // pedido parado mais de uma hora. Corta-se também a ligação lenta a
+            // estabelecer e a transferência parada (< 1 KB/s durante 15 s).
+            CURLOPT_CONNECTTIMEOUT => min(10, $this->timeoutSegundos),
+            CURLOPT_LOW_SPEED_LIMIT => 1024,
+            CURLOPT_LOW_SPEED_TIME => 15,
+            CURLOPT_NOSIGNAL       => true,
             CURLOPT_USERAGENT      => self::USER_AGENT,
             CURLOPT_HTTPHEADER     => array_merge(['Accept-Language: pt-PT,pt;q=0.9'], $cabecalhos),
             CURLOPT_SSL_VERIFYPEER => true,

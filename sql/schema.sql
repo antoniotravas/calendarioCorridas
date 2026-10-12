@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS corridas (
     local          VARCHAR(255) NULL,
     distancias     VARCHAR(255) NULL,
     tipo           VARCHAR(100) NULL,
-    -- "estrada", "trail" ou "corta-mato" (NomeProvaHelper::categoria), para o filtro "Tipo".
+    -- "estrada", "trail", "corta-mato" ou "pista" (NomeProvaHelper::categoria), para o filtro "Tipo".
     categoria      VARCHAR(20) NOT NULL DEFAULT 'estrada',
     regiao         VARCHAR(100) NULL,
     url_evento     VARCHAR(500) NULL,
@@ -23,13 +23,21 @@ CREATE TABLE IF NOT EXISTS corridas (
     -- do evento (procurada uma vez; imagem_procurada_em evita repetir).
     imagem_url     VARCHAR(500) NULL,
     imagem_procurada_em DATETIME NULL,
+    -- Prémios monetários para os mais bem classificados, segundo o regulamento
+    -- ou a página da prova (PremiosHelper): 1 sim, 0 não, NULL por saber.
+    -- O excerto e o endereço mostram onde foi lido.
+    premios_monetarios TINYINT(1) NULL,
+    premios_excerto VARCHAR(300) NULL,
+    premios_url    VARCHAR(500) NULL,
+    premios_procurado_em DATETIME NULL,
     hash_dedup     CHAR(40) NOT NULL,
     criado_em      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     atualizado_em  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_hash_dedup (hash_dedup),
     KEY idx_data_prova (data_prova),
-    KEY idx_categoria (categoria)
+    KEY idx_categoria (categoria),
+    KEY idx_premios (premios_monetarios)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Distâncias individuais de cada prova (uma corrida pode ter várias: 10K, 5K, ...),

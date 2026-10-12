@@ -7,6 +7,8 @@ require __DIR__ . '/lib/DateHelper.php';
 require __DIR__ . '/lib/DistanciaHelper.php';
 require __DIR__ . '/lib/NomeProvaHelper.php';
 require __DIR__ . '/lib/ImagemEventoHelper.php';
+require __DIR__ . '/lib/PdfTextoHelper.php';
+require __DIR__ . '/lib/PremiosHelper.php';
 require __DIR__ . '/lib/HttpClient.php';
 require __DIR__ . '/lib/Database.php';
 require __DIR__ . '/scrapers/ScraperInterface.php';
@@ -228,6 +230,48 @@ printf(
     count($provasSemImagem),
     $imagensEncontradas,
     $imagensDescartadas
+);
+
+// Prémios monetários: lê a página de cada prova e o regulamento (PDF ou
+// página) para que aponta. Até 40 provas por execução — primeiro as nunca
+// vistas; as que ficaram por saber voltam a ser vistas ao fim de 7 dias.
+// Pedidos de 2 em 2 segundos ao mesmo site, com mais tempo para os PDFs.
+// No máximo 6 minutos no total: o que faltar fica para a próxima execução.
+$httpPremios = new HttpClient(25, false, 2000);
+$premiosAte = microtime(true) + 6 * 60;
+$obterDocumento = static function (string $url) use ($httpPremios, $siteRecusado, $recusou): ?string {
+    if ($siteRecusado($url)) {
+        return null;
+    }
+    try {
+        return $httpPremios->get($url);
+    } catch (Throwable $e) {
+        $recusou($e, $url);
+
+        return null;
+    }
+};
+$premiosContagem = ['sim' => 0, 'não' => 0, 'por saber' => 0];
+$provasPremios = $db->provasParaProcurarPremios(40, [All4RunningScraper::PREFIXO_PAGINA_PROVA]);
+$premiosVistas = 0;
+foreach ($provasPremios as $corridaId => $paginas) {
+    if (microtime(true) > $premiosAte) {
+        break;
+    }
+    $premiosVistas++;
+    [$monetarios, $excerto, $urlPremios, $respondeu] = PremiosHelper::procurar($paginas, $obterDocumento);
+    // Se nenhuma página respondeu (site em baixo ou a recusar), tenta na próxima execução.
+    if ($respondeu || $paginas === []) {
+        $db->gravarPremios($corridaId, $monetarios, $excerto, $urlPremios);
+    }
+    $premiosContagem[match ($monetarios) { true => 'sim', false => 'não', null => 'por saber' }]++;
+}
+printf(
+    "\nPrémios monetários: procurados em %d provas — %d com, %d sem, %d por saber.\n",
+    $premiosVistas,
+    $premiosContagem['sim'],
+    $premiosContagem['não'],
+    $premiosContagem['por saber']
 );
 
 printf(

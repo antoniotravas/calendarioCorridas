@@ -10,18 +10,23 @@ const PROVAS_POR_PAGINA = 20;
 /** Filtro "Tipo": valor de corridas.categoria => texto. */
 const CATEGORIAS = ['estrada' => 'Estrada', 'trail' => 'Trail', 'corta-mato' => 'Corta-mato', 'pista' => 'Pista'];
 
+/** Filtro "Prémios": valor do parâmetro => [texto da opção, corridas.premios_monetarios]. */
+const FILTRO_PREMIOS = ['sim' => ['Com prémios monetários', true], 'nao' => ['Sem prémios monetários', false]];
+
 $mes = isset($_GET['mes']) && $_GET['mes'] !== '' ? (int) $_GET['mes'] : null;
 $fonte = isset($_GET['fonte']) && $_GET['fonte'] !== '' ? (string) $_GET['fonte'] : null;
 $procura = isset($_GET['procura']) && trim((string) $_GET['procura']) !== '' ? trim((string) $_GET['procura']) : null;
 $distanciaChave = isset($_GET['distancia']) && $_GET['distancia'] !== '' ? (string) $_GET['distancia'] : null;
 $distanciaFaixa = DistanciaHelper::intervaloPorChave($distanciaChave);
 $categoria = isset($_GET['tipo']) && isset(CATEGORIAS[$_GET['tipo']]) ? (string) $_GET['tipo'] : null;
+$premiosChave = isset($_GET['premios']) && isset(FILTRO_PREMIOS[$_GET['premios']]) ? (string) $_GET['premios'] : null;
+$premios = $premiosChave !== null ? FILTRO_PREMIOS[$premiosChave][1] : null;
 $pagina = max(1, (int) ($_GET['pagina'] ?? 1));
 // ?parcial=1: só a lista desta página, para o JavaScript a acrescentar à que já está à vista.
 $parcial = isset($_GET['parcial']);
 
 $utilizadorAtual = $auth->utilizadorAtual();
-$total = $db->contarCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria);
+$total = $db->contarCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria, $premios);
 $corridas = $db->listarCorridas(
     $mes,
     $fonte,
@@ -30,12 +35,13 @@ $corridas = $db->listarCorridas(
     $utilizadorAtual['id'] ?? null,
     PROVAS_POR_PAGINA,
     ($pagina - 1) * PROVAS_POR_PAGINA,
-    $categoria
+    $categoria,
+    $premios
 );
 $grupos = DateHelper::agruparPorMes($corridas);
 
 $filtrosAtivos = array_filter(
-    ['tipo' => $categoria, 'mes' => $mes, 'distancia' => $distanciaChave, 'fonte' => $fonte, 'procura' => $procura],
+    ['tipo' => $categoria, 'mes' => $mes, 'distancia' => $distanciaChave, 'fonte' => $fonte, 'premios' => $premiosChave, 'procura' => $procura],
     static fn ($v) => $v !== null
 );
 $voltar = '/' . ($filtrosAtivos !== [] ? '?' . http_build_query($filtrosAtivos) : '');
@@ -73,6 +79,9 @@ if ($distanciaChave !== null && isset(DistanciaHelper::FAIXAS[$distanciaChave]))
         ctype_digit($faixa[0]) => 'de ' . $faixa,
         default => $faixa,
     };
+}
+if ($premiosChave !== null) {
+    $detalhes[] = mb_strtolower(FILTRO_PREMIOS[$premiosChave][0]);
 }
 if ($fonte !== null) {
     $detalhes[] = ($total === 1 ? 'encontrada em ' : 'encontradas em ') . $fonte;
@@ -140,6 +149,16 @@ if ($detalhes !== []) {
                 <option value="">Fonte</option>
                 <?php foreach ($fontesDisponiveis as $f): ?>
                     <option value="<?= htmlspecialchars($f) ?>" <?= $fonte === $f ? 'selected' : '' ?>><?= htmlspecialchars($f) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+
+        <label class="filtro-premios">
+            <span class="sr-only">Prémios monetários</span>
+            <select name="premios">
+                <option value="">Prémios €</option>
+                <?php foreach (FILTRO_PREMIOS as $valor => [$nome]): ?>
+                    <option value="<?= htmlspecialchars($valor) ?>" <?= $premiosChave === $valor ? 'selected' : '' ?>><?= htmlspecialchars($nome) ?></option>
                 <?php endforeach; ?>
             </select>
         </label>
