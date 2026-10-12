@@ -336,7 +336,9 @@ final class Database
 
     /**
      * Páginas de provas futuras (de qualquer fonte) que começam por $prefixo e
-     * em que ainda não se procurou o link oficial.
+     * em que ainda não se procurou o link oficial; depois destas, as que foram
+     * lidas há mais de um dia sem se encontrar link (o organizador pode tê-lo
+     * acrescentado entretanto, ou a leitura da página pode ter melhorado).
      *
      * @return string[]
      */
@@ -347,8 +349,10 @@ final class Database
             FROM corridas_fontes cf
             INNER JOIN corridas c ON c.id = cf.corrida_id
             LEFT JOIN links_oficiais l ON l.hash_pagina = SHA1(cf.url_evento)
-            WHERE cf.url_evento LIKE :prefixo AND l.hash_pagina IS NULL AND c.data_prova >= CURDATE()
-            ORDER BY c.data_prova
+            WHERE cf.url_evento LIKE :prefixo AND c.data_prova >= CURDATE()
+              AND (l.hash_pagina IS NULL
+                   OR (l.url_oficial IS NULL AND l.procurado_em < NOW() - INTERVAL 1 DAY))
+            ORDER BY l.hash_pagina IS NOT NULL, c.data_prova
             LIMIT %d
             SQL, $limite));
         $stmt->execute(['prefixo' => addcslashes($prefixo, '%_') . '%']);

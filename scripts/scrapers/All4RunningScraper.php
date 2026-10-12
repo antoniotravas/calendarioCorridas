@@ -116,7 +116,9 @@ final class All4RunningScraper implements ScraperInterface
 
     /**
      * Link oficial da prova na página da All4Running: o site oficial; senão, o
-     * link de inscrição; senão, o site da entidade organizadora.
+     * link do botão de inscrição (o do topo, "Inscrições abertas", ou o
+     * "Fazer inscrição"/"Inscrever" mais abaixo); senão, o site da entidade
+     * organizadora.
      */
     public static function extrairLinkOficial(string $html): ?string
     {
@@ -124,7 +126,8 @@ final class All4RunningScraper implements ScraperInterface
 
         foreach ([
             '//a[@title="Site oficial da prova"]/@href',
-            '//a[normalize-space(.)="Fazer inscrição"]/@href',
+            '//a[starts-with(@title,"Fazer Inscri") or contains(@onclick,"click_inscricao")]/@href',
+            '//a[starts-with(normalize-space(.),"Fazer inscri") or starts-with(normalize-space(.),"Inscrever")]/@href',
             '//a[contains(@class,"org-contact-link")]/@href',
         ] as $consulta) {
             foreach ($xpath->query($consulta) as $atributo) {
