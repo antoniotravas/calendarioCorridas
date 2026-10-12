@@ -112,7 +112,7 @@ final class Database
         }
 
         $stmt = $this->pdo->prepare(<<<SQL
-            SELECT c.id, c.nome FROM corridas c
+            SELECT c.id, c.nome, c.local FROM corridas c
             WHERE c.data_prova = :data
               AND NOT EXISTS (
                   SELECT 1 FROM corridas_fontes cf WHERE cf.corrida_id = c.id AND cf.fonte = :fonte
@@ -122,7 +122,7 @@ final class Database
         $stmt->execute(['data' => $corrida->dataProva, 'fonte' => $corrida->fonte]);
 
         foreach ($stmt->fetchAll() as $candidata) {
-            if (NomeProvaHelper::mesmaProva($corrida->nome, $candidata['nome'])) {
+            if (NomeProvaHelper::mesmaProva($corrida->nome, $candidata['nome'], $corrida->local, $candidata['local'])) {
                 return (int) $candidata['id'];
             }
         }
@@ -221,7 +221,7 @@ final class Database
     public function consolidarRepetidas(): int
     {
         $linhas = $this->pdo->query(<<<SQL
-            SELECT c.id, c.nome, c.data_prova, GROUP_CONCAT(cf.fonte SEPARATOR '\n') AS fontes
+            SELECT c.id, c.nome, c.local, c.data_prova, GROUP_CONCAT(cf.fonte SEPARATOR '\n') AS fontes
             FROM corridas c
             LEFT JOIN corridas_fontes cf ON cf.corrida_id = c.id
             WHERE c.data_prova IS NOT NULL
@@ -246,7 +246,12 @@ final class Database
                 for ($j = $i + 1; $j < $total; $j++) {
                     if ($provas[$j] === null
                         || array_intersect($provas[$i]['fontes'], $provas[$j]['fontes']) !== []
-                        || !NomeProvaHelper::mesmaProva($provas[$i]['nome'], $provas[$j]['nome'])
+                        || !NomeProvaHelper::mesmaProva(
+                            $provas[$i]['nome'],
+                            $provas[$j]['nome'],
+                            $provas[$i]['local'],
+                            $provas[$j]['local']
+                        )
                     ) {
                         continue;
                     }
@@ -409,7 +414,7 @@ final class Database
     }
 
     /**
-     * Recalcula a categoria (estrada, trail, corta-mato) das provas futuras a
+     * Recalcula a categoria (estrada, trail, corta-mato, pista) das provas futuras a
      * partir do nome e do tipo — corre no fim de cada execução, depois das
      * junções entre fontes, que podem ter mudado o tipo.
      *
@@ -543,8 +548,8 @@ final class Database
     /**
      * Lista provas para apresentação, com filtros opcionais, a partir de hoje
      * (as provas sem data vão no fim). $distanciaFaixa é um par [min, max] em
-     * km (ver DistanciaHelper::FAIXAS); $categoria é "estrada", "trail" ou
-     * "corta-mato". Com $limite, devolve só essa página.
+     * km (ver DistanciaHelper::FAIXAS); $categoria é "estrada", "trail",
+     * "corta-mato" ou "pista". Com $limite, devolve só essa página.
      *
      * @param array{0:float,1:float}|null $distanciaFaixa
      * @return array<int,array<string,mixed>>

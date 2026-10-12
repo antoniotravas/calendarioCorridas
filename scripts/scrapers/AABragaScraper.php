@@ -3,14 +3,16 @@
 declare(strict_types=1);
 
 /**
- * Recolhe provas de estrada, trail e corta-mato do calendário da Associação de
- * Atletismo de Braga.
+ * Recolhe provas de estrada, trail, corta-mato e pista do calendário da
+ * Associação de Atletismo de Braga.
  *
  * A página do calendário inclui todos os eventos (várias épocas, passadas e
  * futuras) num array JSON em "window.AABragaCalendarioEventos", usado pelo
  * calendário visual (FullCalendar). Cada evento tem título, datas e, em
  * "extendedProps", local, organização, âmbito e tipo ("Estrada", "Pista",
  * "Corta-mato"...). O tipo vem por vezes vazio — nesse caso decide-se pelo nome.
+ * Pista aparece como "Pista", "Pista Ar Livre", "Pista Coberta", "Pista Curta"
+ * ou "Pavilhão".
  */
 final class AABragaScraper implements ScraperInterface
 {
@@ -52,8 +54,8 @@ final class AABragaScraper implements ScraperInterface
                 continue;
             }
 
-            $eCorrida = preg_match('/^estrada|corta.?mato|trail|montanha/u', $tipo)
-                || ($tipo === '' && NomeProvaHelper::pareceCorrida($nome));
+            $eCorrida = preg_match('/^estrada|corta.?mato|trail|montanha|^pista|^pavilh/u', $tipo)
+                || ($tipo === '' && (NomeProvaHelper::pareceCorrida($nome) || NomeProvaHelper::parecePista($nome)));
             if ($nome === '' || !$eCorrida) {
                 continue;
             }

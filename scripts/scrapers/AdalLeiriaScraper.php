@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 /**
- * Recolhe provas de corrida do calendário da Associação Distrital de Atletismo
- * de Leiria (ADAL).
+ * Recolhe provas de corrida e de pista do calendário da Associação Distrital
+ * de Atletismo de Leiria (ADAL).
  *
  * A página lista só os eventos futuros, sem tipo de prova nem local: o tipo é
- * deduzido do nome (NomeProvaHelper::pareceCorrida) para excluir marcha,
- * convívios, formação, pista, etc. A data completa vem no bloco "Data"
+ * deduzido do nome (NomeProvaHelper::pareceCorrida / parecePista) para excluir
+ * marcha, convívios, formação, etc. A data completa vem no bloco "Data"
  * ("03 de Outubro de 2026", às vezes seguida de uma segunda data que se ignora),
  * e o link "Programa" aponta para o PDF do regulamento da prova.
  */
@@ -45,7 +45,7 @@ final class AdalLeiriaScraper implements ScraperInterface
                 ' ',
                 $xpath->query('.//div[contains(@class,"news-title")]', $item)->item(0)?->textContent ?? ''
             ));
-            if ($nome === '' || !NomeProvaHelper::pareceCorrida($nome)) {
+            if ($nome === '' || !(NomeProvaHelper::pareceCorrida($nome) || NomeProvaHelper::parecePista($nome))) {
                 continue;
             }
 

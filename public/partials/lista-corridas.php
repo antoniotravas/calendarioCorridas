@@ -18,7 +18,7 @@ $autenticado = $auth->autenticado();
 $voltar ??= $_SERVER['REQUEST_URI'] ?? '/';
 $anoAtual = date('Y');
 
-$nomesCategoria = ['trail' => 'Trail', 'corta-mato' => 'Corta-mato'];
+$nomesCategoria = ['trail' => 'Trail', 'corta-mato' => 'Corta-mato', 'pista' => 'Pista'];
 
 /** Distâncias como etiquetas ("10K", "5K", "Caminhada") e o tipo, se não for estrada. */
 $etiquetasProva = static function (array $c) use ($nomesCategoria): array {

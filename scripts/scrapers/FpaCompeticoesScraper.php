@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 /**
- * Recolhe provas de estrada, trail e corta-mato da plataforma FPA Competições (Federação Portuguesa
- * de Atletismo), beta.fpacompeticoes.pt.
+ * Recolhe provas de estrada, trail, corta-mato e pista da plataforma FPA Competições (Federação
+ * Portuguesa de Atletismo), beta.fpacompeticoes.pt. As associações distritais registam aqui as
+ * suas competições (campo "owner": AAB, ADAL, AAVR...), por isso é também a principal fonte de
+ * provas de pista das associações sem calendário próprio legível.
  *
  * Ao contrário das outras fontes, esta é uma app Remix renderizada no servidor:
  * o HTML de cada página inclui os dados já prontos em "window.__remixContext",
@@ -41,7 +43,10 @@ final class FpaCompeticoesScraper implements ScraperInterface
         $corridas = [];
 
         foreach ($resultados as $item) {
-            if (!in_array($item['tipo'] ?? null, ['Estrada', 'Trail', 'Corta-Mato'], true)) {
+            // Pista: "Pista Ar Livre", "Pista Coberta"... "Outro" mistura convívios, formação, etc.
+            $tipo = (string) ($item['tipo'] ?? '');
+            $ePista = str_starts_with($tipo, 'Pista');
+            if (!$ePista && !in_array($tipo, ['Estrada', 'Trail', 'Corta-Mato'], true)) {
                 continue;
             }
 
@@ -59,8 +64,9 @@ final class FpaCompeticoesScraper implements ScraperInterface
                 nome: (string) ($item['nome'] ?? ''),
                 dataProva: $dataProva,
                 local: !empty($item['local']) ? (string) $item['local'] : null,
-                distancias: $detalhes['distancias'],
-                tipo: $item['tipo'],
+                // Nas provas de pista, os metros dos escalões ("60m", "1000m") não são uma distância de corrida.
+                distancias: $ePista ? null : $detalhes['distancias'],
+                tipo: $tipo,
                 regiao: null,
                 urlEvento: $detalhes['urlEvento'],
                 fonte: $this->nome(),

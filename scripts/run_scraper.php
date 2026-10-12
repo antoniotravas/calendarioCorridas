@@ -17,6 +17,8 @@ require __DIR__ . '/scrapers/AAAPortoScraper.php';
 require __DIR__ . '/scrapers/FpaCompeticoesScraper.php';
 require __DIR__ . '/scrapers/AABragaScraper.php';
 require __DIR__ . '/scrapers/AdalLeiriaScraper.php';
+require __DIR__ . '/scrapers/AdacCoimbraScraper.php';
+require __DIR__ . '/scrapers/AALisboaScraper.php';
 require __DIR__ . '/scrapers/TheEventsCalendarScraper.php';
 require __DIR__ . '/scrapers/Lap2GoScraper.php';
 require __DIR__ . '/scrapers/XistarcaScraper.php';
@@ -50,6 +52,9 @@ $scrapers = [
     new FpaCompeticoesScraper($http),
     new AABragaScraper($http),
     new AdalLeiriaScraper($http),
+    new AdacCoimbraScraper($http),
+    // A plataforma da AA Lisboa (ASP.NET) só responde aos botões na mesma sessão (cookies).
+    new AALisboaScraper(new HttpClient(guardarCookies: true)),
     new TheEventsCalendarScraper($http, 'AA São Miguel', 'https://aatletismosmiguel.pt', 'Açores'),
     new TheEventsCalendarScraper($http, 'AA Madeira', 'http://atletismodamadeira.pt', 'Madeira'),
     new TheEventsCalendarScraper($http, 'AA Santarém', 'https://www.aasantarem.pt', 'Santarém'),
@@ -184,7 +189,7 @@ $organizadoras = array_map(
 );
 $linksOrganizador = $db->aplicarLinksOrganizadores($organizadoras);
 
-// Estrada, trail ou corta-mato, para o filtro "Tipo" do site.
+// Estrada, trail, corta-mato ou pista, para o filtro "Tipo" do site.
 $db->atualizarCategorias();
 
 // Miniaturas: para as provas futuras ainda sem imagem, procura o cartaz nas

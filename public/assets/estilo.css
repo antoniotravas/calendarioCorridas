@@ -18,6 +18,8 @@
     --trail-suave: #e6f1e8;
     --corta-mato: #8a5a14;
     --corta-mato-suave: #f6eedf;
+    --pista: #a3361f;          /* tartan das pistas */
+    --pista-suave: #f9e9e4;
     --erro: #b3261e;
     --erro-soft: #fbe9e7;
 
@@ -316,6 +318,7 @@ ul.etiquetas li {
 }
 ul.etiquetas li.etiqueta-trail { border-color: transparent; background: var(--trail-suave); color: var(--trail); }
 ul.etiquetas li.etiqueta-corta-mato { border-color: transparent; background: var(--corta-mato-suave); color: var(--corta-mato); }
+ul.etiquetas li.etiqueta-pista { border-color: transparent; background: var(--pista-suave); color: var(--pista); }
 .prova-fontes { margin: 0; font-size: 0.8rem; color: var(--cinza); }
 .prova-fontes a { color: var(--cinza); }
 .prova-fontes a:hover { color: var(--sinal); }

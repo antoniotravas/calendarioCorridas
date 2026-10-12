@@ -34,6 +34,9 @@ final class NomeProvaHelper
         'grande', 'premio', 'atletismo', 'trail', 'km', 'run', 'running', 'cidade', 'vila',
         'internacional', 'nacional', 'regional', 'distrital', 'prova', 'provas', 'estrada',
         'caminhada', 'marcha', 'solidaria', 'solidario', 'noturna', 'night', 'race', 'popular',
+        // Pista: "Torneio de Abertura", "Campeonato Regional de Pista Coberta"...
+        'torneio', 'meeting', 'campeonato', 'campeonatos', 'pista', 'coberta', 'curta', 'ar', 'livre',
+        'abertura', 'encerramento', 'jovem', 'jovens', 'absolutos', 'masters', 'veteranos', 'sub',
     ];
 
     /**
@@ -44,9 +47,12 @@ final class NomeProvaHelper
     private const FORMATOS = ['meia', 'maratona', 'milha', 'legua', 'silvestre', 'trail', 'caminhada', 'marcha'];
 
     /**
-     * Decide se dois nomes (da mesma data) se referem à mesma prova.
+     * Decide se dois nomes (da mesma data) se referem à mesma prova. Com os
+     * locais, nomes só com palavras genéricas ("Torneio de Abertura", comum a
+     * várias associações no mesmo fim de semana) só são a mesma prova se os
+     * locais tiverem alguma palavra em comum.
      */
-    public static function mesmaProva(string $nomeA, string $nomeB): bool
+    public static function mesmaProva(string $nomeA, string $nomeB, ?string $localA = null, ?string $localB = null): bool
     {
         $a = self::palavras($nomeA);
         $b = self::palavras($nomeB);
@@ -68,7 +74,14 @@ final class NomeProvaHelper
 
         // Nomes só com palavras genéricas ("Meia Maratona"): só iguais se forem iguais.
         if ($distintivasA === [] || $distintivasB === []) {
-            return $distintivasA === $distintivasB && $a === $b;
+            if ($distintivasA !== $distintivasB || $a !== $b) {
+                return false;
+            }
+            $palavrasLocalA = self::palavras((string) $localA);
+            $palavrasLocalB = self::palavras((string) $localB);
+
+            return $palavrasLocalA === [] || $palavrasLocalB === []
+                || array_intersect($palavrasLocalA, $palavrasLocalB) !== [];
         }
 
         $comuns = count(array_intersect($distintivasA, $distintivasB));
@@ -156,18 +169,52 @@ final class NomeProvaHelper
     }
 
     /**
-     * Tipo de corrida, para o filtro e as etiquetas do site: "trail" (inclui
-     * ultra trail e montanha), "corta-mato" ou "estrada". Decide pelo nome e
-     * pelo tipo que a fonte indicar (ex. "Caminhada, Trail", "Corta-Mato").
+     * Tipo de prova, para o filtro e as etiquetas do site: "trail" (inclui
+     * ultra trail e montanha), "corta-mato", "pista" (ar livre, coberta e
+     * pista curta) ou "estrada". Decide pelo nome e pelo tipo que a fonte
+     * indicar (ex. "Caminhada, Trail", "Corta-Mato", "Pista Ar Livre"); o
+     * nome só faz uma prova de pista quando a fonte não diz que é de estrada
+     * (o "Torneio de Rua de Santo Tirso" é estrada).
      */
     public static function categoria(string $nome, ?string $tipo): string
     {
         $texto = strtr(mb_strtolower($nome . ' ' . $tipo), self::ACENTOS);
+        $textoTipo = strtr(mb_strtolower((string) $tipo), self::ACENTOS);
 
         return match (true) {
             (bool) preg_match(self::PADRAO_CORTA_MATO, $texto) => 'corta-mato',
             (bool) preg_match(self::PADRAO_TRAIL, $texto) => 'trail',
+            (bool) preg_match('/pista|pavilhao/', $textoTipo) => 'pista',
+            str_contains($textoTipo, 'estrada') => 'estrada',
+            self::parecePista($nome) => 'pista',
             default => 'estrada',
         };
+    }
+
+    /**
+     * Competições de pista (ar livre, coberta, pista curta): torneios,
+     * meetings, campeonatos de pista, distâncias em metros ("10 000 m"),
+     * saltos, lançamentos, provas combinadas...
+     */
+    private const PADRAO_PISTA = '/\bpista\b|pavilhao|meeting|torneio|lancamentos?\b|\bsaltos?\b|provas combinadas|'
+        . 'atleta completo|mega ?sprint|km jovem|barreiras|heptatlo|decatlo|ar livre|'
+        . '\b\d{1,2}[ .]?\d{3}\s?m\b|\b\d{2,3}\s?m\b/';
+
+    /**
+     * Para fontes que não indicam o tipo de prova (associações que publicam
+     * todas as competições): diz se o nome sugere uma competição de pista.
+     * Ficam de fora as de crianças (convívios, Kids Athletics), formação,
+     * estágios e concentrações, e o que pelo nome é estrada, trail ou
+     * corta-mato ("Torneio de Rua", "Torneio de Corta-mato").
+     */
+    public static function parecePista(string $nome): bool
+    {
+        $texto = strtr(mb_strtolower($nome), self::ACENTOS);
+
+        return preg_match(self::PADRAO_PISTA, $texto)
+            && !preg_match('/conviv|kids|benjamins|formacao|juiz|juizes|estagio|exames|jornadas|concentracao|cerimonia|gala\b/', $texto)
+            && !preg_match('/\brua\b|estrada|corrida/', $texto)
+            && !preg_match(self::PADRAO_TRAIL, $texto)
+            && !preg_match(self::PADRAO_CORTA_MATO, $texto);
     }
 }

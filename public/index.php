@@ -8,7 +8,7 @@ require __DIR__ . '/_bootstrap.php';
 const PROVAS_POR_PAGINA = 20;
 
 /** Filtro "Tipo": valor de corridas.categoria => texto. */
-const CATEGORIAS = ['estrada' => 'Estrada', 'trail' => 'Trail', 'corta-mato' => 'Corta-mato'];
+const CATEGORIAS = ['estrada' => 'Estrada', 'trail' => 'Trail', 'corta-mato' => 'Corta-mato', 'pista' => 'Pista'];
 
 $mes = isset($_GET['mes']) && $_GET['mes'] !== '' ? (int) $_GET['mes'] : null;
 $fonte = isset($_GET['fonte']) && $_GET['fonte'] !== '' ? (string) $_GET['fonte'] : null;
@@ -56,7 +56,7 @@ if ($parcial) {
 }
 
 $fontesDisponiveis = $db->listarFontes();
-$tituloDocumento = 'Calendário de corridas em Portugal — estrada, trail e corta-mato';
+$tituloDocumento = 'Calendário de corridas em Portugal — estrada, trail, corta-mato e pista';
 
 /**
  * Frase do total, de acordo com os filtros escolhidos, ex.:

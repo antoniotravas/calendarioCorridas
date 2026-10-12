@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 /**
- * Recolhe provas de estrada e de corta-mato listadas pela Associação de
- * Atletismo do Porto (uma listagem por tipo, com a mesma estrutura).
+ * Recolhe provas de estrada, corta-mato e pista listadas pela Associação de
+ * Atletismo do Porto (uma listagem por tipo, com a mesma estrutura). As de
+ * pista coberta e pista ar livre não aparecem no menu do site, mas existem nos
+ * mesmos endereços.
  *
  * A listagem (~500 registos, 8 por página) não está ordenada por data — mistura
  * provas passadas e futuras por página, aparentemente pela ordem de inserção.
@@ -16,7 +18,12 @@ final class AAAPortoScraper implements ScraperInterface
     private const BASE_URL = 'https://www.aaporto.com';
     private const LISTAGEM_URL = self::BASE_URL . '/index.php/competicoes/calendario-competitivo/';
     /** @var array<string,string> caminho da listagem => tipo de prova */
-    private const LISTAGENS = ['estrada' => 'Estrada', 'corta-mato' => 'Corta-mato'];
+    private const LISTAGENS = [
+        'estrada' => 'Estrada',
+        'corta-mato' => 'Corta-mato',
+        'pista-coberta' => 'Pista coberta',
+        'pista-ar-livre' => 'Pista ar livre',
+    ];
     private const TAMANHO_PAGINA = 8;
     private const MAX_PAGINAS = 15;
 

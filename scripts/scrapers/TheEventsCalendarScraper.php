@@ -3,14 +3,15 @@
 declare(strict_types=1);
 
 /**
- * Recolhe provas de estrada, trail e corta-mato de sites WordPress com o plugin "The Events
+ * Recolhe provas de estrada, trail, corta-mato e pista de sites WordPress com o plugin "The Events
  * Calendar", através da API REST pública do plugin
  * (/wp-json/tribe/events/v1/events). Serve várias associações distritais com
  * o mesmo plugin — cada instância recebe o nome da fonte e o endereço do site.
  *
- * Uma prova conta se alguma das suas categorias for de estrada, trail ou
- * corta-mato (ex. "Estrada Local", "Trail", "Corta-Mato"); se não tiver
- * categorias, decide-se pelo nome (NomeProvaHelper::pareceCorrida).
+ * Uma prova conta se alguma das suas categorias for de estrada, trail,
+ * corta-mato ou pista (ex. "Estrada Local", "Trail", "Corta-Mato", "Pista
+ * Regional"); se não tiver categorias, decide-se pelo nome
+ * (NomeProvaHelper::pareceCorrida / parecePista).
  */
 final class TheEventsCalendarScraper implements ScraperInterface
 {
@@ -73,9 +74,11 @@ final class TheEventsCalendarScraper implements ScraperInterface
         );
         $categoriasCorrida = array_values(array_filter(
             $categorias,
-            fn (string $c) => (bool) preg_match('/estrada|trail|corta.?mato|montanha/u', $c)
+            fn (string $c) => (bool) preg_match('/estrada|trail|corta.?mato|montanha|pista/u', $c)
         ));
-        $eCorrida = $categorias === [] ? NomeProvaHelper::pareceCorrida($nome) : $categoriasCorrida !== [];
+        $eCorrida = $categorias === []
+            ? NomeProvaHelper::pareceCorrida($nome) || NomeProvaHelper::parecePista($nome)
+            : $categoriasCorrida !== [];
         if (!$eCorrida) {
             return null;
         }
