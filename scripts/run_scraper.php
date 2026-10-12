@@ -20,6 +20,7 @@ require __DIR__ . '/scrapers/AdalLeiriaScraper.php';
 require __DIR__ . '/scrapers/TheEventsCalendarScraper.php';
 require __DIR__ . '/scrapers/Lap2GoScraper.php';
 require __DIR__ . '/scrapers/XistarcaScraper.php';
+require __DIR__ . '/scrapers/TrilhoPerdidoScraper.php';
 require __DIR__ . '/scrapers/StopAndGoScraper.php';
 require __DIR__ . '/scrapers/AcorrerScraper.php';
 
@@ -54,6 +55,7 @@ $scrapers = [
     new TheEventsCalendarScraper($http, 'AA Santarém', 'https://www.aasantarem.pt', 'Santarém'),
     new Lap2GoScraper($http),
     new XistarcaScraper($http),
+    new TrilhoPerdidoScraper($http),
     new StopAndGoScraper($http),
     // A Acorrer só devolve os eventos a pedidos feitos na mesma sessão (cookies).
     new AcorrerScraper(new HttpClient(guardarCookies: true)),
