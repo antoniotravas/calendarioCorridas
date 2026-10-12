@@ -36,8 +36,9 @@ $etiquetasProva = static function (array $c) use ($nomesCategoria): array {
  * diz que não há; nada: por saber). Liga ao documento onde foi lido, com o
  * excerto como dica.
  */
-$iconePremios = static function (array $c): void {
-    if (!isset($c['premios_monetarios'])) {
+$podeVerPremios = $auth->podeVerPremios();
+$iconePremios = static function (array $c) use ($podeVerPremios): void {
+    if (!$podeVerPremios || !isset($c['premios_monetarios'])) {
         return;
     }
     $sim = (int) $c['premios_monetarios'] === 1;

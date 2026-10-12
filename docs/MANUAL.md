@@ -70,6 +70,7 @@ sql/migracao_004_imagens.sql         -- para BDs criadas antes das miniaturas (c
 sql/migracao_005_categoria.sql       -- para BDs criadas antes do filtro "Tipo" (correr uma vez)
 sql/migracao_006_links_oficiais.sql  -- tabela links_oficiais (link oficial lido das páginas da All4Running)
 sql/migracao_007_premios.sql         -- colunas premios_* em corridas (ícone "€" e filtro "Prémios")
+sql/migracao_008_permissoes.sql      -- colunas e_admin e ver_premios em utilizadores (gestão de acessos)
 
 scripts/config.example.php           -- template de credenciais (copiar para config.php)
 scripts/lib/Corrida.php              -- objeto de valor com os dados normalizados de uma prova
@@ -97,9 +98,11 @@ scripts/scrapers/StopAndGoScraper.php
 scripts/scrapers/AcorrerScraper.php           -- app Livewire: simula a chamada "load" do browser
 scripts/scrapers/FonteOrganizadora.php        -- marca fontes cujo link do evento tem prioridade
 scripts/run_scraper.php              -- ponto de entrada do scraper (CLI)
+scripts/definir_admin.php            -- torna um utilizador administrador (CLI: php scripts/definir_admin.php email)
 
 public/_bootstrap.php                -- sessão + ligação BD + $auth, incluído por todas as páginas
 public/index.php                     -- calendário público (filtros: mês, distância, fonte, pesquisa), 20 provas por página; ?parcial=1 devolve só a lista (carregamento progressivo)
+public/gestao-utilizadores.php       -- (só administradores) dar/retirar acesso aos prémios monetários
 public/meu-calendario.php            -- provas guardadas pelo utilizador autenticado + botões de exportação .ics
 public/meu-calendario-ics.php        -- "o meu calendário" em .ics (descarga com sessão, ou subscrição com ?token=)
 public/lib/CalendarioIcs.php         -- gera o texto iCalendar (RFC 5545) a partir das provas
@@ -208,6 +211,8 @@ O site público está em **https://corridas.eu** (antes: `corridas.espacodecodig
 
 ### Prémios monetários
 
+**Só para quem tem acesso** (`Auth::podeVerPremios()`): administradores e utilizadores autorizados por eles. Para os restantes — incluindo quem não tem sessão — o ícone, o filtro e o parâmetro `?premios=` não existem. Ver "Administradores e acesso aos prémios" abaixo.
+
 Cada prova pode ter um ícone "€" ao lado do nome: **verde** se os mais bem classificados recebem dinheiro, **cinzento riscado** se o regulamento diz que os prémios são troféus/medalhas (ou que não há prémios monetários); sem ícone enquanto não se sabe. O ícone liga ao documento onde a informação foi lida (`premios_url`) e mostra o excerto (`premios_excerto`) como dica.
 
 **Recolha** (no fim de `run_scraper.php`): até 40 provas por execução — primeiro as nunca vistas; as que ficaram por saber voltam a ser vistas ao fim de 7 dias (o regulamento costuma sair mais tarde) e as "sem prémios" ao fim de 30. Para cada prova, `PremiosHelper::procurar()` lê as páginas do evento (de todas as fontes; da All4Running também a página da prova) e segue os links do regulamento (`PremiosHelper::linksRegulamento()`: links com "regulamento" no endereço ou no texto, a página `/rules` da Stop and Go, o campo JSON `"Regulamento"` da Lap2Go), até 5 documentos por prova. Os PDF são lidos por `PdfTextoHelper` (PHP puro: objetos, object streams, FlateDecode, mapas ToUnicode, codificações Windows-1252 e Mac Roman); PDFs digitalizados (só imagens) ou cifrados ficam sem texto.
@@ -226,6 +231,13 @@ Cada prova pode ter um ícone "€" ao lado do nome: **verde** se os mais bem cl
 - Um utilizador pode existir só com password, só com Google, ou com as duas (a conta é associada pelo email).
 - Sessão guardada em `$_SESSION['utilizador_id']`; todas as ações que alteram estado (favoritos, logout) validam um token CSRF guardado em sessão.
 - "O meu calendário" (`public/meu-calendario.php`) lista as provas marcadas pelo utilizador; o botão "Guardar" / "Guardada" em cada prova chama `public/favorito.php` (POST), que alterna a linha em `favoritos`. Sem sessão, o botão leva ao login e volta à mesma página.
+
+### Administradores e acesso aos prémios
+
+- `utilizadores.e_admin`: o administrador vê o link **Gestão** no topo e a página `public/gestao-utilizadores.php` (`Auth::exigirAdmin()`: sem sessão vai para o login; sem permissão, 403). Vê sempre os prémios monetários.
+- `utilizadores.ver_premios`: dado/retirado pelo administrador nessa página (um botão por utilizador, POST com CSRF; pesquisa por nome ou email).
+- **Tornar alguém administrador** (tem de já ter conta): `php scripts/definir_admin.php email@exemplo.pt` (`--retirar` para deixar de ser). O email fica só na base de dados — não é escrito no código, porque o repositório é público.
+- **Base de dados criada antes desta funcionalidade:** correr uma vez `sql/migracao_008_permissoes.sql`.
 
 ### Exportar "o meu calendário" (.ics)
 

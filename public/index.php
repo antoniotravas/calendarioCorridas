@@ -19,7 +19,9 @@ $procura = isset($_GET['procura']) && trim((string) $_GET['procura']) !== '' ? t
 $distanciaChave = isset($_GET['distancia']) && $_GET['distancia'] !== '' ? (string) $_GET['distancia'] : null;
 $distanciaFaixa = DistanciaHelper::intervaloPorChave($distanciaChave);
 $categoria = isset($_GET['tipo']) && isset(CATEGORIAS[$_GET['tipo']]) ? (string) $_GET['tipo'] : null;
-$premiosChave = isset($_GET['premios']) && isset(FILTRO_PREMIOS[$_GET['premios']]) ? (string) $_GET['premios'] : null;
+// Os prémios monetários só são visíveis para quem tem acesso (ver Auth::podeVerPremios).
+$podeVerPremios = $auth->podeVerPremios();
+$premiosChave = $podeVerPremios && isset($_GET['premios']) && isset(FILTRO_PREMIOS[$_GET['premios']]) ? (string) $_GET['premios'] : null;
 $premios = $premiosChave !== null ? FILTRO_PREMIOS[$premiosChave][1] : null;
 $pagina = max(1, (int) ($_GET['pagina'] ?? 1));
 // ?parcial=1: só a lista desta página, para o JavaScript a acrescentar à que já está à vista.
@@ -103,7 +105,7 @@ if ($detalhes !== []) {
 <?php require __DIR__ . '/partials/cabecalho.php'; ?>
 
 <div class="barra-filtros">
-    <form class="filtros" method="get" action="/" role="search">
+    <form class="filtros<?= $podeVerPremios ? '' : ' sem-premios' ?>" method="get" action="/" role="search">
         <label class="procura">
             <span class="sr-only">Procurar prova ou localidade</span>
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
@@ -153,6 +155,7 @@ if ($detalhes !== []) {
             </select>
         </label>
 
+        <?php if ($podeVerPremios): ?>
         <label class="filtro-premios">
             <span class="sr-only">Prémios monetários</span>
             <select name="premios">
@@ -162,6 +165,7 @@ if ($detalhes !== []) {
                 <?php endforeach; ?>
             </select>
         </label>
+        <?php endif; ?>
 
         <button type="submit" class="filtrar">Procurar</button>
     </form>

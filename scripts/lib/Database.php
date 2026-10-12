@@ -814,6 +814,52 @@ final class Database
         return $utilizador !== false ? $utilizador : null;
     }
 
+    /**
+     * Utilizadores para o painel de gestão, mais recentes primeiro; com
+     * $procura, só os que têm esse texto no nome ou no email.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public function listarUtilizadores(?string $procura = null): array
+    {
+        $sql = 'SELECT u.id, u.nome, u.email, u.criado_em, u.e_admin, u.ver_premios,'
+            . ' (u.password_hash IS NOT NULL) AS tem_password, (u.google_id IS NOT NULL) AS tem_google,'
+            . ' (SELECT COUNT(*) FROM favoritos f WHERE f.utilizador_id = u.id) AS provas_guardadas'
+            . ' FROM utilizadores u';
+        $params = [];
+        if ($procura !== null && $procura !== '') {
+            $sql .= ' WHERE u.nome LIKE :procura OR u.email LIKE :procura_email';
+            $params = ['procura' => '%' . $procura . '%', 'procura_email' => '%' . $procura . '%'];
+        }
+        $stmt = $this->pdo->prepare($sql . ' ORDER BY u.e_admin DESC, u.criado_em DESC, u.id DESC');
+        $stmt->execute($params);
+
+        return $stmt->fetchAll();
+    }
+
+    /** Dá ou retira a um utilizador o acesso aos prémios monetários. */
+    public function definirVerPremios(int $utilizadorId, bool $ver): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE utilizadores SET ver_premios = :ver WHERE id = :id');
+        $stmt->execute(['ver' => (int) $ver, 'id' => $utilizadorId]);
+    }
+
+    /**
+     * Torna administrador (ou deixa de ser) o utilizador com este email.
+     *
+     * @return bool false se não houver utilizador com esse email
+     */
+    public function definirAdmin(string $email, bool $admin = true): bool
+    {
+        if ($this->encontrarUtilizadorPorEmail($email) === null) {
+            return false;
+        }
+        $stmt = $this->pdo->prepare('UPDATE utilizadores SET e_admin = :admin WHERE email = :email');
+        $stmt->execute(['admin' => (int) $admin, 'email' => $email]);
+
+        return true;
+    }
+
     public function encontrarUtilizadorPorGoogleId(string $googleId): ?array
     {
         $stmt = $this->pdo->prepare('SELECT * FROM utilizadores WHERE google_id = :id');

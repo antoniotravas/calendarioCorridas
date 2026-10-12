@@ -93,6 +93,11 @@ CREATE TABLE IF NOT EXISTS utilizadores (
     -- Código secreto do link de subscrição do "meu calendário" (.ics), criado
     -- na primeira visita a /meu-calendario.php; pode ser renovado pelo utilizador.
     ics_token      CHAR(32) NULL,
+    -- Administrador: gere os utilizadores em /gestao-utilizadores.php e vê
+    -- tudo (definido com scripts/definir_admin.php).
+    e_admin        TINYINT(1) NOT NULL DEFAULT 0,
+    -- Pode ver os prémios monetários (ícone "€" e filtro); dado pelo administrador.
+    ver_premios    TINYINT(1) NOT NULL DEFAULT 0,
     criado_em      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_email (email),

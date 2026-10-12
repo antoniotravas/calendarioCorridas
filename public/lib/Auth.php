@@ -7,6 +7,9 @@ declare(strict_types=1);
  */
 final class Auth
 {
+    /** Utilizador já lido da BD neste pedido (false = ainda não lido). */
+    private array|null|false $utilizador = false;
+
     public function __construct(private readonly Database $db)
     {
     }
@@ -17,7 +20,38 @@ final class Auth
             return null;
         }
 
-        return $this->db->encontrarUtilizadorPorId((int) $_SESSION['utilizador_id']);
+        if ($this->utilizador === false || (int) ($this->utilizador['id'] ?? 0) !== (int) $_SESSION['utilizador_id']) {
+            $this->utilizador = $this->db->encontrarUtilizadorPorId((int) $_SESSION['utilizador_id']);
+        }
+
+        return $this->utilizador;
+    }
+
+    /** Administrador: gere os utilizadores (/gestao-utilizadores.php). */
+    public function eAdmin(): bool
+    {
+        return !empty($this->utilizadorAtual()['e_admin']);
+    }
+
+    /**
+     * Pode ver os prémios monetários (ícone "€" e filtro "Prémios"): os
+     * administradores e quem eles autorizarem. Sem sessão, não.
+     */
+    public function podeVerPremios(): bool
+    {
+        $utilizador = $this->utilizadorAtual();
+
+        return !empty($utilizador['e_admin']) || !empty($utilizador['ver_premios']);
+    }
+
+    /** Página só para administradores: login primeiro; sem permissão, 403. */
+    public function exigirAdmin(string $destinoAposLogin = '/'): void
+    {
+        $this->exigirLogin($destinoAposLogin);
+        if (!$this->eAdmin()) {
+            http_response_code(403);
+            die('Esta página é só para administradores.');
+        }
     }
 
     public function autenticado(): bool
@@ -29,12 +63,14 @@ final class Auth
     {
         session_regenerate_id(true);
         $_SESSION['utilizador_id'] = $utilizadorId;
+        $this->utilizador = false;
     }
 
     public function terminarSessao(): void
     {
         $_SESSION = [];
         session_destroy();
+        $this->utilizador = false;
     }
 
     public function tokenCsrf(): string

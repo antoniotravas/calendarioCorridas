@@ -99,6 +99,9 @@ form.filtros {
     gap: 8px;
 }
 form.filtros.com-js { grid-template-columns: minmax(170px, 1.5fr) repeat(5, minmax(0, 1fr)); }
+/* Sem acesso aos prémios monetários: um filtro a menos. */
+form.filtros.sem-premios { grid-template-columns: minmax(170px, 1.5fr) repeat(4, minmax(0, 1fr)) auto; }
+form.filtros.sem-premios.com-js { grid-template-columns: minmax(170px, 1.5fr) repeat(4, minmax(0, 1fr)); }
 form.filtros.com-js .filtrar { position: absolute; left: -9999px; }
 form.filtros label { display: block; min-width: 0; }
 form.filtros select,
@@ -592,6 +595,78 @@ details.exportar-link[open] > summary { border-color: var(--sinal); color: var(-
     font-size: 0.85rem;
     margin-bottom: 14px;
 }
+/* Gestão de utilizadores (administradores) */
+.gestao-explicacao { margin: 0 0 16px; color: var(--cinza); font-size: 0.95rem; max-width: 640px; }
+.gestao-explicacao .premios { margin: 0 2px; cursor: default; }
+.gestao-procura { display: flex; gap: 8px; margin-bottom: 14px; max-width: 520px; }
+.gestao-procura .procura { flex: 1; min-width: 0; }
+.gestao-procura input[type="search"] {
+    width: 100%;
+    height: 40px;
+    padding: 0 10px 0 36px;
+    border: 1px solid var(--linha);
+    border-radius: 8px;
+    background: var(--branco);
+    color: var(--asfalto);
+    font: inherit;
+}
+.gestao-procura .botao-principal { width: auto; height: 40px; margin: 0; padding: 0 18px; }
+.gestao-aviso {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--trail-suave);
+    color: var(--trail);
+    font-size: 0.9rem;
+}
+ul.utilizadores { list-style: none; margin: 10px 0 40px; padding: 0; display: grid; gap: 10px; }
+li.utilizador {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 16px;
+    border: 1px solid var(--linha);
+    border-radius: 12px;
+    background: var(--branco);
+}
+li.utilizador.com-acesso { border-left: 4px solid var(--premios); }
+.utilizador-dados { min-width: 0; }
+.utilizador-dados p { margin: 0; }
+.utilizador-nome { font-weight: 600; }
+.utilizador-email { color: var(--asfalto); font-size: 0.92rem; overflow-wrap: anywhere; }
+.utilizador-info { color: var(--cinza); font-size: 0.8rem; margin-top: 2px !important; }
+.etiqueta-admin {
+    margin-left: 6px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: var(--sinal-suave);
+    color: var(--sinal);
+    font-family: var(--letra-estreita);
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+.acesso-form { display: flex; align-items: center; gap: 10px; margin: 0; flex: none; }
+.acesso-estado { color: var(--premios); font-size: 0.85rem; font-weight: 600; flex: none; }
+.acesso-botao {
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 8px;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.acesso-botao.dar { border: none; background: var(--premios); color: var(--branco); }
+.acesso-botao.dar:hover { background: var(--premios-escuro); }
+.acesso-botao.retirar { border: 1px solid var(--linha-forte); background: var(--branco); color: var(--cinza); }
+.acesso-botao.retirar:hover { border-color: var(--erro); color: var(--erro); }
+@media (max-width: 640px) {
+    li.utilizador { flex-direction: column; align-items: stretch; gap: 10px; }
+    .acesso-form { justify-content: space-between; }
+}
+
 .rodape-auth { text-align: center; margin-top: 16px; font-size: 0.88rem; color: var(--cinza); }
 .rodape-auth a { color: var(--sinal); font-weight: 600; }
 
@@ -606,6 +681,9 @@ details.exportar-link[open] > summary { border-color: var(--sinal); color: var(-
     /* Telemóvel: procura e "Prémios" na 1.ª linha, os outros quatro na 2.ª. */
     form.filtros .procura { grid-column: 1 / 4; grid-row: 1; }
     form.filtros .filtro-premios { grid-column: 4; grid-row: 1; }
+    form.filtros.sem-premios,
+    form.filtros.sem-premios.com-js { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    form.filtros.sem-premios .procura { grid-column: 1 / -1; }
     form.filtros:not(.com-js) .filtrar { grid-column: 1 / -1; }
     form.filtros select { font-size: 0.82rem; padding: 0 2px; }
 

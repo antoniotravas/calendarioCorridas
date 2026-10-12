@@ -9,6 +9,9 @@ $utilizador = $auth->utilizadorAtual();
         <a class="marca" href="/">Calendário de corridas</a>
         <nav class="conta" aria-label="Conta">
             <?php if ($utilizador !== null): ?>
+                <?php if ($auth->eAdmin()): ?>
+                    <a href="/gestao-utilizadores.php">Gestão</a>
+                <?php endif; ?>
                 <a href="/meu-calendario.php">O meu calendário</a>
                 <form method="post" action="/logout.php">
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($auth->tokenCsrf()) ?>">
