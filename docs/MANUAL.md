@@ -38,7 +38,7 @@ Tabelas `corridas` + `corridas_fontes` + `corridas_distancias` (MySQL)
       │          links oficiais da All4Running (botão "Visitar o site oficial" de cada página, até 50 por execução)
       │          Database::aplicarLinksOrganizadores()
       │          miniaturas: ImagemEventoHelper (og:image das páginas de evento, até 80 provas por execução)
-      │          prémios monetários: PremiosHelper + PdfTextoHelper (página e regulamento, até 40 provas por execução)
+      │          prémios monetários: PremiosHelper + PdfTextoHelper (página e regulamento, as que couberem em 10 minutos — ProcuraPremios)
 ```
 
 `scripts/run_scraper.php` é o ponto de entrada: instancia todos os scrapers, corre cada um dentro de um `try/catch` (uma fonte a falhar não impede as restantes) e grava os resultados. No fim imprime (em STDERR) uma secção **"ATENÇÃO — fontes com problemas"** quando uma fonte falhou, ou quando devolveu 0 provas apesar de ter provas futuras na BD — sinal de que o site mudou e o scraper precisa de revisão.
@@ -80,6 +80,7 @@ scripts/lib/DistanciaHelper.php      -- extrai distâncias (km) do texto livre; 
 scripts/lib/NomeProvaHelper.php      -- mesma prova com nomes diferentes? parece corrida / prova de pista (pelo nome)? estrada, trail, corta-mato ou pista?
 scripts/lib/PremiosHelper.php        -- há prémios monetários? (analisa o texto; segue os links do regulamento)
 scripts/lib/PdfTextoHelper.php       -- extrai o texto de PDFs (regulamentos) em PHP puro
+scripts/lib/ProcuraPremios.php       -- percorre as provas por ver, com tempo máximo (usado pelo scraper e por procurar_premios.php)
 scripts/lib/Database.php             -- ligação PDO: upsert/junção de corridas, listagem com filtros, utilizadores, favoritos
 scripts/scrapers/ScraperInterface.php
 scripts/scrapers/All4RunningScraper.php
@@ -99,6 +100,7 @@ scripts/scrapers/AcorrerScraper.php           -- app Livewire: simula a chamada 
 scripts/scrapers/FonteOrganizadora.php        -- marca fontes cujo link do evento tem prioridade
 scripts/run_scraper.php              -- ponto de entrada do scraper (CLI)
 scripts/definir_admin.php            -- torna um utilizador administrador (CLI: php scripts/definir_admin.php email)
+scripts/procurar_premios.php         -- procura prémios monetários em todas as provas por ver, sem o resto do scraper (CLI)
 
 public/_bootstrap.php                -- sessão + ligação BD + $auth, incluído por todas as páginas
 public/index.php                     -- calendário público (filtros: mês, distância, fonte, pesquisa), 20 provas por página; ?parcial=1 devolve só a lista (carregamento progressivo)
@@ -215,7 +217,9 @@ O site público está em **https://corridas.eu** (antes: `corridas.espacodecodig
 
 Cada prova pode ter um ícone "€" ao lado do nome: **verde** se os mais bem classificados recebem dinheiro, **cinzento riscado** se o regulamento diz que os prémios são troféus/medalhas (ou que não há prémios monetários); sem ícone enquanto não se sabe. O ícone liga ao documento onde a informação foi lida (`premios_url`) e mostra o excerto (`premios_excerto`) como dica.
 
-**Recolha** (no fim de `run_scraper.php`): até 40 provas por execução — primeiro as nunca vistas; as que ficaram por saber voltam a ser vistas ao fim de 7 dias (o regulamento costuma sair mais tarde) e as "sem prémios" ao fim de 30. Para cada prova, `PremiosHelper::procurar()` lê as páginas do evento (de todas as fontes; da All4Running também a página da prova) e segue os links do regulamento (`PremiosHelper::linksRegulamento()`: links com "regulamento" no endereço ou no texto, a página `/rules` da Stop and Go, o campo JSON `"Regulamento"` da Lap2Go), até 5 documentos por prova. Os PDF são lidos por `PdfTextoHelper` (PHP puro: objetos, object streams, FlateDecode, mapas ToUnicode, codificações Windows-1252 e Mac Roman); PDFs digitalizados (só imagens) ou cifrados ficam sem texto.
+**Recolha** (`ProcuraPremios`, no fim de `run_scraper.php`): sem número fixo de provas — vê as que couberem em **10 minutos**, primeiro as nunca vistas (pela data da prova), e a execução seguinte continua onde esta parou. **Cada prova tentada fica marcada** (`premios_procurado_em`), mesmo que nenhum site responda (`Database::marcarPremiosTentados`, que não apaga o que já se sabia) — senão as provas de sites que recusam pedidos ficavam sempre à frente da fila e ocupavam todas as execuções. As que ficaram por saber (ou sem resposta) voltam a ser vistas ao fim de 3 dias (o regulamento costuma sair mais tarde), as "sem prémios" ao fim de 30, as "com prémios" não voltam. Pedidos de 2 em 2 s ao mesmo site; a All4Running usa o cliente de 5 em 5 s das fases anteriores e, se já recusou pedidos nessa execução, não é contactada.
+
+**Pôr tudo em dia de uma vez** (ex. primeira volta, ~20 a 40 minutos para ~400 provas): `php scripts/procurar_premios.php` (até 60 minutos; `--minutos=N` para mudar). Pode ser interrompido e voltar a correr — continua nas que faltam. Para cada prova, `PremiosHelper::procurar()` lê as páginas do evento (de todas as fontes; da All4Running também a página da prova) e segue os links do regulamento (`PremiosHelper::linksRegulamento()`: links com "regulamento" no endereço ou no texto, a página `/rules` da Stop and Go, o campo JSON `"Regulamento"` da Lap2Go), até 5 documentos por prova. Os PDF são lidos por `PdfTextoHelper` (PHP puro: objetos, object streams, FlateDecode, mapas ToUnicode, codificações Windows-1252 e Mac Roman); PDFs digitalizados (só imagens) ou cifrados ficam sem texto.
 
 **Decisão** (`PremiosHelper::analisar()`), sobre o texto sem acentos:
 1. **Sim** — frase explícita não negada ("prémios monetários", "prémio pecuniário", "prize money", "prémios em dinheiro"...), ou um valor em euros (≥ 10 €) com uma palavra de prémio/classificação pouco antes ("1.º lugar – 100 €", "Troféu + 50€") e sem sinais de preço de inscrição, seguro, caução, vales de compras... por perto (`PADRAO_NAO_PREMIO`, `PADRAO_TABELA_PRECOS`). Vales/cartões de compras com valor contam como prémio monetário quando a prova os anuncia como tal.

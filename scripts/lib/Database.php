@@ -491,9 +491,10 @@ final class Database
 
     /**
      * Provas futuras onde procurar prémios monetários: as nunca vistas
-     * primeiro (pela data da prova), depois as que ficaram por saber há mais
-     * de 7 dias (o regulamento costuma sair mais tarde) e as que não tinham
-     * prémios há mais de 30 dias (o regulamento pode mudar).
+     * primeiro (pela data da prova), depois as vistas há mais tempo — as que
+     * ficaram por saber (ou sem resposta dos sites) ao fim de 3 dias, porque o
+     * regulamento costuma sair mais tarde, e as sem prémios ao fim de 30 (o
+     * regulamento pode mudar). As com prémios não voltam a ser vistas.
      *
      * Para cada prova, as páginas a ler: os links do evento da prova e de
      * cada fonte e, das fontes cujo link da fonte é a página da própria prova
@@ -507,16 +508,16 @@ final class Database
         $stmt = $this->pdo->prepare(sprintf(<<<'SQL'
             SELECT c.id, c.url_evento, cf.url_evento AS url_evento_fonte, cf.url_fonte
             FROM (
-                SELECT id, url_evento, premios_procurado_em FROM corridas
+                SELECT id, url_evento, data_prova, premios_procurado_em FROM corridas
                 WHERE data_prova >= CURDATE()
                   AND (premios_procurado_em IS NULL
-                       OR (premios_monetarios IS NULL AND premios_procurado_em < NOW() - INTERVAL 7 DAY)
+                       OR (premios_monetarios IS NULL AND premios_procurado_em < NOW() - INTERVAL 3 DAY)
                        OR (premios_monetarios = 0 AND premios_procurado_em < NOW() - INTERVAL 30 DAY))
-                ORDER BY (premios_procurado_em IS NOT NULL), data_prova, id
+                ORDER BY (premios_procurado_em IS NOT NULL), premios_procurado_em, data_prova, id
                 LIMIT %d
             ) c
             LEFT JOIN corridas_fontes cf ON cf.corrida_id = c.id
-            ORDER BY (c.premios_procurado_em IS NOT NULL), c.id, cf.id
+            ORDER BY (c.premios_procurado_em IS NOT NULL), c.premios_procurado_em, c.data_prova, c.id, cf.id
             SQL, $limite));
         $stmt->execute();
 
@@ -538,6 +539,17 @@ final class Database
         }
 
         return $paginas;
+    }
+
+    /**
+     * Marca a prova como tentada quando nenhum site respondeu, sem apagar o
+     * que já se sabia dela: assim não fica à frente da fila em todas as
+     * execuções.
+     */
+    public function marcarPremiosTentados(int $corridaId): void
+    {
+        $this->pdo->prepare('UPDATE corridas SET premios_procurado_em = NOW() WHERE id = :id')
+            ->execute(['id' => $corridaId]);
     }
 
     /**
