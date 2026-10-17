@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 /**
  * Página individual de uma prova (/prova.php?id=N), aberta ao clicar num
- * cartão do calendário: título, data e hora, local, distrito, região, tipo,
- * distâncias, organização (com o link para o organizador, em destaque),
- * programa com os escalões, prémios monetários (só para quem tem acesso) e
- * onde foi encontrada.
+ * cartão do calendário: no topo, tipo e distâncias, título, data e hora,
+ * local (com distrito e região) e organização (com o link para o
+ * organizador, em destaque); depois o programa com os escalões, os prémios
+ * monetários numa tabela com o total (só para quem tem acesso) e onde foi
+ * encontrada.
  */
 
 require __DIR__ . '/_bootstrap.php';
@@ -49,6 +50,16 @@ $hora = !empty($c['hora_inicio']) ? substr((string) $c['hora_inicio'], 0, 5) : n
 $horaTexto = $hora !== null ? str_replace(':', 'h', $hora) : null; // "09h30"
 
 ['distrito' => $distrito, 'regiao' => $regiao] = DistritoHelper::localizar($c['local'] ?? null, $c['regiao'] ?? null);
+// "Distrito de Braga · Norte", "Região Autónoma dos Açores" — ao lado do local.
+$zona = match (true) {
+    $distrito === null => null,
+    in_array($distrito, ['Açores', 'Madeira'], true) && str_contains((string) $c['local'], $distrito) => null,
+    $distrito === 'Açores' => 'Região Autónoma dos Açores',
+    $distrito === 'Madeira' => 'Região Autónoma da Madeira',
+    default => 'Distrito de ' . $distrito . ($regiao !== null ? ' · ' . $regiao : ''),
+};
+// Subtipo lido na fonte ("Ultra Trail", "Pista coberta"), quando diz mais do que a categoria.
+$subtipo = !empty($c['tipo']) && mb_strtolower((string) $c['tipo']) !== mb_strtolower($nomesCategoria[$categoria] ?? '') ? (string) $c['tipo'] : null;
 
 $organizador = Organizador::de($c);
 // Link da prova (inscrições/página oficial), quando é diferente do site do organizador.
@@ -59,9 +70,16 @@ $programaTemEscaloes = array_filter(array_column($programa, 'escaloes')) !== [];
 
 $podeVerPremios = $auth->podeVerPremios();
 $premios = isset($c['premios_monetarios']) ? (int) $c['premios_monetarios'] === 1 : null;
-$tabelasPremios = $premios ? (json_decode((string) ($c['premios_tabela'] ?? ''), true) ?: []) : [];
-// A tabela com o maior 1.º prémio (normalmente a geral) primeiro.
-usort($tabelasPremios, fn (array $a, array $b) => (float) strtr($b['linhas'][0][1], ['.' => '', ',' => '.']) <=> (float) strtr($a['linhas'][0][1], ['.' => '', ',' => '.']));
+$tabelasPremios = $premios ? PremiosHelper::tabelasDaProva($c['premios_tabela'] ?? null, $c['premios_excerto'] ?? null) : [];
+// Uma só tabela: uma linha por lugar, uma coluna por classificação.
+$lugaresPremios = [];
+foreach ($tabelasPremios as $i => $tabela) {
+    foreach ($tabela['linhas'] as [$lugar, $valor]) {
+        $lugaresPremios[(int) $lugar][$i] = $valor;
+    }
+}
+ksort($lugaresPremios);
+$totalPremios = PremiosHelper::total($tabelasPremios);
 
 // Adicionar ao calendário: com hora, um evento de 2 horas; sem hora, o dia inteiro.
 $urlGoogleCalendar = null;
@@ -117,18 +135,22 @@ $iconeExterno = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="tr
 
         <div class="prova-cabeca">
             <ul class="etiquetas">
-                <li class="etiqueta-<?= htmlspecialchars($categoria) ?>"><?= htmlspecialchars($nomesCategoria[$categoria] ?? 'Estrada') ?></li>
+                <li class="etiqueta-<?= htmlspecialchars($categoria) ?>"><?= htmlspecialchars($subtipo ?? $nomesCategoria[$categoria] ?? 'Estrada') ?></li>
+                <?php foreach ($distancias as $distancia): ?>
+                    <li><?= htmlspecialchars($distancia) ?></li>
+                <?php endforeach; ?>
             </ul>
             <h1><?= htmlspecialchars($c['nome']) ?></h1>
             <p class="prova-quando">
                 <?= $ts !== null ? htmlspecialchars(DateHelper::formatarLongo($data)) : 'Data por confirmar' ?>
-                <?php if ($horaTexto !== null): ?><span class="prova-hora">às <?= $horaTexto ?></span><?php endif; ?>
+                <?php if ($horaTexto !== null): ?><span class="prova-hora">às <?= $horaTexto ?></span><?php elseif ($ts !== null): ?><span class="nota-inline">· hora por confirmar</span><?php endif; ?>
                 <?php if ($jaPassou): ?><span class="ja-passou">Já se realizou</span><?php endif; ?>
             </p>
             <?php if ($c['local']): ?>
                 <p class="prova-local">
                     <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 21s-6.5-6.1-6.5-11a6.5 6.5 0 0 1 13 0c0 4.9-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg>
                     <?= htmlspecialchars($c['local']) ?>
+                    <?php if ($zona !== null): ?><span class="prova-zona"><?= htmlspecialchars($zona) ?></span><?php endif; ?>
                     <a href="<?= htmlspecialchars($urlMapa) ?>" target="_blank" rel="noopener">Ver no mapa</a>
                 </p>
             <?php endif; ?>
@@ -175,60 +197,16 @@ $iconeExterno = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="tr
                         </a>
                     <?php endif; ?>
                 </div>
+                <?php if ($urlGoogleCalendar !== null): ?>
+                    <p class="prova-links">
+                        <span>Adicionar ao calendário:</span>
+                        <a href="<?= htmlspecialchars($urlGoogleCalendar) ?>" target="_blank" rel="noopener">Google Calendar</a>
+                        <a href="/prova-ics.php?id=<?= (int) $c['id'] ?>">iPhone, Outlook (.ics)</a>
+                    </p>
+                <?php endif; ?>
             </div>
         </div>
     </article>
-
-    <dl class="prova-dados">
-        <div>
-            <dt>Dia e hora</dt>
-            <dd>
-                <?= ($ts !== null ? htmlspecialchars(DateHelper::formatarLongo($data)) : 'Por confirmar') . ($horaTexto !== null ? ', às ' . $horaTexto : '') ?>
-                <?php if ($hora === null && $ts !== null): ?><span class="nota">Hora por confirmar no site da prova</span><?php endif; ?>
-            </dd>
-        </div>
-        <div>
-            <dt>Local</dt>
-            <dd><?= $c['local'] ? htmlspecialchars($c['local']) : 'Por confirmar' ?></dd>
-        </div>
-        <?php if ($distrito !== null): ?>
-            <div>
-                <dt><?= in_array($distrito, ['Açores', 'Madeira'], true) ? 'Região autónoma' : 'Distrito' ?></dt>
-                <dd><?= htmlspecialchars($distrito) ?></dd>
-            </div>
-            <?php if (!in_array($distrito, ['Açores', 'Madeira'], true)): ?>
-                <div>
-                    <dt>Região</dt>
-                    <dd><?= htmlspecialchars($regiao) ?></dd>
-                </div>
-            <?php endif; ?>
-        <?php endif; ?>
-        <div>
-            <dt>Tipo</dt>
-            <dd><?= htmlspecialchars($nomesCategoria[$categoria] ?? 'Estrada') ?><?= !empty($c['tipo']) && mb_strtolower((string) $c['tipo']) !== mb_strtolower($nomesCategoria[$categoria] ?? '') ? ' <span class="nota-inline">(' . htmlspecialchars((string) $c['tipo']) . ')</span>' : '' ?></dd>
-        </div>
-        <?php if ($distancias !== []): ?>
-            <div>
-                <dt>Distâncias</dt>
-                <dd>
-                    <ul class="etiquetas">
-                        <?php foreach ($distancias as $distancia): ?>
-                            <li><?= htmlspecialchars($distancia) ?></li>
-                        <?php endforeach; ?>
-                    </ul>
-                </dd>
-            </div>
-        <?php endif; ?>
-        <?php if ($urlGoogleCalendar !== null): ?>
-            <div>
-                <dt>Adicionar ao calendário</dt>
-                <dd class="prova-links">
-                    <a href="<?= htmlspecialchars($urlGoogleCalendar) ?>" target="_blank" rel="noopener">Google Calendar</a>
-                    <a href="/prova-ics.php?id=<?= (int) $c['id'] ?>">iPhone, Outlook (.ics)</a>
-                </dd>
-            </div>
-        <?php endif; ?>
-    </dl>
 
     <?php if ($programa !== []): ?>
         <section class="prova-seccao">
@@ -269,21 +247,41 @@ $iconeExterno = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="tr
             <?php elseif (!$premios): ?>
                 <p>Sem prémios em dinheiro.</p>
             <?php elseif ($tabelasPremios === []): ?>
-                <p>Há prémios em dinheiro, mas não foi possível ler os valores — consulta o regulamento.</p>
+                <p>Há prémios em dinheiro, mas o texto lido não diz os valores. O que lá está:</p>
             <?php else: ?>
-                <div class="tabelas-premios">
-                    <?php foreach ($tabelasPremios as $tabela): ?>
-                        <table class="tabela-prova tabela-premios">
-                            <caption><?= htmlspecialchars($tabela['titulo'] ?? 'Classificação') ?></caption>
-                            <thead><tr><th scope="col">Lugar</th><th scope="col">Prémio</th></tr></thead>
-                            <tbody>
-                                <?php foreach ($tabela['linhas'] as [$lugar, $valor]): ?>
-                                    <tr><td><?= (int) $lugar ?>.º</td><td class="tabela-valor"><?= htmlspecialchars($valor) ?></td></tr>
+                <div class="tabela-rolar">
+                    <table class="tabela-prova tabela-premios">
+                        <thead>
+                            <tr>
+                                <th scope="col">Lugar</th>
+                                <?php foreach ($tabelasPremios as $i => $tabela): ?>
+                                    <th scope="col"><?= htmlspecialchars(PremiosHelper::rotulo($tabela['titulo'] ?? null)) ?></th>
                                 <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    <?php endforeach; ?>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($lugaresPremios as $lugar => $valores): ?>
+                                <tr>
+                                    <td><?= $lugar ?>.º</td>
+                                    <?php foreach ($tabelasPremios as $i => $tabela): ?>
+                                        <td class="tabela-valor"><?= htmlspecialchars($valores[$i] ?? '—') ?></td>
+                                    <?php endforeach; ?>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th scope="row">Total</th>
+                                <?php foreach ($tabelasPremios as $tabela): $vezes = PremiosHelper::vezesPaga($tabela['titulo'] ?? null); ?>
+                                    <td class="tabela-valor">
+                                        <?= PremiosHelper::formatarEuros(PremiosHelper::total([['titulo' => null, 'linhas' => $tabela['linhas']]])) ?><?= $vezes > 1 ? ' <span class="nota-inline">× 2</span>' : '' ?>
+                                    </td>
+                                <?php endforeach; ?>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
+                <p class="premios-total">Total a distribuir: <strong><?= PremiosHelper::formatarEuros($totalPremios) ?></strong></p>
             <?php endif; ?>
             <?php if ($premios !== null && !empty($c['premios_excerto']) && $tabelasPremios === []): ?>
                 <blockquote class="premios-excerto">«<?= htmlspecialchars($c['premios_excerto']) ?>»</blockquote>

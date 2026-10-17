@@ -790,6 +790,23 @@ final class Database
     }
 
     /**
+     * Provas a partir de hoje com prémios monetários, para o ranking dos
+     * prémios (/ranking-premios.php): o total é calculado no site, a partir
+     * da tabela dos valores (PremiosHelper::total).
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public function listarProvasComPremios(): array
+    {
+        $stmt = $this->pdo->query(
+            'SELECT id, nome, data_prova, local, categoria, distancias, premios_tabela, premios_excerto, premios_url'
+            . ' FROM corridas WHERE premios_monetarios = 1 AND data_prova >= CURDATE() ORDER BY data_prova, id'
+        );
+
+        return $stmt->fetchAll();
+    }
+
+    /**
      * Total de provas com os mesmos filtros de listarCorridas().
      *
      * @param array{0:float,1:float}|null $distanciaFaixa

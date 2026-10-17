@@ -72,6 +72,7 @@ sql/migracao_006_links_oficiais.sql  -- tabela links_oficiais (link oficial lido
 sql/migracao_007_premios.sql         -- colunas premios_* em corridas (ícone "€" e filtro "Prémios")
 sql/migracao_008_permissoes.sql      -- colunas e_admin e ver_premios em utilizadores (gestão de acessos)
 sql/migracao_009_detalhes.sql        -- hora_inicio, programa, organizador, organizador_url, detalhes_procurado_em e premios_tabela em corridas
+sql/migracao_010_premios_tabela.sql  -- volta a ler os valores dos prémios que não tinham sido lidos
 
 scripts/config.example.php           -- template de credenciais (copiar para config.php)
 scripts/lib/Corrida.php              -- objeto de valor com os dados normalizados de uma prova
@@ -111,6 +112,7 @@ public/prova.php                     -- página individual de uma prova (?id=N),
 public/lib/Organizador.php           -- referência ao organizador (nome + link) usada no cartão e na página da prova
 public/prova-ics.php                 -- uma prova em .ics (?id=N), para o calendário do telemóvel
 public/gestao-utilizadores.php       -- (só administradores) dar/retirar acesso aos prémios monetários
+public/ranking-premios.php           -- (só administradores) provas ordenadas pelo total dos prémios monetários
 public/meu-calendario.php            -- provas guardadas pelo utilizador autenticado + botões de exportação .ics
 public/meu-calendario-ics.php        -- "o meu calendário" em .ics (descarga com sessão, ou subscrição com ?token=)
 public/lib/CalendarioIcs.php         -- gera o texto iCalendar (RFC 5545) a partir das provas
@@ -222,11 +224,11 @@ O site público está em **https://corridas.eu** (antes: `corridas.espacodecodig
 
 `public/prova.php?id=N` (dados de `Database::obterProva()`, que também devolve provas já passadas):
 
-- **Título, dia e hora, local** (com "Ver no mapa"), **distrito e região** (`DistritoHelper::localizar()`, calculados ao mostrar a partir de `corridas.local` e, se o local não chegar, de `corridas.regiao`; a região é a do distrito: Norte, Centro, Lisboa e Vale do Tejo, Alentejo, Algarve, Açores, Madeira), **tipo e distâncias**.
+- **Topo condensado** (cada dado aparece uma só vez): etiquetas do tipo (o subtipo da fonte, ex. "Ultra Trail", quando diz mais) e das distâncias, título, dia e hora (ou "hora por confirmar"), e numa linha o local com o **distrito e a região** ("Distrito de Braga · Norte"; `DistritoHelper::localizar()`, calculados ao mostrar a partir de `corridas.local` e, se o local não chegar, de `corridas.regiao`) e "Ver no mapa".
 - **Organização** (em destaque): nome em `corridas.organizador` e botão para `organizador_url` ("Site do organizador") ou, se não houver, para o link da prova ("Site da prova" / "Regulamento da prova"); se o link da prova for outro (inscrições), aparece num segundo botão.
 - **Programa e escalões** (`corridas.programa`, JSON `[{hora, prova, escaloes}]`): hora, prova e escalões de cada partida.
-- **Prémios monetários** (só para quem tem acesso): tabelas "lugar → valor" (`corridas.premios_tabela`), com link para o documento onde foram lidos.
-- Guardar, adicionar ao Google Calendar (com a hora, se se souber) ou descarregar `.ics` (`public/prova-ics.php`), e a lista de todas as fontes no fundo.
+- **Prémios monetários** (só para quem tem acesso): uma só tabela, com uma linha por lugar e uma coluna por classificação (`PremiosHelper::tabelasDaProva()`: `corridas.premios_tabela` ou, se estiver vazia, o que dá para ler no excerto), o total de cada coluna ("× 2" quando vale para masculinos e femininos) e o **total a distribuir** (`PremiosHelper::total()`), com link para o documento onde foram lidos. Sem valores lidos, mostra o excerto do regulamento.
+- Guardar (junto ao botão do organizador), adicionar ao Google Calendar (com a hora, se se souber) ou descarregar `.ics` (`public/prova-ics.php`), e a lista de todas as fontes no fundo.
 - O link "Calendário" (`data-voltar`) faz `history.back()` quando se veio do calendário, para repor os filtros e a posição na lista; aberta por link direto, vai para `/`.
 
 **De onde vêm hora, programa e organizador:**
@@ -262,7 +264,7 @@ Cada prova pode ter um ícone "€" ao lado do nome: **verde** se os mais bem cl
 
 É uma heurística: pode falhar em tabelas de prémios que o PDF parte de forma estranha ou em regulamentos muito informais — o link para o documento permite confirmar.
 
-**Tabela dos valores** (`PremiosHelper::tabelas()`, gravada em `premios_tabela` como JSON `[{titulo, linhas: [[lugar, "100 €"], ...]}]`): procura pares "lugar → valor" ("1.º lugar – 100 €", "2º- 50€", "1º Troféu + 150 €") e agrupa-os em tabelas que começam no 1.º lugar; um lugar repetido começa outra tabela, exceto quando vem logo a seguir (colunas masculinos/femininos lidas linha a linha — fica a primeira). Rejeita valores < 10 € e pares com outras palavras pelo meio ("1.ª fase 15 €"). O título vem de palavras logo antes ("Geral", "Femininos", "M/F", "Juniores", "Vet 40", "10 km"). Tabelas iguais aparecem uma vez. Se o documento que diz "há prémios" não tiver valores, procura-se a tabela nos documentos que faltam (ex. o regulamento em PDF). `"[]"` = não deu para ler; `NULL` = ainda não procurada — as provas "com prémios" lidas antes da migração 009 voltam a ser lidas uma vez por isso. Os PDFs chegam muitas vezes com as colunas baralhadas: a tabela mostra só o que deu para ler com segurança e a página pede sempre para confirmar no regulamento.
+**Tabela dos valores** (`PremiosHelper::tabelas()`, gravada em `premios_tabela` como JSON `[{titulo, linhas: [[lugar, "100 €"], ...]}]`): procura pares "lugar → valor" ("1.º lugar – 100 €", "2º- 50€", "1º Troféu + 150 €", "1º €100", "350 € para o 1.º", e listas "respetivamente, 50 €, 25 € e 15 €" / "no valor de 100, 50 e 25 euros" → 1.º, 2.º, 3.º) e agrupa-os em tabelas que começam no 1.º lugar; um lugar repetido começa outra tabela, exceto quando vem logo a seguir (colunas masculinos/femininos lidas linha a linha — fica a primeira). Rejeita valores < 10 € e pares com outras palavras pelo meio ("1.ª fase 15 €"). O título vem de palavras logo antes ("Geral", "Femininos", "M/F", "Juniores", "Vet 40", "10 km"). Tabelas iguais aparecem uma vez. Se o documento que diz "há prémios" não tiver valores, procura-se a tabela nos documentos que faltam (ex. o regulamento em PDF). `"[]"` = não deu para ler; `NULL` = ainda não procurada — as provas "com prémios" lidas antes da migração 009 voltam a ser lidas uma vez por isso, e `sql/migracao_010_premios_tabela.sql` repõe `NULL` nas que tinham `"[]"`, para serem lidas outra vez com os novos formatos. Os PDFs chegam muitas vezes com as colunas baralhadas: a tabela mostra só o que deu para ler com segurança e a página pede sempre para confirmar no regulamento.
 
 ### Contas e "o meu calendário"
 
@@ -275,6 +277,7 @@ Cada prova pode ter um ícone "€" ao lado do nome: **verde** se os mais bem cl
 ### Administradores e acesso aos prémios
 
 - `utilizadores.e_admin`: o administrador vê o link **Gestão** no topo e a página `public/gestao-utilizadores.php` (`Auth::exigirAdmin()`: sem sessão vai para o login; sem permissão, 403). Vê sempre os prémios monetários.
+- **Ranking dos prémios** (`public/ranking-premios.php`, link "Ranking €" no topo, só administradores): as provas a partir de hoje com prémios monetários (`Database::listarProvasComPremios()`), ordenadas pelo total a distribuir (`PremiosHelper::total()`: soma de todos os valores das tabelas, a dobrar nas que valem para masculinos e femininos — "Masculinos" e "Femininos" ou "M/F" no título), com o maior 1.º prémio. As provas com prémios mas sem valores lidos ficam numa lista à parte, com o link do regulamento.
 - `utilizadores.ver_premios`: dado/retirado pelo administrador nessa página (um botão por utilizador, POST com CSRF; pesquisa por nome ou email).
 - **Tornar alguém administrador** (tem de já ter conta): `php scripts/definir_admin.php email@exemplo.pt` (`--retirar` para deixar de ser). O email fica só na base de dados — não é escrito no código, porque o repositório é público.
 - **Base de dados criada antes desta funcionalidade:** correr uma vez `sql/migracao_008_permissoes.sql`.

@@ -770,29 +770,13 @@ li.utilizador.com-acesso { border-left: 4px solid var(--premios); }
 .botao-organizador:hover { background: var(--sinal-escuro); }
 .prova-acoes .favorito-btn { height: 42px; padding: 0 16px 0 12px; font-size: 0.92rem; }
 
-.prova-dados {
-    margin: 14px 0 0;
-    padding: 4px 20px;
-    background: var(--branco);
-    border: 1px solid var(--linha);
-    border-radius: 14px;
-}
-.prova-dados > div {
-    display: grid;
-    grid-template-columns: 200px minmax(0, 1fr);
-    gap: 16px;
-    padding: 14px 0;
-    border-top: 1px solid var(--linha);
-}
-.prova-dados > div:first-child { border-top: none; }
-.prova-dados dt { color: var(--cinza); font-size: 0.92rem; }
-.prova-dados dd { margin: 0; min-width: 0; }
-.prova-dados ul.etiquetas { margin: 0; }
-.prova-dados .premios { margin: 0 6px 0 0; cursor: default; }
+.prova-zona { color: var(--cinza); font-size: 0.88rem; }
+.prova-zona::before { content: "·"; margin: 0 6px 0 2px; }
+.prova-links { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; margin: 12px 0 0; font-size: 0.9rem; }
+.prova-links span { color: var(--cinza); }
+.prova-links a { color: var(--sinal); font-weight: 600; text-decoration: none; }
+.prova-links a:hover { text-decoration: underline; }
 .premios-excerto { margin: 8px 0; padding-left: 10px; border-left: 3px solid var(--linha); color: var(--cinza); font-size: 0.9rem; }
-.prova-dados a { color: var(--sinal); font-weight: 600; text-decoration: none; }
-.prova-dados a:hover { text-decoration: underline; }
-.prova-links { display: flex; flex-wrap: wrap; gap: 6px 18px; }
 .nota { display: block; margin: 4px 0 0; color: var(--cinza); font-size: 0.86rem; }
 .nota a { color: var(--sinal); }
 .nota-inline { color: var(--cinza); }
@@ -832,9 +816,14 @@ li.utilizador.com-acesso { border-left: 4px solid var(--premios); }
 .tabela-prova td { padding: 7px 10px; border-bottom: 1px solid var(--linha); vertical-align: top; }
 .tabela-prova tbody tr:last-child td { border-bottom: none; }
 .tabela-hora { font-family: var(--letra-estreita); font-weight: 600; font-size: 1rem; white-space: nowrap; }
-.tabelas-premios { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: flex-start; margin-bottom: 10px; }
-.tabela-premios { width: auto; min-width: 180px; }
-.tabela-premios caption { padding-bottom: 4px; font-weight: 600; text-align: left; }
+.tabela-premios { width: auto; min-width: 240px; }
+.tabela-premios th:not(:first-child) { text-align: right; }
+.tabela-premios tfoot th,
+.tabela-premios tfoot td { padding: 8px 10px; border-top: 2px solid var(--linha); border-bottom: none; }
+.tabela-premios tfoot th { color: var(--asfalto); font-size: 0.85rem; }
+.tabela-premios .nota-inline { font-family: var(--letra); font-weight: 400; font-size: 0.8rem; white-space: nowrap; }
+.premios-total { margin: 10px 0 6px !important; font-size: 1.05rem; }
+.premios-total strong { font-family: var(--letra-estreita); font-size: 1.35rem; color: var(--premios); }
 .tabela-valor { font-family: var(--letra-estreita); font-weight: 700; font-size: 1.02rem; color: var(--premios); text-align: right; }
 .prova-encontrada { margin: 14px 4px 0; color: var(--cinza); font-size: 0.85rem; }
 .prova-encontrada a { color: var(--cinza); }
@@ -918,13 +907,27 @@ li.utilizador.com-acesso { border-left: 4px solid var(--premios); }
     .prova-cartaz { max-width: 320px; }
     .prova-cartaz.sem-imagem { aspect-ratio: auto; place-items: start; background: none; }
     .prova-cabeca h1 { font-size: 1.9rem; }
-    .prova-dados { padding: 2px 14px; }
-    .prova-dados > div { grid-template-columns: 1fr; gap: 4px; }
     .prova-seccao { padding: 14px; }
-    .tabela-premios { flex: 1 1 140px; min-width: 0; }
+    .tabela-premios { min-width: 0; width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
     * { scroll-behavior: auto !important; }
     html.js li.prova { opacity: 1; transform: none; transition: none; }
 }
+
+/* Ranking dos prémios (administradores) */
+.tabela-ranking { background: var(--branco); border: 1px solid var(--linha); border-radius: 14px; border-collapse: separate; border-spacing: 0; }
+.tabela-ranking th:nth-child(n+4) { text-align: right; }
+.tabela-ranking td { vertical-align: middle; }
+.tabela-ranking a,
+.ranking-sem-valores a { color: var(--asfalto); font-weight: 600; text-decoration: none; }
+.tabela-ranking a:hover,
+.ranking-sem-valores a:hover { color: var(--sinal); text-decoration: underline; }
+.ranking-posicao { font-family: var(--letra-estreita); font-weight: 700; font-size: 1.1rem; color: var(--cinza); }
+.ranking-info { display: block; color: var(--cinza); font-size: 0.8rem; }
+.ranking-data { white-space: nowrap; }
+.ranking-total { font-size: 1.15rem; }
+.ranking-sem-valores { margin: 10px 0 0; padding-left: 18px; display: grid; gap: 8px; }
+.ranking-sem-valores .ranking-info { display: inline; margin-left: 6px; }
+.ranking-sem-valores a.ranking-regulamento { margin-left: 8px; color: var(--sinal); font-size: 0.85rem; }

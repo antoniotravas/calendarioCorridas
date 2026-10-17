@@ -11,6 +11,7 @@ $utilizador = $auth->utilizadorAtual();
             <?php if ($utilizador !== null): ?>
                 <?php if ($auth->eAdmin()): ?>
                     <a href="/gestao-utilizadores.php">Gestão</a>
+                    <a href="/ranking-premios.php">Ranking €</a>
                 <?php endif; ?>
                 <a href="/meu-calendario.php">O meu calendário</a>
                 <form method="post" action="/logout.php">

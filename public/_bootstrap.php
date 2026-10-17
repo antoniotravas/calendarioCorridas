@@ -10,6 +10,7 @@ require __DIR__ . '/../scripts/lib/DistanciaHelper.php';
 require __DIR__ . '/../scripts/lib/DistritoHelper.php';
 require __DIR__ . '/../scripts/lib/HttpClient.php';
 require __DIR__ . '/../scripts/lib/Database.php';
+require __DIR__ . '/../scripts/lib/PremiosHelper.php';
 require __DIR__ . '/lib/Auth.php';
 require __DIR__ . '/lib/Organizador.php';
 

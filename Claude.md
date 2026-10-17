@@ -43,3 +43,5 @@
     - Provas encontradas em vários sites: o cartão mostra só a referência ao organizador (a lista completa das fontes fica na página da prova).
     - O filtro "Fonte" passa a aparecer só aos administradores.
     - Correção no scraper da FPA: as provas com inscrições fechadas perdiam a distância e o regulamento (a página tem outro formato).
+    - Página da prova mais condensada: tipo e distâncias em etiquetas no topo, local com distrito e região numa só linha, "Adicionar ao calendário" junto aos botões (sem a lista de dados repetida). Prémios monetários numa só tabela simples (lugar × classificação) com o total a distribuir; a leitura dos valores percebe mais formatos e também lê o excerto quando a tabela não foi lida.
+    - Ranking dos prémios (só administradores, /ranking-premios.php, link "Ranking €"): provas ordenadas pelo total de prémios em dinheiro (soma de todos os valores, a dobrar quando valem para masculinos e femininos). Para voltar a ler os valores que faltavam: sql/migracao_010_premios_tabela.sql.
