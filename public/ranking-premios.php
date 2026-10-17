@@ -24,7 +24,10 @@ foreach ($db->listarProvasComPremios() as $prova) {
         continue;
     }
     $prova['total'] = $total;
-    $prova['primeiro'] = max(array_map(fn (array $t) => PremiosHelper::montante($t['linhas'][0][1]), $tabelas));
+    // Maior 1.º prémio (null quando só se conhece o total anunciado).
+    $primeiros = array_map(fn (array $t) => PremiosHelper::montante($t['linhas'][0][1]), array_filter($tabelas, fn (array $t) => $t['linhas'] !== []));
+    $prova['primeiro'] = $primeiros !== [] ? max($primeiros) : null;
+    $prova['anunciado'] = $primeiros === [];
     $ranking[] = $prova;
 }
 usort($ranking, fn (array $a, array $b) => [$b['total'], $a['data_prova']] <=> [$a['total'], $b['data_prova']]);
@@ -83,8 +86,11 @@ $tituloDocumento = 'Ranking dos prémios — Calendário de corridas';
                                 </span>
                             </td>
                             <td class="ranking-data"><?= date('d/m/Y', (int) strtotime((string) $p['data_prova'])) ?></td>
-                            <td class="tabela-valor"><?= PremiosHelper::formatarEuros($p['primeiro']) ?></td>
-                            <td class="tabela-valor ranking-total"><?= PremiosHelper::formatarEuros($p['total']) ?></td>
+                            <td class="tabela-valor"><?= $p['primeiro'] !== null ? PremiosHelper::formatarEuros($p['primeiro']) : '—' ?></td>
+                            <td class="tabela-valor ranking-total">
+                                <?= PremiosHelper::formatarEuros($p['total']) ?>
+                                <?php if ($p['anunciado']): ?><span class="ranking-info">total anunciado</span><?php endif; ?>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>

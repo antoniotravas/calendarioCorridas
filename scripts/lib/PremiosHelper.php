@@ -82,8 +82,10 @@ final class PremiosHelper
         if (preg_match_all(self::PADRAO_EXPLICITO, $normal, $m, PREG_OFFSET_CAPTURE)) {
             foreach ($m[0] as [$frase, $pos]) {
                 $antes = mb_substr(substr($normal, 0, $pos), -80);
-                // "Taxa: 2% sobre o total dos prémios monetários" (tabelas de taxas das associações).
-                if (preg_match('/taxa|%|percentagem/', mb_substr($antes, -40))) {
+                // "Taxa: 2% sobre o total dos prémios monetários", "Provas c/ Prémios Monetários - 2%
+                // sobre total" (tabelas de taxas das associações).
+                $depois = substr($normal, $pos + strlen($frase), 40);
+                if (preg_match('/taxa|%|percentagem/', mb_substr($antes, -40)) || preg_match('/^\W{0,5}\d+(?:,\d+)?\s?%/u', $depois)) {
                     continue;
                 }
                 if (!preg_match(self::PADRAO_NEGACAO, $antes)) {
@@ -134,10 +136,33 @@ final class PremiosHelper
 
     /**
      * "1.º lugar – 100,00 €", "2º- 50€", "3.º classificado: 75 euros", "1º Troféu + 150 €",
-     * "1º €100 + Troféu", "1.º Classificado Geral Masculino – (200 €)".
+     * "1º €100 + Troféu", "1.º Classificado Geral Masculino – (200 €)", "1º Class. 400,00€",
+     * "1. Geral Masculino / Feminino – 100€".
      */
-    private const PADRAO_LUGAR_VALOR = '/(?<![\d,.])(\d{1,2})\s?\.?\s?(?:º|ª|°|o\b|a\b)([^\d€]{0,45}?)'
+    private const PADRAO_LUGAR_VALOR = '/(?<![\d,.])(\d{1,2})(?:\s?\.?\s?(?:º|ª|°|o\b|a\b)|\.(?=\s))([^\d€]{0,45}?)'
         . '(?:(?:€|eur\b)\s?(' . self::NUMERO . ')|(' . self::NUMERO . ')\s?(?:€|euros?\b))/u';
+
+    /** Lugares por extenso: "o vencedor recebe 125 €, o segundo 100 € e o terceiro 75 €". */
+    private const PADRAO_PALAVRA_VALOR = '/\b(vencedor(?:es|as?)?|primeir[oa]s?|segund[oa]s?|terceir[oa]s?|quart[oa]s?|quint[oa]s?)\b'
+        . '([^\d€.;]{0,60}?)(?:(?:€|eur\b)\s?(' . self::NUMERO . ')|(' . self::NUMERO . ')\s?(?:€|euros?\b))/u';
+
+    /** O valor antes do lugar por extenso: "250 € para o segundo e 150 € para o terceiro". */
+    private const PADRAO_VALOR_PALAVRA = '/(?<![\d,.])(' . self::NUMERO . ')\s?(?:€|euros?\b),?\s(?:para (?:o|a)|ao|a) '
+        . '(vencedor(?:es|as?)?|primeir[oa]s?|segund[oa]s?|terceir[oa]s?|quart[oa]s?|quint[oa]s?)\b/u';
+
+    /** Uma lista de valores antes dos lugares: "50 €, 30 € e 20 € para 1.º, 2.º e 3.º", "40 €, 25 € e 15 € para os três primeiros". */
+    private const PADRAO_LISTA_ANTES = '/((?:' . self::NUMERO . '\s?(?:€|euros?\b)?\s?(?:,|;|\be\b)\s?){1,9}' . self::NUMERO . '\s?(?:€|euros?\b)),?\s'
+        . '(?:para|aos?|as?) (?:os |as )?(?:1\.?\s?(?:º|o\b)|(?:dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|\d{1,2}) primeir)/u';
+
+    /** Lugar de cada palavra de PADRAO_PALAVRA_VALOR (pelas primeiras letras). */
+    private const LUGAR_POR_EXTENSO = ['venc' => 1, 'prim' => 1, 'segu' => 2, 'terc' => 3, 'quar' => 4, 'quin' => 5];
+
+    /** Entre a palavra e o valor, coisas que mostram que não é um prémio ("primeira fase 15 €"). */
+    private const PADRAO_PALAVRA_NAO_PREMIO = '/fase|inscri|escal[aã]o|periodo|\bate\b|\bkm\b|abastec|dia|semana|equipa/';
+
+    /** Só o total: "prize money global de 5.000 euros", "prémios monetários no valor de 2650,00 €". */
+    private const PADRAO_TOTAL_ANUNCIADO = '/(?:prize money|premios (?:monetarios|pecuniarios|em dinheiro)|bolsa de premios)'
+        . '[^.;€\d]{0,40}?(?:global|total|anunciad[oa]|valor|montante)[^.;€\d]{0,15}?(?:de|:)\s?(?:€\s?)?(' . self::NUMERO . ')\s?(?:€|euros?\b)?/u';
 
     /** O valor antes do lugar: "350 € para o 1.º", "150 euros ao 2.º". */
     private const PADRAO_VALOR_LUGAR = '/(?<![\d,.])(' . self::NUMERO . ')\s?(?:€|euros?\b),?\s(?:para (?:o|a)|ao|a) (\d{1,2})\s?\.?\s?(?:º|ª|°|o\b|a\b)/u';
@@ -150,7 +175,7 @@ final class PremiosHelper
     private const PADRAO_COLUNAS_SEGUINTES = '/\G(?:\s?[|;\/–-]?\s?(?:€\s?)?' . self::NUMERO . '\s?(?:€|euros?\b))+/u';
 
     /** Palavras que podem estar entre o lugar e o valor ("1.º lugar – 100 €"). */
-    private const PADRAO_ENTRE_PERMITIDO = '/\b(?:lugar(?:es)?|classificad[oa]s?|premios?|trofeus?|medalhas?|geral|t|'
+    private const PADRAO_ENTRE_PERMITIDO = '/\b(?:lugar(?:es)?|class(?:ificad[oa]s?)?|premios?|trofeus?|medalhas?|geral|t|'
         . 'masculin[oa]s?|feminin[oa]s?|absolut[oa]s?|individual|m|f)\b/';
 
     /** Etiquetas das tabelas, lidas no texto logo antes: padrão => texto (null: o que foi encontrado). */
@@ -177,15 +202,37 @@ final class PremiosHelper
     public static function tabelas(string $texto): array
     {
         $normal = strtr(mb_strtolower(trim((string) preg_replace('/\s+/u', ' ', $texto))), self::ACENTOS);
+        // Algarismos separados pelo PDF ("12 5 €", "20 0 €", "3 00€" → 125, 200, 300).
+        $normal = (string) preg_replace_callback(
+            '/(?<![\d.,])(\d{1,2}) (\d{1,2})(?=\s?€)/u',
+            fn (array $a) => strlen($a[1] . $a[2]) <= 3 ? $a[1] . $a[2] : $a[0],
+            $normal
+        );
 
         // Pares [lugar, valor, início, fim, valores das outras colunas] (posições em bytes), pela ordem do texto.
         $pares = [];
+        // Posições dos valores já usados (o mesmo valor não conta duas vezes).
+        $valoresUsados = [];
         // "350 € para o 1.º, 150 € para o 2.º": o valor vem antes do lugar.
-        $valoresAntesDoLugar = [];
         preg_match_all(self::PADRAO_VALOR_LUGAR, $normal, $m, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($m as $par) {
             $pares[] = [(int) $par[2][0], self::montante($par[1][0]), $par[0][1], $par[0][1] + strlen($par[0][0]), []];
-            $valoresAntesDoLugar[$par[1][1]] = true;
+            $valoresUsados[$par[1][1]] = true;
+        }
+        preg_match_all(self::PADRAO_VALOR_PALAVRA, $normal, $m, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        foreach ($m as $par) {
+            $pares[] = [self::LUGAR_POR_EXTENSO[substr($par[2][0], 0, 4)], self::montante($par[1][0]), $par[0][1], $par[0][1] + strlen($par[0][0]), []];
+            $valoresUsados[$par[1][1]] = true;
+        }
+        // "50 €, 30 € e 20 € para 1.º, 2.º e 3.º": 1.º, 2.º, 3.º...
+        preg_match_all(self::PADRAO_LISTA_ANTES, $normal, $m, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        foreach ($m as $lista) {
+            preg_match_all('/' . self::NUMERO . '/', $lista[1][0], $valores, PREG_OFFSET_CAPTURE);
+            foreach ($valores[0] as $i => [$valor, $pos]) {
+                $inicio = $lista[1][1] + $pos;
+                $pares[] = [$i + 1, self::montante($valor), $inicio, $inicio + strlen($valor), []];
+                $valoresUsados[$inicio] = true;
+            }
         }
         preg_match_all(self::PADRAO_LUGAR_VALOR, $normal, $m, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($m as $par) {
@@ -193,7 +240,7 @@ final class PremiosHelper
             $posValor = ($par[3][0] ?? '') !== '' ? $par[3][1] : $par[4][1];
             // "1.ª fase 15 €", "2.º escalão 10 euros": não é um prémio; em "1.º, 150 € para
             // o 2.º" o valor é do lugar seguinte.
-            if (!preg_match('/[a-z]{2,}/', $entre) && !isset($valoresAntesDoLugar[$posValor])) {
+            if (!preg_match('/[a-z]{2,}/', $entre) && !isset($valoresUsados[$posValor])) {
                 $valor = ($par[3][0] ?? '') !== '' ? $par[3][0] : $par[4][0];
                 $fim = $par[0][1] + strlen($par[0][0]);
                 // Outras colunas na mesma linha ("1º Classificado 50€ 50€ 50€..."): valores logo a seguir.
@@ -204,6 +251,7 @@ final class PremiosHelper
                     $fim += strlen($e[0]);
                 }
                 $pares[] = [(int) $par[1][0], self::montante($valor), $par[0][1], $fim, $extras];
+                $valoresUsados[$posValor] = true;
             }
         }
         // "Respetivamente, 50 €, 25 € e 15 €": 1.º, 2.º, 3.º...
@@ -212,11 +260,25 @@ final class PremiosHelper
             preg_match_all('/' . self::NUMERO . '/', $lista[1][0], $valores, PREG_OFFSET_CAPTURE);
             foreach ($valores[0] as $i => [$valor, $pos]) {
                 $inicio = $lista[1][1] + $pos;
-                $pares[] = [$i + 1, self::montante($valor), $inicio, $inicio + strlen($valor), []];
+                if (!isset($valoresUsados[$inicio])) {
+                    $pares[] = [$i + 1, self::montante($valor), $inicio, $inicio + strlen($valor), []];
+                    $valoresUsados[$inicio] = true;
+                }
             }
         }
+        // "O vencedor recebe 125 €, o segundo 100 € e o terceiro 75 €".
+        preg_match_all(self::PADRAO_PALAVRA_VALOR, $normal, $m, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        foreach ($m as $par) {
+            $posValor = ($par[3][0] ?? '') !== '' ? $par[3][1] : $par[4][1];
+            if (isset($valoresUsados[$posValor]) || preg_match(self::PADRAO_PALAVRA_NAO_PREMIO, $par[2][0])) {
+                continue;
+            }
+            $valor = ($par[3][0] ?? '') !== '' ? $par[3][0] : $par[4][0];
+            $pares[] = [self::LUGAR_POR_EXTENSO[substr($par[1][0], 0, 4)], self::montante($valor), $par[0][1], $par[0][1] + strlen($par[0][0]), []];
+            $valoresUsados[$posValor] = true;
+        }
         if ($pares === []) {
-            return [];
+            return self::totalAnunciado($normal);
         }
         usort($pares, fn (array $a, array $b) => $a[2] <=> $b[2]);
 
@@ -240,8 +302,12 @@ final class PremiosHelper
                 if ($atual !== null) {
                     $grupos[] = $atual;
                 }
-                $antes = substr($normal, max($fimAnterior, $inicio - 160), $inicio - max($fimAnterior, $inicio - 160));
-                $atual = ['titulo' => self::etiquetaTabela($antes), 'linhas' => [], 'extras' => []];
+                // Etiqueta: o texto logo antes, o da própria linha ("1. Geral Masculino / Feminino – 100€")
+                // e o que vem a seguir até ao próximo valor ("500 € para o 1.º classificado da Geral
+                // masculina e feminina, 250 €...").
+                $desde = max($fimAnterior, $inicio - 160);
+                preg_match('/\G[^\d€]{0,60}/u', $normal, $depois, 0, $fim);
+                $atual = ['titulo' => self::etiquetaTabela(substr($normal, $desde, $fim - $desde) . ($depois[0] ?? '')), 'linhas' => [], 'extras' => []];
             }
             $atual['linhas'][$lugar] = $valor;
             $atual['extras'][$lugar] = $extras;
@@ -262,12 +328,15 @@ final class PremiosHelper
             $grupo['soma'] = array_sum($grupo['linhas']) + array_sum(array_map('array_sum', $grupo['extras']));
             $chave = json_encode([$grupo['linhas'], $grupo['colunas']]);
             if (isset($tabelas[$chave])) {
-                // Mesmos valores (ex. masculinos e femininos): junta as etiquetas.
+                // Mesmos valores (ex. masculinos e femininos, ou vários escalões): mostra-se
+                // uma vez, com as etiquetas juntas, e o total conta todas.
                 $titulos = array_filter([$tabelas[$chave]['titulo'], $grupo['titulo']]);
                 $tabelas[$chave]['titulo'] = $titulos !== [] ? implode(' / ', array_unique($titulos)) : null;
+                $tabelas[$chave]['soma'] += $grupo['soma'];
+                $tabelas[$chave]['repeticoes']++;
                 continue;
             }
-            $tabelas[$chave] = $grupo;
+            $tabelas[$chave] = $grupo + ['repeticoes' => 1];
         }
 
         $resultado = [];
@@ -277,10 +346,28 @@ final class PremiosHelper
                 $linhas[] = [$lugar, self::formatarEuros($valor)];
             }
             $resultado[] = ['titulo' => $tabela['titulo'], 'linhas' => $linhas]
-                + ($tabela['colunas'] > 1 ? ['colunas' => $tabela['colunas'], 'soma' => $tabela['soma']] : []);
+                + ($tabela['colunas'] > 1 || $tabela['repeticoes'] > 1
+                    ? ['colunas' => $tabela['colunas'], 'repeticoes' => $tabela['repeticoes'], 'soma' => $tabela['soma']]
+                    : []);
         }
 
-        return array_slice($resultado, 0, 6);
+        return $resultado !== [] ? array_slice($resultado, 0, 6) : self::totalAnunciado($normal);
+    }
+
+    /**
+     * Sem tabela, o total que o regulamento anuncia ("prize money global de
+     * 5.000 euros"): uma "tabela" sem linhas, só com a soma.
+     *
+     * @return array<int,array{titulo: string, linhas: array{}, soma: float, anunciado: true}>
+     */
+    private static function totalAnunciado(string $normal): array
+    {
+        if (!preg_match(self::PADRAO_TOTAL_ANUNCIADO, $normal, $m)) {
+            return [];
+        }
+        $total = self::montante($m[1]);
+
+        return $total >= 100 ? [['titulo' => 'Total anunciado', 'linhas' => [], 'soma' => $total, 'anunciado' => true]] : [];
     }
 
     /** "Geral · Femininos", "Vet 40", "10 km · Geral"... ou null. */
@@ -312,7 +399,7 @@ final class PremiosHelper
         if ($tabelas === [] && $excerto !== null && $excerto !== '') {
             $tabelas = self::tabelas($excerto);
         }
-        usort($tabelas, fn (array $a, array $b) => self::montante($b['linhas'][0][1]) <=> self::montante($a['linhas'][0][1]));
+        usort($tabelas, fn (array $a, array $b) => self::montante($b['linhas'][0][1] ?? '0') <=> self::montante($a['linhas'][0][1] ?? '0'));
 
         return $tabelas;
     }
@@ -343,8 +430,10 @@ final class PremiosHelper
             explode(' · ', str_replace(' / ', ' · ', (string) $titulo)),
             fn (string $p) => $p !== '' && !in_array($p, ['Masculinos', 'Femininos', 'M/F'], true)
         );
+        $repeticoes = (int) ($tabela['repeticoes'] ?? 1);
         $rotulo = match (true) {
             $colunas > 2 => "Por escalão ({$colunas})",
+            $repeticoes > 2 => "Por escalão ({$repeticoes})",
             $partes !== [] => implode(' · ', array_unique($partes)),
             default => 'Classificação',
         };
@@ -354,22 +443,22 @@ final class PremiosHelper
 
     /**
      * Total de uma tabela: a soma de todas as colunas (se o PDF tiver várias,
-     * ex. uma por escalão), a dobrar quando vale para os dois sexos — exceto
-     * quando as duas colunas já são "Femininos" e "Masculinos".
+     * ex. uma por escalão) e de todas as tabelas iguais juntadas nela, a
+     * dobrar quando vale para os dois sexos — exceto quando as colunas já são
+     * "Femininos" e "Masculinos" ou a soma já junta as tabelas de cada sexo.
      *
-     * @param array{titulo: ?string, linhas: array<int,array{0:int,1:string}>, colunas?: int, soma?: float} $tabela
+     * @param array{titulo: ?string, linhas: array<int,array{0:int,1:string}>, colunas?: int, repeticoes?: int, soma?: float} $tabela
      */
     public static function totalTabela(array $tabela): float
     {
-        $titulo = $tabela['titulo'] ?? null;
-        $colunas = (int) ($tabela['colunas'] ?? 1);
+        $titulo = mb_strtolower((string) ($tabela['titulo'] ?? ''));
         $soma = isset($tabela['soma'])
             ? (float) $tabela['soma']
             : array_sum(array_map(fn (array $linha) => self::montante($linha[1]), $tabela['linhas']));
-        $colunasSaoSexos = $colunas === 2 && str_contains(mb_strtolower((string) $titulo), 'masculin')
-            && str_contains(mb_strtolower((string) $titulo), 'feminin');
+        $sexosJaContados = ($tabela['repeticoes'] ?? 1) > 1
+            || (($tabela['colunas'] ?? 1) > 1 && str_contains($titulo, 'masculin') && str_contains($titulo, 'feminin'));
 
-        return $soma * ($colunasSaoSexos ? 1 : self::vezesPaga($titulo));
+        return $soma * ($sexosJaContados ? 1 : self::vezesPaga($titulo));
     }
 
     /**

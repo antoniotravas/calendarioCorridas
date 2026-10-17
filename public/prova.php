@@ -71,6 +71,10 @@ $programaTemEscaloes = array_filter(array_column($programa, 'escaloes')) !== [];
 $podeVerPremios = $auth->podeVerPremios();
 $premios = isset($c['premios_monetarios']) ? (int) $c['premios_monetarios'] === 1 : null;
 $tabelasPremios = $premios ? PremiosHelper::tabelasDaProva($c['premios_tabela'] ?? null, $c['premios_excerto'] ?? null) : [];
+$totalPremios = PremiosHelper::total($tabelasPremios);
+// Só o total anunciado no regulamento ("prize money global de 5.000 €"), sem tabela.
+$soTotalAnunciado = $tabelasPremios !== [] && array_filter($tabelasPremios, fn (array $t) => $t['linhas'] !== []) === [];
+$tabelasPremios = array_values(array_filter($tabelasPremios, fn (array $t) => $t['linhas'] !== []));
 // Uma só tabela: uma linha por lugar, uma coluna por classificação.
 $lugaresPremios = [];
 foreach ($tabelasPremios as $i => $tabela) {
@@ -79,7 +83,6 @@ foreach ($tabelasPremios as $i => $tabela) {
     }
 }
 ksort($lugaresPremios);
-$totalPremios = PremiosHelper::total($tabelasPremios);
 
 // Adicionar ao calendário: com hora, um evento de 2 horas; sem hora, o dia inteiro.
 $urlGoogleCalendar = null;
@@ -246,6 +249,9 @@ $iconeExterno = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="tr
                 <p class="nota">Ainda por saber — o regulamento não foi lido ou não fala de prémios.</p>
             <?php elseif (!$premios): ?>
                 <p>Sem prémios em dinheiro.</p>
+            <?php elseif ($soTotalAnunciado): ?>
+                <p class="premios-total">Total anunciado: <strong><?= PremiosHelper::formatarEuros($totalPremios) ?></strong></p>
+                <p class="nota">O regulamento só diz o total; a divisão pelos lugares não foi lida.</p>
             <?php elseif ($tabelasPremios === []): ?>
                 <p>Há prémios em dinheiro, mas o texto lido não diz os valores. O que lá está:</p>
             <?php else: ?>
