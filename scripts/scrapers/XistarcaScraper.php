@@ -63,6 +63,9 @@ final class XistarcaScraper implements ScraperInterface, FonteOrganizadora
                 urlEvento: $urlEvento,
                 fonte: $this->nome(),
                 urlFonte: self::LISTA_URL,
+                // A Xistarca organiza as provas que publica.
+                organizador: 'Xistarca',
+                organizadorUrl: 'https://xistarca.pt',
             );
         }
 

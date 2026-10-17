@@ -77,9 +77,9 @@ final class ProcuraPremios
             }
             $contagem['vistas']++;
 
-            [$monetarios, $excerto, $url, $respondeu] = PremiosHelper::procurar($paginas, $obter);
+            [$monetarios, $excerto, $url, $respondeu, $tabela] = PremiosHelper::procurar($paginas, $obter);
             if ($respondeu || $paginas === []) {
-                $this->db->gravarPremios($corridaId, $monetarios, $excerto, $url);
+                $this->db->gravarPremios($corridaId, $monetarios, $excerto, $url, $tabela);
             } else {
                 // Nenhum site respondeu: fica marcada como tentada, sem perder o
                 // que já se sabia, e volta a ser vista daqui a uns dias.

@@ -7,9 +7,11 @@ session_start();
 require __DIR__ . '/../scripts/lib/Corrida.php';
 require __DIR__ . '/../scripts/lib/DateHelper.php';
 require __DIR__ . '/../scripts/lib/DistanciaHelper.php';
+require __DIR__ . '/../scripts/lib/DistritoHelper.php';
 require __DIR__ . '/../scripts/lib/HttpClient.php';
 require __DIR__ . '/../scripts/lib/Database.php';
 require __DIR__ . '/lib/Auth.php';
+require __DIR__ . '/lib/Organizador.php';
 
 $configPath = __DIR__ . '/../scripts/config.php';
 

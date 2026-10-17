@@ -53,17 +53,25 @@ $iconePremios = static function (array $c) use ($podeVerPremios): void {
     <?php endif;
 };
 
-/** "A", "A e B", "A, B e C". */
-$juntarFontes = static function (array $fontes): string {
-    $links = array_map(
-        static fn (array $f) => $f['url_fonte']
-            ? '<a href="' . htmlspecialchars($f['url_fonte']) . '" target="_blank" rel="noopener">' . htmlspecialchars($f['fonte']) . '</a>'
-            : htmlspecialchars($f['fonte']),
-        $fontes
-    );
-    $ultimo = array_pop($links);
+/**
+ * Onde se encontrou a prova. Encontrada num só site: "Encontrada em X".
+ * Em vários: só a referência ao organizador (Organizador::de), que é o que
+ * interessa; a lista completa fica na página da prova.
+ */
+$referenciaProva = static function (array $c): string {
+    $link = static fn (?string $url, string $texto) => $url
+        ? '<a href="' . htmlspecialchars($url) . '" target="_blank" rel="noopener">' . htmlspecialchars($texto) . '</a>'
+        : htmlspecialchars($texto);
 
-    return $links === [] ? (string) $ultimo : implode(', ', $links) . ' e ' . $ultimo;
+    $organizador = count($c['fontes']) > 1 ? Organizador::de($c) : null;
+    if ($organizador !== null) {
+        return $organizador['e_regulamento']
+            ? $link($organizador['url'], 'Regulamento da prova')
+            : 'Organização: ' . $link($organizador['url'], $organizador['nome']);
+    }
+    $principal = $c['fontes'][0];
+
+    return 'Encontrada em ' . $link($principal['url_fonte'], $principal['fonte']);
 };
 
 $iconeGuardar = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 3.5h10a1 1 0 0 1 1 1v16l-6-4-6 4v-16a1 1 0 0 1 1-1z"/></svg>';
@@ -98,7 +106,7 @@ foreach ($grupos as $chaveMes => $grupo):
                     <?php foreach ($provasDoDia as $c):
                         $etiquetas = $etiquetasProva($c);
                         ?>
-                        <li class="prova<?= $c['url_evento'] ? ' com-link' : '' ?>">
+                        <li class="prova">
                             <span class="miniatura" aria-hidden="true">
                                 <?php if (!empty($c['imagem_url'])): ?>
                                     <img src="<?= htmlspecialchars($c['imagem_url']) ?>" alt="" width="88" height="88"
@@ -109,12 +117,8 @@ foreach ($grupos as $chaveMes => $grupo):
 
                             <div class="prova-corpo">
                                 <h4>
-                                    <?php if ($c['url_evento']): ?>
-                                        <?php /* O ::after deste link cobre o cartão todo (ver .com-link no CSS). */ ?>
-                                        <a class="prova-link" href="<?= htmlspecialchars($c['url_evento']) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($c['nome']) ?></a>
-                                    <?php else: ?>
-                                        <?= htmlspecialchars($c['nome']) ?>
-                                    <?php endif; ?>
+                                    <?php /* Abre a página da prova; o ::after deste link cobre o cartão todo (ver .prova-link no CSS). */ ?>
+                                    <a class="prova-link" href="/prova.php?id=<?= (int) $c['id'] ?>"><?= htmlspecialchars($c['nome']) ?></a>
                                     <?php $iconePremios($c); ?>
                                 </h4>
                                 <?php if ($c['local']): ?>
@@ -131,7 +135,7 @@ foreach ($grupos as $chaveMes => $grupo):
                                         <?php endforeach; ?>
                                     </ul>
                                 <?php endif; ?>
-                                <p class="prova-fontes">Encontrada em <?= $juntarFontes($c['fontes']) ?></p>
+                                <p class="prova-fontes"><?= $referenciaProva($c) ?></p>
                             </div>
 
                             <?php if ($autenticado): $ativo = !empty($c['e_favorito']); ?>

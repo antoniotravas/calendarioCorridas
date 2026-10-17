@@ -95,13 +95,12 @@ form.filtros {
     max-width: var(--largura);
     margin: 0 auto;
     display: grid;
-    grid-template-columns: minmax(170px, 1.5fr) repeat(5, minmax(0, 1fr)) auto;
     gap: 8px;
 }
-form.filtros.com-js { grid-template-columns: minmax(170px, 1.5fr) repeat(5, minmax(0, 1fr)); }
-/* Sem acesso aos prémios monetários: um filtro a menos. */
-form.filtros.sem-premios { grid-template-columns: minmax(170px, 1.5fr) repeat(4, minmax(0, 1fr)) auto; }
-form.filtros.sem-premios.com-js { grid-template-columns: minmax(170px, 1.5fr) repeat(4, minmax(0, 1fr)); }
+/* --filtros: número de listas (varia com as permissões: "Fonte" só para
+   administradores, "Prémios €" só para quem tem acesso) — ver index.php. */
+form.filtros { grid-template-columns: minmax(170px, 1.5fr) repeat(var(--filtros, 4), minmax(0, 1fr)) auto; }
+form.filtros.com-js { grid-template-columns: minmax(170px, 1.5fr) repeat(var(--filtros, 4), minmax(0, 1fr)); }
 form.filtros.com-js .filtrar { position: absolute; left: -9999px; }
 form.filtros label { display: block; min-width: 0; }
 form.filtros select,
@@ -253,9 +252,9 @@ li.prova {
     transition: border-color .15s, box-shadow .15s;
 }
 /* O cartão inteiro abre a página da prova: o ::after do link cobre-o todo */
-li.prova.com-link { cursor: pointer; }
-li.prova.com-link:hover { border-color: var(--linha-forte); box-shadow: 0 3px 12px rgba(34, 38, 44, 0.07); }
-li.prova.com-link:hover h4 { color: var(--sinal); }
+li.prova { cursor: pointer; }
+li.prova:hover { border-color: var(--linha-forte); box-shadow: 0 3px 12px rgba(34, 38, 44, 0.07); }
+li.prova:hover h4 { color: var(--sinal); }
 .prova-link { text-decoration: none; }
 .prova-link::after { content: ""; position: absolute; inset: 0; border-radius: 12px; }
 .prova-link:focus-visible { outline: none; }
@@ -662,6 +661,185 @@ li.utilizador.com-acesso { border-left: 4px solid var(--premios); }
 .acesso-botao.dar:hover { background: var(--premios-escuro); }
 .acesso-botao.retirar { border: 1px solid var(--linha-forte); background: var(--branco); color: var(--cinza); }
 .acesso-botao.retirar:hover { border-color: var(--erro); color: var(--erro); }
+/* Página individual da prova (prova.php) */
+.voltar-calendario {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 8px 0 14px;
+    color: var(--cinza);
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+.voltar-calendario svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.voltar-calendario:hover { color: var(--sinal); }
+
+.prova-detalhe {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+    padding: 20px;
+    background: var(--branco);
+    border: 1px solid var(--linha);
+    border-radius: 14px;
+}
+/* Cartaz da prova; sem cartaz, um dorsal grande com o dia */
+.prova-cartaz { border-radius: 10px; overflow: hidden; background: var(--papel); }
+.prova-cartaz img { display: block; width: 100%; height: auto; max-height: 340px; object-fit: contain; }
+.prova-cartaz .dorsal { display: none; }
+.prova-cartaz.sem-imagem { display: grid; place-items: center; aspect-ratio: 1; }
+.prova-cartaz.sem-imagem .dorsal { display: flex; }
+.prova-cartaz .dorsal-grande { width: 130px; height: 136px; border-radius: 8px; }
+.prova-cartaz .dorsal-grande .dorsal-topo { height: 34px; line-height: 34px; font-size: 1.2rem; }
+.prova-cartaz .dorsal-grande .dorsal-topo::before,
+.prova-cartaz .dorsal-grande .dorsal-topo::after { top: 13px; width: 7px; height: 7px; }
+.prova-cartaz .dorsal-grande .dorsal-topo::before { left: 10px; }
+.prova-cartaz .dorsal-grande .dorsal-topo::after { right: 10px; }
+.prova-cartaz .dorsal-grande .dorsal-dia { font-size: 4.4rem; }
+
+.prova-cabeca h1 {
+    margin: 6px 0 6px;
+    font-family: var(--letra-estreita);
+    font-weight: 700;
+    font-size: 2.3rem;
+    line-height: 1.08;
+    overflow-wrap: anywhere;
+}
+.prova-quando { margin: 0 0 6px; font-size: 1.08rem; font-weight: 600; }
+.ja-passou {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--papel);
+    color: var(--cinza);
+    font-size: 0.8rem;
+    font-weight: 600;
+    vertical-align: 2px;
+}
+.prova-cabeca .prova-local { flex-wrap: wrap; font-size: 1rem; }
+.prova-cabeca .prova-local a { color: var(--sinal); font-size: 0.9rem; font-weight: 600; text-decoration: none; margin-left: 4px; }
+.prova-cabeca .prova-local a:hover { text-decoration: underline; }
+
+.prova-hora { margin-left: 6px; color: var(--sinal); }
+/* Organização: o que mais interessa, em destaque */
+.prova-organizacao {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--linha);
+}
+.prova-organizador { margin: 0 0 10px; font-size: 1.05rem; font-weight: 600; }
+.prova-organizador span {
+    display: block;
+    color: var(--cinza);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.prova-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.botao-secundario {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 42px;
+    padding: 0 16px;
+    border: 1px solid var(--sinal);
+    border-radius: 999px;
+    color: var(--sinal);
+    font-weight: 600;
+    text-decoration: none;
+}
+.botao-secundario svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.botao-secundario:hover { background: var(--sinal-suave); }
+.botao-organizador {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 42px;
+    padding: 0 18px;
+    border-radius: 999px;
+    background: var(--sinal);
+    color: var(--branco);
+    font-weight: 600;
+    text-decoration: none;
+}
+.botao-organizador svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.botao-organizador:hover { background: var(--sinal-escuro); }
+.prova-acoes .favorito-btn { height: 42px; padding: 0 16px 0 12px; font-size: 0.92rem; }
+
+.prova-dados {
+    margin: 14px 0 0;
+    padding: 4px 20px;
+    background: var(--branco);
+    border: 1px solid var(--linha);
+    border-radius: 14px;
+}
+.prova-dados > div {
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: 16px;
+    padding: 14px 0;
+    border-top: 1px solid var(--linha);
+}
+.prova-dados > div:first-child { border-top: none; }
+.prova-dados dt { color: var(--cinza); font-size: 0.92rem; }
+.prova-dados dd { margin: 0; min-width: 0; }
+.prova-dados ul.etiquetas { margin: 0; }
+.prova-dados .premios { margin: 0 6px 0 0; cursor: default; }
+.premios-excerto { margin: 8px 0; padding-left: 10px; border-left: 3px solid var(--linha); color: var(--cinza); font-size: 0.9rem; }
+.prova-dados a { color: var(--sinal); font-weight: 600; text-decoration: none; }
+.prova-dados a:hover { text-decoration: underline; }
+.prova-links { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.nota { display: block; margin: 4px 0 0; color: var(--cinza); font-size: 0.86rem; }
+.nota a { color: var(--sinal); }
+.nota-inline { color: var(--cinza); }
+
+/* Programa e prémios */
+.prova-seccao {
+    margin-top: 14px;
+    padding: 16px 20px 18px;
+    background: var(--branco);
+    border: 1px solid var(--linha);
+    border-radius: 14px;
+}
+.prova-seccao h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 12px;
+    font-family: var(--letra-estreita);
+    font-weight: 700;
+    font-size: 1.45rem;
+    line-height: 1.1;
+}
+.prova-seccao h2 .premios { margin: 0; cursor: default; }
+.prova-seccao p { margin: 0; }
+.tabela-rolar { overflow-x: auto; }
+.tabela-prova { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.tabela-prova th {
+    padding: 6px 10px;
+    border-bottom: 2px solid var(--linha);
+    color: var(--cinza);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-align: left;
+    text-transform: uppercase;
+}
+.tabela-prova td { padding: 7px 10px; border-bottom: 1px solid var(--linha); vertical-align: top; }
+.tabela-prova tbody tr:last-child td { border-bottom: none; }
+.tabela-hora { font-family: var(--letra-estreita); font-weight: 600; font-size: 1rem; white-space: nowrap; }
+.tabelas-premios { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: flex-start; margin-bottom: 10px; }
+.tabela-premios { width: auto; min-width: 180px; }
+.tabela-premios caption { padding-bottom: 4px; font-weight: 600; text-align: left; }
+.tabela-valor { font-family: var(--letra-estreita); font-weight: 700; font-size: 1.02rem; color: var(--premios); text-align: right; }
+.prova-encontrada { margin: 14px 4px 0; color: var(--cinza); font-size: 0.85rem; }
+.prova-encontrada a { color: var(--cinza); }
+.prova-encontrada a:hover { color: var(--sinal); }
+
 @media (max-width: 640px) {
     li.utilizador { flex-direction: column; align-items: stretch; gap: 10px; }
     .acesso-form { justify-content: space-between; }
@@ -676,13 +854,12 @@ li.utilizador.com-acesso { border-left: 4px solid var(--premios); }
     nav.conta { gap: 12px; font-size: 0.88rem; }
 
     .barra-filtros { padding: 8px 16px; }
+    /* Telemóvel: procura (e "Prémios €") na 1.ª linha, as outras listas na 2.ª;
+       --colunas: número de listas sem contar a dos prémios. */
     form.filtros,
-    form.filtros.com-js { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-    /* Telemóvel: procura e "Prémios" na 1.ª linha, os outros quatro na 2.ª. */
-    form.filtros .procura { grid-column: 1 / 4; grid-row: 1; }
-    form.filtros .filtro-premios { grid-column: 4; grid-row: 1; }
-    form.filtros.sem-premios,
-    form.filtros.sem-premios.com-js { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    form.filtros.com-js { grid-template-columns: repeat(var(--colunas, 3), minmax(0, 1fr)); gap: 6px; }
+    form.filtros .procura { grid-column: 1 / -2; grid-row: 1; }
+    form.filtros .filtro-premios { grid-column: -2 / -1; grid-row: 1; }
     form.filtros.sem-premios .procura { grid-column: 1 / -1; }
     form.filtros:not(.com-js) .filtrar { grid-column: 1 / -1; }
     form.filtros select { font-size: 0.82rem; padding: 0 2px; }
@@ -734,6 +911,17 @@ li.utilizador.com-acesso { border-left: 4px solid var(--premios); }
     form.favorito,
     li.prova > a.favorito-btn { grid-column: 2; justify-self: start; }
     .favorito-btn { height: 34px; }
+}
+
+@media (max-width: 700px) {
+    .prova-detalhe { grid-template-columns: 1fr; gap: 16px; padding: 14px; }
+    .prova-cartaz { max-width: 320px; }
+    .prova-cartaz.sem-imagem { aspect-ratio: auto; place-items: start; background: none; }
+    .prova-cabeca h1 { font-size: 1.9rem; }
+    .prova-dados { padding: 2px 14px; }
+    .prova-dados > div { grid-template-columns: 1fr; gap: 4px; }
+    .prova-seccao { padding: 14px; }
+    .tabela-premios { flex: 1 1 140px; min-width: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

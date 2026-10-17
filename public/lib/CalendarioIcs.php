@@ -70,6 +70,9 @@ final class CalendarioIcs
     {
         $partes = [];
 
+        if (!empty($c['hora_inicio'])) {
+            $partes[] = 'Hora: ' . str_replace(':', 'h', substr((string) $c['hora_inicio'], 0, 5));
+        }
         if (!empty($c['distancias'])) {
             $partes[] = 'Distâncias: ' . $c['distancias'];
         }

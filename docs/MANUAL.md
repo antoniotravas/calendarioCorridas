@@ -71,6 +71,7 @@ sql/migracao_005_categoria.sql       -- para BDs criadas antes do filtro "Tipo" 
 sql/migracao_006_links_oficiais.sql  -- tabela links_oficiais (link oficial lido das páginas da All4Running)
 sql/migracao_007_premios.sql         -- colunas premios_* em corridas (ícone "€" e filtro "Prémios")
 sql/migracao_008_permissoes.sql      -- colunas e_admin e ver_premios em utilizadores (gestão de acessos)
+sql/migracao_009_detalhes.sql        -- hora_inicio, programa, organizador, organizador_url, detalhes_procurado_em e premios_tabela em corridas
 
 scripts/config.example.php           -- template de credenciais (copiar para config.php)
 scripts/lib/Corrida.php              -- objeto de valor com os dados normalizados de uma prova
@@ -78,7 +79,9 @@ scripts/lib/HttpClient.php           -- pedidos GET/POST via cURL
 scripts/lib/DateHelper.php           -- datas em português: parsing, formatação, agrupar por mês
 scripts/lib/DistanciaHelper.php      -- extrai distâncias (km) do texto livre; faixas do filtro de distância
 scripts/lib/NomeProvaHelper.php      -- mesma prova com nomes diferentes? parece corrida / prova de pista (pelo nome)? estrada, trail, corta-mato ou pista?
-scripts/lib/PremiosHelper.php        -- há prémios monetários? (analisa o texto; segue os links do regulamento)
+scripts/lib/PremiosHelper.php        -- há prémios monetários? (analisa o texto; segue os links do regulamento) e tabela dos valores
+scripts/lib/DetalhesProvaHelper.php  -- hora, programa e organizador lidos nas páginas das provas (Lap2Go, Stop and Go, Acorrer, Xistarca)
+scripts/lib/DistritoHelper.php       -- distrito e região a partir do local (308 concelhos + localidades conhecidas)
 scripts/lib/PdfTextoHelper.php       -- extrai o texto de PDFs (regulamentos) em PHP puro
 scripts/lib/ProcuraPremios.php       -- percorre as provas por ver, com tempo máximo (usado pelo scraper e por procurar_premios.php)
 scripts/lib/Database.php             -- ligação PDO: upsert/junção de corridas, listagem com filtros, utilizadores, favoritos
@@ -104,6 +107,9 @@ scripts/procurar_premios.php         -- procura prémios monetários em todas as
 
 public/_bootstrap.php                -- sessão + ligação BD + $auth, incluído por todas as páginas
 public/index.php                     -- calendário público (filtros: mês, distância, fonte, pesquisa), 20 provas por página; ?parcial=1 devolve só a lista (carregamento progressivo)
+public/prova.php                     -- página individual de uma prova (?id=N), aberta ao clicar num cartão (ver "Página da prova")
+public/lib/Organizador.php           -- referência ao organizador (nome + link) usada no cartão e na página da prova
+public/prova-ics.php                 -- uma prova em .ics (?id=N), para o calendário do telemóvel
 public/gestao-utilizadores.php       -- (só administradores) dar/retirar acesso aos prémios monetários
 public/meu-calendario.php            -- provas guardadas pelo utilizador autenticado + botões de exportação .ics
 public/meu-calendario-ics.php        -- "o meu calendário" em .ics (descarga com sessão, ou subscrição com ?token=)
@@ -197,7 +203,7 @@ O site público está em **https://corridas.eu** (antes: `corridas.espacodecodig
 
 ### Filtros do calendário
 
-`index.php` filtra por **tipo** (estrada, trail, corta-mato, pista — coluna `corridas.categoria`, calculada no fim de cada execução do scraper por `Database::atualizarCategorias()` a partir do nome e do tipo, com `NomeProvaHelper::categoria()`; ultra trail e montanha contam como trail; pista inclui ar livre, coberta e pista curta), mês, **distância** (faixas pré-definidas em `DistanciaHelper::FAIXAS`, ex. "5 a 10 km", "21 a 42 km"), fonte, e pesquisa livre por nome/local. O filtro de distância usa a tabela `corridas_distancias`, sincronizada automaticamente pelo scraper a partir do texto em `corridas.distancias` (`DistanciaHelper::extrairKm()`). As provas de pista ficam sem distância (não há uma distância de corrida), por isso não aparecem quando se escolhe uma faixa de distância. O filtro **Prémios** (`?premios=sim` / `?premios=nao`) usa `corridas.premios_monetarios` (ver "Prémios monetários" abaixo).
+`index.php` filtra por **tipo** (estrada, trail, corta-mato, pista — coluna `corridas.categoria`, calculada no fim de cada execução do scraper por `Database::atualizarCategorias()` a partir do nome e do tipo, com `NomeProvaHelper::categoria()`; ultra trail e montanha contam como trail; pista inclui ar livre, coberta e pista curta), mês, **distância** (faixas pré-definidas em `DistanciaHelper::FAIXAS`, ex. "5 a 10 km", "21 a 42 km"), fonte (**só administradores** — para os outros a lista não aparece e `?fonte=` é ignorado), e pesquisa livre por nome/local. O filtro de distância usa a tabela `corridas_distancias`, sincronizada automaticamente pelo scraper a partir do texto em `corridas.distancias` (`DistanciaHelper::extrairKm()`). As provas de pista ficam sem distância (não há uma distância de corrida), por isso não aparecem quando se escolhe uma faixa de distância. O filtro **Prémios** (`?premios=sim` / `?premios=nao`) usa `corridas.premios_monetarios` (ver "Prémios monetários" abaixo).
 
 ### Lista de provas, carregamento progressivo e miniaturas
 
@@ -206,10 +212,38 @@ O site público está em **https://corridas.eu** (antes: `corridas.espacodecodig
 - "Guardar" (`form.favorito`) é enviado por `fetch` com `Accept: application/json`, para não recarregar a página nem perder as provas já carregadas; se o pedido falhar, o formulário é enviado da forma normal.
 - **Miniaturas** (`corridas.imagem_url`): a Acorrer e a Stop and Go dão o cartaz na listagem; para as restantes, no fim de cada execução o scraper abre as páginas do evento de todas as fontes da prova e usa o `og:image`/`twitter:image` (ou a imagem de destaque WordPress, `img.wp-post-image`) — `ImagemEventoHelper`. Cada prova só é procurada uma vez (`imagem_procurada_em`) e há um limite de 80 provas por execução. Imagens usadas por 3 ou mais provas são descartadas (quase sempre o logótipo do site). As imagens são mostradas diretamente do site de origem (`referrerpolicy="no-referrer"`); sem imagem, ou se ela falhar, vê-se um **dorsal** desenhado em CSS com o mês e o dia.
 - **Agrupada por dia:** dentro de cada mês, o dia aparece uma vez (`div.dia`): um dorsal com o dia da semana e o número, que fica fixo ao descer enquanto há provas desse dia (por baixo do título do mês, também fixo — `--altura-filtros` e `--altura-mes` no CSS têm de corresponder às alturas reais), e ao lado os cartões das provas. No telemóvel o dorsal fica por cima, com a data por extenso, e é ele que fica fixo ao descer (o título do mês desliza: a data por extenso já diz o mês). Ao carregar mais provas, as de um dia que já está na página juntam-se a esse dia (`data-dia`).
-- **Cartão inteiro clicável:** o link do nome da prova tem um `::after` que cobre o cartão (`.com-link`); o botão "Guardar" e os links das fontes ficam por cima (`z-index`).
+- **Cartão inteiro clicável:** o link do nome da prova abre a página da prova (`/prova.php?id=N`) e tem um `::after` que cobre o cartão (`.prova-link`); o botão "Guardar" e os links das fontes ficam por cima (`z-index`).
+- **Referência no cartão:** prova encontrada num só site → "Encontrada em X"; em vários → só a referência ao organizador ("Organização: nome", ou "Regulamento da prova" quando o único link é o regulamento) — `Organizador::de()`. A lista completa das fontes fica na página da prova.
 - **Fade in:** os cartões aparecem ao chegar ao ecrã (`IntersectionObserver` em `app.js`, classe `visivel`). Só com a classe `js` no `<html>`, posta por um script no `<head>`, que a retira se o `app.js` não correr em 3 s — os cartões nunca ficam escondidos. Respeita "reduzir movimento".
 - **Frase do total** de acordo com os filtros, ex. "3 provas de trail em dezembro, de 5 a 10 km".
 - **Base de dados criada antes das miniaturas:** correr uma vez `sql/migracao_004_imagens.sql`; antes do filtro "Tipo": `sql/migracao_005_categoria.sql`; antes dos prémios monetários: `sql/migracao_007_premios.sql`.
+
+### Página da prova
+
+`public/prova.php?id=N` (dados de `Database::obterProva()`, que também devolve provas já passadas):
+
+- **Título, dia e hora, local** (com "Ver no mapa"), **distrito e região** (`DistritoHelper::localizar()`, calculados ao mostrar a partir de `corridas.local` e, se o local não chegar, de `corridas.regiao`; a região é a do distrito: Norte, Centro, Lisboa e Vale do Tejo, Alentejo, Algarve, Açores, Madeira), **tipo e distâncias**.
+- **Organização** (em destaque): nome em `corridas.organizador` e botão para `organizador_url` ("Site do organizador") ou, se não houver, para o link da prova ("Site da prova" / "Regulamento da prova"); se o link da prova for outro (inscrições), aparece num segundo botão.
+- **Programa e escalões** (`corridas.programa`, JSON `[{hora, prova, escaloes}]`): hora, prova e escalões de cada partida.
+- **Prémios monetários** (só para quem tem acesso): tabelas "lugar → valor" (`corridas.premios_tabela`), com link para o documento onde foram lidos.
+- Guardar, adicionar ao Google Calendar (com a hora, se se souber) ou descarregar `.ics` (`public/prova-ics.php`), e a lista de todas as fontes no fundo.
+- O link "Calendário" (`data-voltar`) faz `history.back()` quando se veio do calendário, para repor os filtros e a posição na lista; aberta por link direto, vai para `/`.
+
+**De onde vêm hora, programa e organizador:**
+
+| Fonte | O quê | Como |
+|---|---|---|
+| FPA Competições | hora, programa com escalões, cartaz | no scraper: a página `/competition/{id}` redireciona para `/inscriptions/{id}` (inscrições abertas) ou `/competition/{id}/schedule` (fechadas) — as duas têm o horário no `__remixContext` |
+| AA Braga | organizador | campo `extendedProps.organization` da listagem |
+| Xistarca, Trilho Perdido | organizador (eles próprios) | no scraper |
+| Lap2Go | organizador e site | página da prova (`span.evento-org`, `span.evento-site`) |
+| Stop and Go | organizador e site | página da prova ("Organizador" + botão "Website do Organizador") |
+| Acorrer | hora | página da prova (`og:description`: "… às 17:00") |
+| Xistarca | programa e hora | página da prova (secção "DISTÂNCIA / HORA / LOCAL") |
+
+As páginas das plataformas são lidas no fim de `run_scraper.php` (`DetalhesProvaHelper`), cada prova uma vez por semana (`detalhes_procurado_em`), até 120 por execução, de 2 em 2 s por site. O que já se sabia nunca é apagado por uma fonte que não tem esse dado. Para as restantes fontes não há hora nem programa (não os publicam de forma legível).
+
+**Base de dados criada antes desta funcionalidade:** correr uma vez `sql/migracao_009_detalhes.sql`.
 
 ### Prémios monetários
 
@@ -227,6 +261,8 @@ Cada prova pode ter um ícone "€" ao lado do nome: **verde** se os mais bem cl
 3. **Por saber** — o texto não fala de prémios, diz que serão anunciados mais tarde, ou não houve documento legível.
 
 É uma heurística: pode falhar em tabelas de prémios que o PDF parte de forma estranha ou em regulamentos muito informais — o link para o documento permite confirmar.
+
+**Tabela dos valores** (`PremiosHelper::tabelas()`, gravada em `premios_tabela` como JSON `[{titulo, linhas: [[lugar, "100 €"], ...]}]`): procura pares "lugar → valor" ("1.º lugar – 100 €", "2º- 50€", "1º Troféu + 150 €") e agrupa-os em tabelas que começam no 1.º lugar; um lugar repetido começa outra tabela, exceto quando vem logo a seguir (colunas masculinos/femininos lidas linha a linha — fica a primeira). Rejeita valores < 10 € e pares com outras palavras pelo meio ("1.ª fase 15 €"). O título vem de palavras logo antes ("Geral", "Femininos", "M/F", "Juniores", "Vet 40", "10 km"). Tabelas iguais aparecem uma vez. Se o documento que diz "há prémios" não tiver valores, procura-se a tabela nos documentos que faltam (ex. o regulamento em PDF). `"[]"` = não deu para ler; `NULL` = ainda não procurada — as provas "com prémios" lidas antes da migração 009 voltam a ser lidas uma vez por isso. Os PDFs chegam muitas vezes com as colunas baralhadas: a tabela mostra só o que deu para ler com segurança e a página pede sempre para confirmar no regulamento.
 
 ### Contas e "o meu calendário"
 

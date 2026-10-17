@@ -67,9 +67,11 @@ final class Database
 
         $stmt = $this->pdo->prepare(<<<SQL
             INSERT INTO corridas
-                (nome, data_prova, local, distancias, tipo, regiao, url_evento, fonte, url_fonte, imagem_url, hash_dedup)
+                (nome, data_prova, hora_inicio, programa, local, distancias, tipo, regiao, url_evento, fonte, url_fonte,
+                 organizador, organizador_url, imagem_url, hash_dedup)
             VALUES
-                (:nome, :data_prova, :local, :distancias, :tipo, :regiao, :url_evento, :fonte, :url_fonte, :imagem_url, :hash_dedup)
+                (:nome, :data_prova, :hora_inicio, :programa, :local, :distancias, :tipo, :regiao, :url_evento, :fonte, :url_fonte,
+                 :organizador, :organizador_url, :imagem_url, :hash_dedup)
             SQL);
         $stmt->execute([
             'nome' => $corrida->nome,
@@ -83,7 +85,7 @@ final class Database
             'url_fonte' => $corrida->urlFonte,
             'imagem_url' => $corrida->imagemUrl,
             'hash_dedup' => $hash,
-        ]);
+        ] + $this->camposDetalhes($corrida));
         $corridaId = (int) $this->pdo->lastInsertId();
 
         $this->registarFonte($corridaId, $corrida, $hash);
@@ -164,9 +166,29 @@ final class Database
         if ($corrida->imagemUrl !== null && ($atual['fonte'] === $corrida->fonte || empty($atual['imagem_url']))) {
             $valores['imagem_url'] = $corrida->imagemUrl;
         }
+        // Hora, programa e organizador: o mesmo — também vêm das páginas das
+        // provas nas plataformas (gravarDetalhes), que não se apagam.
+        foreach ($this->camposDetalhes($corrida) as $campo => $valor) {
+            if ($valor !== null && ($atual['fonte'] === $corrida->fonte || empty($atual[$campo]))) {
+                $valores[$campo] = $valor;
+            }
+        }
 
         $this->atualizarCampos($corridaId, $valores);
         $this->sincronizarDistancias($corridaId, $valores['distancias']);
+    }
+
+    /**
+     * @return array{hora_inicio: ?string, programa: ?string, organizador: ?string, organizador_url: ?string}
+     */
+    private function camposDetalhes(Corrida $corrida): array
+    {
+        return [
+            'hora_inicio' => $corrida->horaInicio,
+            'programa' => $corrida->programa ? json_encode($corrida->programa, JSON_UNESCAPED_UNICODE) : null,
+            'organizador' => $corrida->organizador !== null ? mb_substr($corrida->organizador, 0, 255) : null,
+            'organizador_url' => $corrida->organizadorUrl !== null && strlen($corrida->organizadorUrl) <= 500 ? $corrida->organizadorUrl : null,
+        ];
     }
 
     private function registarFonte(int $corridaId, Corrida $corrida, string $hash): void
@@ -512,7 +534,9 @@ final class Database
                 WHERE data_prova >= CURDATE()
                   AND (premios_procurado_em IS NULL
                        OR (premios_monetarios IS NULL AND premios_procurado_em < NOW() - INTERVAL 3 DAY)
-                       OR (premios_monetarios = 0 AND premios_procurado_em < NOW() - INTERVAL 30 DAY))
+                       OR (premios_monetarios = 0 AND premios_procurado_em < NOW() - INTERVAL 30 DAY)
+                       -- Com prémios mas ainda sem a tabela dos valores (lidas antes da migração 009).
+                       OR (premios_monetarios = 1 AND premios_tabela IS NULL))
                 ORDER BY (premios_procurado_em IS NOT NULL), premios_procurado_em, data_prova, id
                 LIMIT %d
             ) c
@@ -554,20 +578,92 @@ final class Database
 
     /**
      * Grava o resultado da procura de prémios monetários (true/false, ou null
-     * se não deu para saber), com o excerto e o endereço onde foi lido.
+     * se não deu para saber), com o excerto e o endereço onde foi lido e, se
+     * há prémios, a tabela dos valores (PremiosHelper::tabelas; [] se não deu
+     * para a ler).
+     *
+     * @param array<int,array{titulo: ?string, linhas: array<int,array{0:int,1:string}>}>|null $tabela
      */
-    public function gravarPremios(int $corridaId, ?bool $monetarios, ?string $excerto, ?string $url): void
+    public function gravarPremios(int $corridaId, ?bool $monetarios, ?string $excerto, ?string $url, ?array $tabela = null): void
     {
         $stmt = $this->pdo->prepare(
             'UPDATE corridas SET premios_monetarios = :monetarios, premios_excerto = :excerto, premios_url = :url,'
-            . ' premios_procurado_em = NOW() WHERE id = :id'
+            . ' premios_tabela = :tabela, premios_procurado_em = NOW() WHERE id = :id'
         );
         $stmt->execute([
             'monetarios' => $monetarios === null ? null : (int) $monetarios,
             'excerto' => $excerto !== null ? mb_substr($excerto, 0, 300) : null,
             'url' => $url !== null ? mb_substr($url, 0, 500) : null,
+            'tabela' => $monetarios === true ? json_encode($tabela ?? [], JSON_UNESCAPED_UNICODE) : null,
             'id' => $corridaId,
         ]);
+    }
+
+    /**
+     * Provas futuras com página numa das plataformas que mostram hora,
+     * organizador ou programa (DetalhesProvaHelper::SITES), por ler ou lidas
+     * há mais de uma semana.
+     *
+     * @param string[] $sites domínios (ex. "lap2go.com")
+     * @return array<int,string[]> id da prova => páginas nesses sites
+     */
+    public function provasParaProcurarDetalhes(int $limite, array $sites): array
+    {
+        $stmt = $this->pdo->query(<<<'SQL'
+            SELECT c.id, c.url_evento, cf.url_evento AS url_evento_fonte
+            FROM corridas c
+            LEFT JOIN corridas_fontes cf ON cf.corrida_id = c.id
+            WHERE c.data_prova >= CURDATE()
+              AND (c.detalhes_procurado_em IS NULL OR c.detalhes_procurado_em < NOW() - INTERVAL 7 DAY)
+            ORDER BY (c.detalhes_procurado_em IS NOT NULL), c.detalhes_procurado_em, c.data_prova, c.id, cf.id
+            SQL);
+
+        $paginas = [];
+        foreach ($stmt->fetchAll() as $linha) {
+            $id = (int) $linha['id'];
+            foreach ([$linha['url_evento'], $linha['url_evento_fonte']] as $url) {
+                $host = is_string($url) ? (string) parse_url($url, PHP_URL_HOST) : '';
+                foreach ($sites as $site) {
+                    if (($host !== $site && !str_ends_with($host, '.' . $site)) || in_array($url, $paginas[$id] ?? [], true)) {
+                        continue;
+                    }
+                    if (!isset($paginas[$id]) && count($paginas) >= $limite) {
+                        return $paginas;
+                    }
+                    $paginas[$id][] = $url;
+                }
+            }
+        }
+
+        return $paginas;
+    }
+
+    /**
+     * Grava o que se leu na página da prova numa plataforma (hora, programa,
+     * organizador). O que não se encontrou fica como estava.
+     *
+     * @param array{hora_inicio?: ?string, programa?: ?array, organizador?: ?string, organizador_url?: ?string} $detalhes
+     */
+    public function gravarDetalhes(int $corridaId, array $detalhes): void
+    {
+        $valores = [];
+        foreach (['hora_inicio', 'programa', 'organizador', 'organizador_url'] as $campo) {
+            $valor = $detalhes[$campo] ?? null;
+            if ($valor === null || $valor === [] || $valor === '') {
+                continue;
+            }
+            if ($campo === 'organizador_url' && strlen((string) $valor) > 500) {
+                continue;
+            }
+            $valores[$campo] = match ($campo) {
+                'programa' => json_encode($valor, JSON_UNESCAPED_UNICODE),
+                'organizador' => mb_substr((string) $valor, 0, 255),
+                default => (string) $valor,
+            };
+        }
+        $atribuicoes = implode('', array_map(fn (string $c) => "{$c} = :{$c}, ", array_keys($valores)));
+        $this->pdo->prepare("UPDATE corridas SET {$atribuicoes}detalhes_procurado_em = NOW() WHERE id = :id")
+            ->execute($valores + ['id' => $corridaId]);
     }
 
     /**
@@ -666,6 +762,31 @@ final class Database
         $stmt->execute($params);
 
         return $this->anexarFontes($stmt->fetchAll());
+    }
+
+    /**
+     * Uma prova, para a página individual (public/prova.php), com as fontes
+     * como em listarCorridas(). Também devolve provas já passadas (ex. as
+     * guardadas no "meu calendário").
+     *
+     * @return array<string,mixed>|null null se não existir
+     */
+    public function obterProva(int $corridaId, ?int $utilizadorIdParaFavoritos = null): ?array
+    {
+        $params = ['id' => $corridaId];
+        $camposFavorito = '';
+        $juncoes = '';
+        if ($utilizadorIdParaFavoritos !== null) {
+            $camposFavorito = ', (f.id IS NOT NULL) AS e_favorito';
+            $juncoes = ' LEFT JOIN favoritos f ON f.corrida_id = c.id AND f.utilizador_id = :utilizador_id';
+            $params['utilizador_id'] = $utilizadorIdParaFavoritos;
+        }
+
+        $stmt = $this->pdo->prepare("SELECT c.*{$camposFavorito} FROM corridas c{$juncoes} WHERE c.id = :id");
+        $stmt->execute($params);
+        $corrida = $stmt->fetch();
+
+        return $corrida ? $this->anexarFontes([$corrida])[0] : null;
     }
 
     /**

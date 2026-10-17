@@ -4,7 +4,8 @@
  *  2. mais provas carregam sozinhas ao chegar ao fim da lista;
  *  3. guardar uma prova no "meu calendário" sem recarregar a página;
  *  4. botão para voltar ao topo depois de descer bastante;
- *  5. os cartões das provas aparecem com fade in ao chegar ao ecrã.
+ *  5. os cartões das provas aparecem com fade in ao chegar ao ecrã;
+ *  6. na página da prova, "Calendário" volta atrás (mesmos filtros e posição).
  */
 (function () {
     'use strict';
@@ -166,6 +167,19 @@
             .catch(function () { form.submit(); }) // falhou o pedido: faz como sem JavaScript
             .finally(function () { botao.disabled = false; });
     });
+
+    // 6. Voltar ao calendário -------------------------------------------------
+    // Vindo do calendário (ou do "meu calendário"), volta atrás: o browser repõe
+    // os filtros e a posição na lista. Aberta de outra forma (link partilhado,
+    // depois de entrar na conta...), segue para o calendário.
+    var voltarCalendario = document.querySelector('[data-voltar]');
+    var origem = document.referrer.indexOf(location.origin) === 0 ? document.referrer.slice(location.origin.length) : '';
+    if (voltarCalendario && history.length > 1 && /^\/(\?|$|meu-calendario\.php)/.test(origem)) {
+        voltarCalendario.addEventListener('click', function (ev) {
+            ev.preventDefault();
+            history.back();
+        });
+    }
 
     // 4. Voltar ao topo ---------------------------------------------------------
     var voltarTopo = document.querySelector('.voltar-topo');

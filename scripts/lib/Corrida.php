@@ -18,6 +18,11 @@ final class Corrida
         public readonly string $fonte,
         public readonly ?string $urlFonte,
         public readonly ?string $imagemUrl = null, // cartaz/logótipo, quando a listagem o mostra
+        public readonly ?string $horaInicio = null, // "H:i", hora da (primeira) partida
+        /** @var array<int,array{hora: ?string, prova: string, escaloes: ?string}>|null */
+        public readonly ?array $programa = null,
+        public readonly ?string $organizador = null, // nome de quem organiza
+        public readonly ?string $organizadorUrl = null, // site do organizador
     ) {
     }
 

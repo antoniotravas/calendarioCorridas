@@ -10,6 +10,10 @@ CREATE TABLE IF NOT EXISTS corridas (
     id             INT UNSIGNED NOT NULL AUTO_INCREMENT,
     nome           VARCHAR(255) NOT NULL,
     data_prova     DATE NULL,
+    -- Hora da partida (a primeira, se houver várias provas) e programa: lista
+    -- JSON de {hora, prova, escaloes} (FPA Competições, Xistarca...).
+    hora_inicio    TIME NULL,
+    programa       TEXT NULL,
     local          VARCHAR(255) NULL,
     distancias     VARCHAR(255) NULL,
     tipo           VARCHAR(100) NULL,
@@ -19,6 +23,12 @@ CREATE TABLE IF NOT EXISTS corridas (
     url_evento     VARCHAR(500) NULL,
     fonte          VARCHAR(100) NOT NULL,
     url_fonte      VARCHAR(500) NULL,
+    -- Quem organiza e o site do organizador, quando a fonte os indica (AA Braga,
+    -- Lap2Go, Stop and Go...). As páginas das provas nas plataformas são lidas
+    -- uma vez por semana (DetalhesProvaHelper; detalhes_procurado_em).
+    organizador    VARCHAR(255) NULL,
+    organizador_url VARCHAR(500) NULL,
+    detalhes_procurado_em DATETIME NULL,
     -- Miniatura da prova: vem da listagem da fonte ou do og:image da página
     -- do evento (procurada uma vez; imagem_procurada_em evita repetir).
     imagem_url     VARCHAR(500) NULL,
@@ -29,6 +39,9 @@ CREATE TABLE IF NOT EXISTS corridas (
     premios_monetarios TINYINT(1) NULL,
     premios_excerto VARCHAR(300) NULL,
     premios_url    VARCHAR(500) NULL,
+    -- Tabela dos valores, lida no mesmo documento: JSON [{titulo, linhas: [[lugar, valor], ...]}],
+    -- "[]" se não deu para a ler; NULL se ainda não foi procurada.
+    premios_tabela TEXT NULL,
     premios_procurado_em DATETIME NULL,
     hash_dedup     CHAR(40) NOT NULL,
     criado_em      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

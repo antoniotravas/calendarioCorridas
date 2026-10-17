@@ -7,6 +7,7 @@ require __DIR__ . '/lib/DateHelper.php';
 require __DIR__ . '/lib/DistanciaHelper.php';
 require __DIR__ . '/lib/NomeProvaHelper.php';
 require __DIR__ . '/lib/ImagemEventoHelper.php';
+require __DIR__ . '/lib/DetalhesProvaHelper.php';
 require __DIR__ . '/lib/PdfTextoHelper.php';
 require __DIR__ . '/lib/PremiosHelper.php';
 require __DIR__ . '/lib/ProcuraPremios.php';
@@ -232,6 +233,38 @@ printf(
     $imagensEncontradas,
     $imagensDescartadas
 );
+
+// Hora, programa e organizador: lidos nas páginas das provas nas plataformas
+// de inscrições (Lap2Go, Stop and Go, Acorrer) e na Xistarca —
+// DetalhesProvaHelper. Cada prova é lida uma vez por semana, até 120 por execução.
+$provasDetalhes = $db->provasParaProcurarDetalhes(120, DetalhesProvaHelper::SITES);
+$httpDetalhes = new HttpClient(15, false, 2000); // de 2 em 2 segundos ao mesmo site
+$detalhesLidos = 0;
+foreach ($provasDetalhes as $corridaId => $paginas) {
+    $detalhes = [];
+    $algumaRespondeu = false;
+    foreach ($paginas as $pagina) {
+        if ($siteRecusado($pagina)) {
+            continue;
+        }
+        try {
+            $html = $httpDetalhes->get($pagina);
+        } catch (Throwable $e) {
+            $recusou($e, $pagina);
+            continue;
+        }
+        $algumaRespondeu = true;
+        // A primeira página com cada dado fica com ele.
+        $detalhes += array_filter(DetalhesProvaHelper::extrair($html, $pagina), fn ($v) => $v !== null);
+    }
+    if ($algumaRespondeu) {
+        $db->gravarDetalhes($corridaId, $detalhes);
+        $detalhesLidos += $detalhes !== [] ? 1 : 0;
+    }
+}
+printf("
+Detalhes (hora, organizador): %d páginas de provas lidas, %d com dados.
+", count($provasDetalhes), $detalhesLidos);
 
 // Prémios monetários: lê a página de cada prova e o regulamento (PDF ou
 // página) para que aponta — ProcuraPremios. Sem número fixo de provas: vê

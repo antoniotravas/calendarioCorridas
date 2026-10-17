@@ -14,7 +14,9 @@ const CATEGORIAS = ['estrada' => 'Estrada', 'trail' => 'Trail', 'corta-mato' => 
 const FILTRO_PREMIOS = ['sim' => ['Com prémios monetários', true], 'nao' => ['Sem prémios monetários', false]];
 
 $mes = isset($_GET['mes']) && $_GET['mes'] !== '' ? (int) $_GET['mes'] : null;
-$fonte = isset($_GET['fonte']) && $_GET['fonte'] !== '' ? (string) $_GET['fonte'] : null;
+// O filtro "Fonte" só existe para administradores.
+$podeFiltrarFonte = $auth->eAdmin();
+$fonte = $podeFiltrarFonte && isset($_GET['fonte']) && $_GET['fonte'] !== '' ? (string) $_GET['fonte'] : null;
 $procura = isset($_GET['procura']) && trim((string) $_GET['procura']) !== '' ? trim((string) $_GET['procura']) : null;
 $distanciaChave = isset($_GET['distancia']) && $_GET['distancia'] !== '' ? (string) $_GET['distancia'] : null;
 $distanciaFaixa = DistanciaHelper::intervaloPorChave($distanciaChave);
@@ -63,7 +65,9 @@ if ($parcial) {
     exit;
 }
 
-$fontesDisponiveis = $db->listarFontes();
+$fontesDisponiveis = $podeFiltrarFonte ? $db->listarFontes() : [];
+// Número de listas de filtros, para a grelha (ver form.filtros no CSS).
+$numeroFiltros = 3 + ($podeFiltrarFonte ? 1 : 0) + ($podeVerPremios ? 1 : 0);
 $tituloDocumento = 'Calendário de corridas em Portugal — estrada, trail, corta-mato e pista';
 
 /**
@@ -105,7 +109,8 @@ if ($detalhes !== []) {
 <?php require __DIR__ . '/partials/cabecalho.php'; ?>
 
 <div class="barra-filtros">
-    <form class="filtros<?= $podeVerPremios ? '' : ' sem-premios' ?>" method="get" action="/" role="search">
+    <form class="filtros<?= $podeVerPremios ? '' : ' sem-premios' ?>" method="get" action="/" role="search"
+          style="--filtros: <?= $numeroFiltros ?>; --colunas: <?= $numeroFiltros - ($podeVerPremios ? 1 : 0) ?>">
         <label class="procura">
             <span class="sr-only">Procurar prova ou localidade</span>
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
@@ -145,6 +150,7 @@ if ($detalhes !== []) {
             </select>
         </label>
 
+        <?php if ($podeFiltrarFonte): ?>
         <label>
             <span class="sr-only">Fonte</span>
             <select name="fonte">
@@ -154,6 +160,7 @@ if ($detalhes !== []) {
                 <?php endforeach; ?>
             </select>
         </label>
+        <?php endif; ?>
 
         <?php if ($podeVerPremios): ?>
         <label class="filtro-premios">

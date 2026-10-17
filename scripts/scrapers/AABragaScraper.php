@@ -72,6 +72,7 @@ final class AABragaScraper implements ScraperInterface
                 urlEvento: null,
                 fonte: $this->nome(),
                 urlFonte: self::CALENDARIO_URL,
+                organizador: trim((string) ($extra['organization'] ?? '')) ?: null,
             );
         }
 

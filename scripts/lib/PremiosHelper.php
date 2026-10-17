@@ -129,6 +129,118 @@ final class PremiosHelper
         return null;
     }
 
+    /** "1.º lugar – 100,00 €", "2º- 50€", "3.º classificado: 75 euros", "1º Troféu + 150 €". */
+    private const PADRAO_LUGAR_VALOR = '/(?<![\d,.])(\d{1,2})\s?\.?\s?(?:º|ª|°|o\b|a\b)([^\d€]{0,30}?)'
+        . '(\d{1,3}(?:[ .]\d{3})*(?:,\d{1,2})?)\s?(?:€|euros?\b)/u';
+
+    /** Palavras que podem estar entre o lugar e o valor ("1.º lugar – 100 €"). */
+    private const PADRAO_ENTRE_PERMITIDO = '/\b(?:lugar(?:es)?|classificad[oa]s?|premios?|trofeus?|medalhas?|geral|t)\b/';
+
+    /** Etiquetas das tabelas, lidas no texto logo antes: padrão => texto (null: o que foi encontrado). */
+    private const ETIQUETAS_TABELA = [
+        '/\bgeral\b|absolut/' => 'Geral',
+        '/masculin|\bmasc\b|\bhomens\b/' => 'Masculinos',
+        '/feminin|\bfem\b|senhoras/' => 'Femininos',
+        '/\bm\s?\/\s?f\b/' => 'M/F',
+        '/equipas|coletiv|colectiv/' => 'Equipas',
+        '/\b(?:juniores|seniores|juvenis|sub.?\d{2}|vet(?:eranos)?\.?\s?\d{2}|[mf]\d{2}|veteranos)\b/' => null,
+        '/\b\d+(?:,\d+)?\s?km\b/' => null,
+    ];
+
+    /**
+     * Tabelas de prémios monetários de um regulamento ou página: grupos de
+     * "lugar → valor" que começam no 1.º lugar ("1.º 300 €, 2.º 200 €..."),
+     * com uma etiqueta lida no texto logo antes ("Geral", "Femininos",
+     * "Vet 40"...). Os PDFs chegam muitas vezes com as colunas baralhadas,
+     * por isso fica só o que dá para ler com segurança; tabelas iguais (ex.
+     * masculinos e femininos com os mesmos valores) aparecem uma vez.
+     *
+     * @return array<int,array{titulo: ?string, linhas: array<int,array{0:int,1:string}>}> no máximo 6
+     */
+    public static function tabelas(string $texto): array
+    {
+        $normal = strtr(mb_strtolower(trim((string) preg_replace('/\s+/u', ' ', $texto))), self::ACENTOS);
+        if (!preg_match_all(self::PADRAO_LUGAR_VALOR, $normal, $m, PREG_SET_ORDER | PREG_OFFSET_CAPTURE)) {
+            return [];
+        }
+
+        $grupos = [];
+        $atual = null;
+        $ultimoLugar = null;
+        $fimAnterior = 0;
+        foreach ($m as $par) {
+            $lugar = (int) $par[1][0];
+            $valor = self::montante($par[3][0]);
+            $entre = (string) preg_replace(self::PADRAO_ENTRE_PERMITIDO, '', $par[2][0]);
+            // "1.ª fase 15 €", "2.º escalão 10 euros": não é um prémio.
+            if ($lugar < 1 || $lugar > 20 || $valor < 10 || preg_match('/[a-z]{2,}/', $entre)) {
+                continue;
+            }
+            $inicio = $par[0][1];
+            // Colunas lado a lado lidas linha a linha ("1.º 150 € 1.º 150 € 2.º 100 €..."):
+            // o mesmo lugar logo a seguir é a outra coluna — fica a primeira.
+            if ($atual !== null && $lugar === $ultimoLugar && $inicio - $fimAnterior < 60) {
+                $fimAnterior = $inicio + strlen($par[0][0]);
+                continue;
+            }
+            if ($atual === null || isset($atual['linhas'][$lugar]) || $inicio - $fimAnterior > 400) {
+                if ($atual !== null) {
+                    $grupos[] = $atual;
+                }
+                $antes = substr($normal, max($fimAnterior, $inicio - 160), $inicio - max($fimAnterior, $inicio - 160));
+                $atual = ['titulo' => self::etiquetaTabela($antes), 'linhas' => []];
+            }
+            $atual['linhas'][$lugar] = $valor;
+            $ultimoLugar = $lugar;
+            $fimAnterior = $inicio + strlen($par[0][0]);
+        }
+        $grupos[] = $atual;
+
+        $tabelas = [];
+        foreach ($grupos as $grupo) {
+            if (!isset($grupo['linhas'][1]) || count($grupo['linhas']) < 2) {
+                continue;
+            }
+            ksort($grupo['linhas']);
+            $chave = json_encode($grupo['linhas']);
+            if (isset($tabelas[$chave])) {
+                // Mesmos valores (ex. masculinos e femininos): junta as etiquetas.
+                $titulos = array_filter([$tabelas[$chave]['titulo'], $grupo['titulo']]);
+                $tabelas[$chave]['titulo'] = $titulos !== [] ? implode(' / ', array_unique($titulos)) : null;
+                continue;
+            }
+            $tabelas[$chave] = $grupo;
+        }
+
+        $resultado = [];
+        foreach ($tabelas as $tabela) {
+            $linhas = [];
+            foreach ($tabela['linhas'] as $lugar => $valor) {
+                $casas = floor($valor) == $valor ? 0 : 2;
+                $linhas[] = [$lugar, number_format($valor, $casas, ',', '.') . ' €'];
+            }
+            $resultado[] = ['titulo' => $tabela['titulo'], 'linhas' => $linhas];
+        }
+
+        return array_slice($resultado, 0, 6);
+    }
+
+    /** "Geral · Femininos", "Vet 40", "10 km · Geral"... ou null. */
+    private static function etiquetaTabela(string $antes): ?string
+    {
+        $encontradas = [];
+        foreach (self::ETIQUETAS_TABELA as $padrao => $texto) {
+            if (preg_match_all($padrao, $antes, $m, PREG_OFFSET_CAPTURE)) {
+                $ultima = end($m[0]);
+                $etiqueta = $texto ?? ucfirst(trim((string) preg_replace('/\s+/', ' ', $ultima[0])));
+                $encontradas[$etiqueta] = $ultima[1];
+            }
+        }
+        asort($encontradas);
+
+        return $encontradas !== [] ? implode(' · ', array_keys($encontradas)) : null;
+    }
+
     /** Documentos lidos por prova, no máximo (páginas + regulamentos). */
     private const MAX_DOCUMENTOS = 5;
 
@@ -141,14 +253,17 @@ final class PremiosHelper
      * @param string[] $paginas
      * @param callable(string): ?string $obter devolve o conteúdo do endereço,
      *        ou null se o pedido falhou
-     * @return array{0: ?bool, 1: ?string, 2: ?string, 3: bool} [prémios
-     *         monetários, excerto, endereço onde foi lido, algum documento respondeu?]
+     * @return array{0: ?bool, 1: ?string, 2: ?string, 3: bool, 4: array} [prémios
+     *         monetários, excerto, endereço onde foi lido, algum documento respondeu?,
+     *         tabelas dos valores (self::tabelas) — do mesmo documento ou, se esse
+     *         não as tiver, do primeiro dos restantes que as tenha]
      */
     public static function procurar(array $paginas, callable $obter): array
     {
         $fila = array_map(fn (string $url) => [$url, 0], $paginas);
         $vistos = [];
         $nao = null;
+        $sim = null;
         $respondeu = false;
 
         while ($fila !== [] && count($vistos) < self::MAX_DOCUMENTOS) {
@@ -177,12 +292,27 @@ final class PremiosHelper
                 }
             }
 
+            // Já se sabe que há prémios, mas onde se leu não tem os valores:
+            // procura-se a tabela nos documentos que faltam (ex. o regulamento).
+            if ($sim !== null) {
+                $tabelas = self::tabelas($texto);
+                if ($tabelas !== []) {
+                    $sim[4] = $tabelas;
+                    return $sim;
+                }
+                continue;
+            }
+
             $resultado = self::analisar($texto);
             if ($resultado === null) {
                 continue;
             }
             if ($resultado[0]) {
-                return [true, $resultado[1], $url, true];
+                $sim = [true, $resultado[1], $url, true, self::tabelas($texto)];
+                if ($sim[4] !== []) {
+                    return $sim;
+                }
+                continue;
             }
             // Numa página do evento, "prémios aos 3 primeiros" sem dizer quais não
             // chega para "não"; no regulamento chega (quem dá dinheiro diz quanto).
@@ -192,11 +322,11 @@ final class PremiosHelper
             }
             // Um "não" lido num regulamento vale mais do que numa página.
             if ($nao === null || $eRegulamento) {
-                $nao = [false, $resultado[1], $url, true];
+                $nao = [false, $resultado[1], $url, true, []];
             }
         }
 
-        return $nao ?? [null, null, null, $respondeu];
+        return $sim ?? $nao ?? [null, null, null, $respondeu, []];
     }
 
     /** Valor em euros de "1.500,00 €" / "€ 100" (para ignorar "1 €" soltos). */

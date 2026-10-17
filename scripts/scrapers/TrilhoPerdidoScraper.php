@@ -90,6 +90,9 @@ final class TrilhoPerdidoScraper implements ScraperInterface, FonteOrganizadora
                 fonte: $this->nome(),
                 urlFonte: $urlFonte,
                 imagemUrl: str_starts_with($imagem, '/') ? self::SITE . $imagem : null,
+                // O Trilho Perdido organiza as provas que publica.
+                organizador: 'Trilho Perdido',
+                organizadorUrl: self::SITE,
             );
         }
 
