@@ -42,7 +42,8 @@ final class PdfTextoHelper
             return '';
         }
 
-        $texto = $leitor->textoDasPaginas();
+        // Ligaduras tipográficas ("Classiﬁcado") passam a letras normais.
+        $texto = strtr($leitor->textoDasPaginas(), ['ﬀ' => 'ff', 'ﬁ' => 'fi', 'ﬂ' => 'fl', 'ﬃ' => 'ffi', 'ﬄ' => 'ffl', 'ﬅ' => 'st', 'ﬆ' => 'st']);
 
         return trim((string) preg_replace('/[ \t]+/u', ' ', $texto));
     }
@@ -166,10 +167,11 @@ final class PdfTextoHelper
     /**
      * Fontes da página: nome do recurso ("F1") => [objeto do mapa ToUnicode
      * (null se a fonte não o tiver), codificação sem mapa ("Windows-1252" ou
-     * "MACINTOSH", a dos PDFs feitos em Mac)]. Os recursos podem estar na própria
-     * página, num objeto à parte ou herdados da árvore de páginas (/Parent).
+     * "MACINTOSH", a dos PDFs feitos em Mac), bytes por letra (1 nas fontes
+     * simples; null nas Type0, lido no mapa ToUnicode)]. Os recursos podem estar
+     * na própria página, num objeto à parte ou herdados da árvore de páginas (/Parent).
      *
-     * @return array<string,array{0: int|null, 1: string}>
+     * @return array<string,array{0: int|null, 1: string, 2: int|null}>
      */
     private function fontesDaPagina(string $pagina): array
     {
@@ -192,6 +194,9 @@ final class PdfTextoHelper
                     $resultado[$nome] = [
                         preg_match('/\/ToUnicode\s+(\d+)\s+\d+\s+R/', $fonte, $t) ? (int) $t[1] : null,
                         str_contains($codificacao, 'MacRomanEncoding') ? 'MACINTOSH' : 'Windows-1252',
+                        // Fontes simples (TrueType, Type1) usam sempre 1 byte por letra, mesmo
+                        // quando o mapa ToUnicode declara códigos de 2 (ex. o Word).
+                        preg_match('/\/Subtype\s*\/Type0\b/', $fonte) ? null : 1,
                     ];
                 }
 
@@ -243,7 +248,7 @@ final class PdfTextoHelper
     }
 
     /**
-     * @param array<string,array{0: int|null, 1: string}> $fontes
+     * @param array<string,array{0: int|null, 1: string, 2: int|null}> $fontes
      */
     private function textoDoConteudo(string $conteudo, array $fontes): string
     {
@@ -253,6 +258,9 @@ final class PdfTextoHelper
         $codificacao = 'Windows-1252';
         $operandos = [];
         $tamanho = strlen($conteudo);
+        // A letra em uso faz parte do estado gráfico: "q" guarda-o e "Q" repõe-no
+        // (o Word escreve cada célula de uma tabela entre q/Q, sem voltar a dizer a letra).
+        $guardados = [];
 
         for ($i = 0; $i < $tamanho;) {
             $c = $conteudo[$i];
@@ -293,7 +301,13 @@ final class PdfTextoHelper
                 $operador = substr($conteudo, $i, $len);
                 $i += $len;
 
-                if ($operador === 'BI') {
+                if ($operador === 'q') {
+                    $guardados[] = [$mapa, $bytes, $codificacao];
+                } elseif ($operador === 'Q') {
+                    if ($guardados !== []) {
+                        [$mapa, $bytes, $codificacao] = array_pop($guardados);
+                    }
+                } elseif ($operador === 'BI') {
                     // Imagem inline: salta até "EI".
                     $fim = strpos($conteudo, 'EI', $i);
                     $i = $fim === false ? $tamanho : $fim + 2;
@@ -304,9 +318,9 @@ final class PdfTextoHelper
                             $nome = $op[1];
                         }
                     }
-                    [$ref, $codificacao] = $nome !== null ? ($fontes[$nome] ?? [null, 'Windows-1252']) : [null, 'Windows-1252'];
+                    [$ref, $codificacao, $bytesFonte] = $nome !== null ? ($fontes[$nome] ?? [null, 'Windows-1252', 1]) : [null, 'Windows-1252', 1];
                     $mapa = $ref !== null ? $this->mapaToUnicode($ref) : null;
-                    $bytes = $ref !== null ? ($this->bytesPorCodigo[$ref] ?? 1) : 1;
+                    $bytes = $bytesFonte ?? ($ref !== null ? ($this->bytesPorCodigo[$ref] ?? 2) : 2);
                 } elseif ($operador === 'Tj' || $operador === "'" || $operador === '"') {
                     if ($operador !== 'Tj') {
                         $texto .= "\n";

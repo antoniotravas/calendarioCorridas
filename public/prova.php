@@ -255,7 +255,7 @@ $iconeExterno = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="tr
                             <tr>
                                 <th scope="col">Lugar</th>
                                 <?php foreach ($tabelasPremios as $i => $tabela): ?>
-                                    <th scope="col"><?= htmlspecialchars(PremiosHelper::rotulo($tabela['titulo'] ?? null)) ?></th>
+                                    <th scope="col"><?= htmlspecialchars(PremiosHelper::rotulo($tabela)) ?></th>
                                 <?php endforeach; ?>
                             </tr>
                         </thead>
@@ -272,9 +272,14 @@ $iconeExterno = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="tr
                         <tfoot>
                             <tr>
                                 <th scope="row">Total</th>
-                                <?php foreach ($tabelasPremios as $tabela): $vezes = PremiosHelper::vezesPaga($tabela['titulo'] ?? null); ?>
+                                <?php foreach ($tabelasPremios as $tabela):
+                                    // "× 24": quantas vezes a coluna mostrada é paga (sexos, escalões).
+                                    $somaColuna = array_sum(array_map(fn (array $l) => PremiosHelper::montante($l[1]), $tabela['linhas']));
+                                    $totalTabela = PremiosHelper::totalTabela($tabela);
+                                    $vezes = $somaColuna > 0 ? $totalTabela / $somaColuna : 1;
+                                    ?>
                                     <td class="tabela-valor">
-                                        <?= PremiosHelper::formatarEuros(PremiosHelper::total([['titulo' => null, 'linhas' => $tabela['linhas']]])) ?><?= $vezes > 1 ? ' <span class="nota-inline">× 2</span>' : '' ?>
+                                        <?= PremiosHelper::formatarEuros($totalTabela) ?><?= $vezes > 1 && floor($vezes) == $vezes ? ' <span class="nota-inline">(' . PremiosHelper::formatarEuros($somaColuna) . ' × ' . (int) $vezes . ')</span>' : '' ?>
                                     </td>
                                 <?php endforeach; ?>
                             </tr>
