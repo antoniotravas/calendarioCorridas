@@ -237,19 +237,14 @@ $iconeExterno = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="tr
         </section>
     <?php endif; ?>
 
-    <?php if ($podeVerPremios): ?>
+    <?php /* Só quando há prémios em dinheiro: "sem prémios" ou "por saber" não interessa mostrar. */ ?>
+    <?php if ($podeVerPremios && $premios === true): ?>
         <section class="prova-seccao">
             <h2>
                 Prémios monetários
-                <?php if ($premios !== null): ?>
-                    <span class="premios <?= $premios ? 'premios-sim' : 'premios-nao' ?>" aria-hidden="true">€</span>
-                <?php endif; ?>
+                <span class="premios premios-sim" aria-hidden="true">€</span>
             </h2>
-            <?php if ($premios === null): ?>
-                <p class="nota">Ainda por saber — o regulamento não foi lido ou não fala de prémios.</p>
-            <?php elseif (!$premios): ?>
-                <p>Sem prémios em dinheiro.</p>
-            <?php elseif ($soTotalAnunciado): ?>
+            <?php if ($soTotalAnunciado): ?>
                 <p class="premios-total">Total anunciado: <strong><?= PremiosHelper::formatarEuros($totalPremios) ?></strong></p>
                 <p class="nota">O regulamento só diz o total; a divisão pelos lugares não foi lida.</p>
             <?php elseif ($tabelasPremios === []): ?>
@@ -294,10 +289,10 @@ $iconeExterno = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="tr
                 </div>
                 <p class="premios-total">Total a distribuir: <strong><?= PremiosHelper::formatarEuros($totalPremios) ?></strong></p>
             <?php endif; ?>
-            <?php if ($premios !== null && !empty($c['premios_excerto']) && $tabelasPremios === []): ?>
+            <?php if (!empty($c['premios_excerto']) && $tabelasPremios === []): ?>
                 <blockquote class="premios-excerto">«<?= htmlspecialchars($c['premios_excerto']) ?>»</blockquote>
             <?php endif; ?>
-            <?php if ($premios !== null && !empty($c['premios_url'])): ?>
+            <?php if (!empty($c['premios_url'])): ?>
                 <p class="nota">
                     Lido automaticamente <a href="<?= htmlspecialchars($c['premios_url']) ?>" target="_blank" rel="noopener">neste documento</a>.
                     Confirma sempre os valores no regulamento.
