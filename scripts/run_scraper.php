@@ -145,44 +145,56 @@ $siteRecusado = static function (string $url) use (&$sitesRecusados): bool {
     return isset($sitesRecusados[(string) parse_url($url, PHP_URL_HOST)]);
 };
 
-// Link oficial das provas da All4Running: a listagem só tem a página da prova
-// na All4Running; o site oficial está nessa página. Cada página é lida uma vez
-// (tabela links_oficiais), até 50 por execução; o link da prova passa depois a
-// ser o oficial. Aproveita-se a mesma página para a imagem da prova.
-$paginasLidas = 0;
-$linksOficiaisEncontrados = 0;
-$jaEsperou = false;
-foreach ($db->paginasSemLinkOficial(All4RunningScraper::PREFIXO_PAGINA_PROVA, 50) as $pagina) {
-    try {
-        $html = $httpPaginas->get($pagina);
-    } catch (Throwable $e) {
-        if ($e->getCode() !== HttpClient::DEMASIADOS_PEDIDOS) {
-            continue; // página com problemas: fica para a próxima execução
+// Link oficial das provas dos calendários (All4Running, Portugal Running): a
+// listagem só tem a página da prova no calendário; o site oficial (ou a página
+// de inscrições) está nessa página. Cada página é lida uma vez (tabela
+// links_oficiais), até 50 por fonte e por execução; o link da prova passa
+// depois a ser o oficial. Aproveita-se a mesma página para a imagem da prova.
+// A Portugal Running não recusa pedidos seguidos: vai de 2 em 2 segundos, com
+// mais tempo por pedido (as páginas têm ~330 KB e são lentas).
+$fontesComLinkOficial = [
+    'All4Running' => [All4RunningScraper::PREFIXO_PAGINA_PROVA, All4RunningScraper::extrairLinkOficial(...), $httpPaginas],
+    'Portugal Running' => [PortugalRunningScraper::PREFIXO_PAGINA_PROVA, PortugalRunningScraper::extrairLinkOficial(...), new HttpClient(25, false, 2000)],
+];
+foreach ($fontesComLinkOficial as $nomeFonte => [$prefixo, $extrairLink, $httpFonte]) {
+    $paginasLidas = 0;
+    $linksOficiaisEncontrados = 0;
+    $jaEsperou = false;
+    $recusada = false;
+    foreach ($db->paginasSemLinkOficial($prefixo, 50) as $pagina) {
+        try {
+            $html = $httpFonte->get($pagina);
+        } catch (Throwable $e) {
+            if ($e->getCode() !== HttpClient::DEMASIADOS_PEDIDOS) {
+                continue; // página com problemas: fica para a próxima execução
+            }
+            if ($jaEsperou) {
+                $recusou($e, $pagina);
+                $recusada = true;
+                break; // voltou a recusar: o resto fica para a próxima execução
+            }
+            $jaEsperou = true;
+            sleep(30); // a primeira recusa costuma ser passageira
+            continue;
         }
-        if ($jaEsperou) {
-            $recusou($e, $pagina);
-            break; // voltou a recusar: o resto fica para a próxima execução
+        $linkOficial = $extrairLink($html);
+        $db->gravarLinkOficial($pagina, $linkOficial);
+        $imagem = ImagemEventoHelper::extrair($html, $pagina);
+        if ($imagem !== null) {
+            $db->gravarImagemDaPagina($pagina, $imagem);
         }
-        $jaEsperou = true;
-        sleep(30); // a primeira recusa costuma ser passageira
-        continue;
+        $paginasLidas++;
+        $linksOficiaisEncontrados += $linkOficial !== null ? 1 : 0;
     }
-    $linkOficial = All4RunningScraper::extrairLinkOficial($html);
-    $db->gravarLinkOficial($pagina, $linkOficial);
-    $imagem = ImagemEventoHelper::extrair($html, $pagina);
-    if ($imagem !== null) {
-        $db->gravarImagemDaPagina($pagina, $imagem);
-    }
-    $paginasLidas++;
-    $linksOficiaisEncontrados += $linkOficial !== null ? 1 : 0;
+    printf(
+        "\nLinks oficiais (%s): %d páginas lidas, %d com link oficial%s.\n",
+        $nomeFonte,
+        $paginasLidas,
+        $linksOficiaisEncontrados,
+        $recusada ? ' (o site recusou mais pedidos; continua na próxima execução)' : ''
+    );
 }
 $db->aplicarLinksOficiais();
-printf(
-    "\nLinks oficiais (All4Running): %d páginas lidas, %d com link oficial%s.\n",
-    $paginasLidas,
-    $linksOficiaisEncontrados,
-    $sitesRecusados !== [] ? ' (o site recusou mais pedidos; continua na próxima execução)' : ''
-);
 
 // O link das fontes organizadoras é a página oficial da prova: tem prioridade
 // sobre o de qualquer outra fonte (inclui as que falharam nesta execução, pelos

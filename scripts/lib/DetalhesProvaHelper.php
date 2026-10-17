@@ -10,7 +10,8 @@ declare(strict_types=1);
  *  - Lap2Go: blocos "Organizador" (span.evento-org) e "Site" (span.evento-site);
  *  - Stop and Go: "Organizador" (nome num <h3>) e o botão "Website do Organizador";
  *  - Acorrer: "Sábado, 17 de outubro de 2026 às 17:00" (og:description);
- *  - Xistarca: secção "DISTÂNCIA / HORA / LOCAL" ("» Corrida 10km | 10h00").
+ *  - Xistarca: secção "DISTÂNCIA / HORA / LOCAL" ("» Corrida 10km | 10h00");
+ *  - Portugal Running (calendário): "Entidade Organizadora".
  *
  * As páginas são lidas no fim do scraper, uma vez por semana por prova
  * (Database::provasParaProcurarDetalhes).
@@ -18,7 +19,7 @@ declare(strict_types=1);
 final class DetalhesProvaHelper
 {
     /** Domínios cujas páginas de prova se sabem ler. */
-    public const SITES = ['lap2go.com', 'stopandgo.net', 'acorrer.pt', 'xistarca.pt'];
+    public const SITES = ['lap2go.com', 'stopandgo.net', 'acorrer.pt', 'xistarca.pt', 'portugalrunning.com'];
 
     /**
      * @return array{hora_inicio: ?string, programa: ?array, organizador: ?string, organizador_url: ?string}
@@ -46,6 +47,8 @@ final class DetalhesProvaHelper
             }
         } elseif (self::eSite($host, 'xistarca.pt')) {
             $detalhes['programa'] = self::programaXistarca(PremiosHelper::textoHtml($html));
+        } elseif (self::eSite($host, 'portugalrunning.com')) {
+            $detalhes['organizador'] = PortugalRunningScraper::extrairOrganizador($html);
         }
 
         if ($detalhes['programa'] !== null && $detalhes['hora_inicio'] === null) {

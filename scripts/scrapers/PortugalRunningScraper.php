@@ -12,10 +12,18 @@ declare(strict_types=1);
  * O tipo, a região e as distâncias são inferidos a partir das classes CSS de
  * categorização do site (ex: "evo_corrida-10-km", "evo_algarve-e-sul"), pelo
  * que podem ficar vazios para eventos com etiquetagem atípica.
+ *
+ * A listagem só tem a página da prova na Portugal Running (um calendário,
+ * não o organizador): o link oficial está nessa página (PREFIXO_PAGINA_PROVA
+ * + extrairLinkOficial) e o link da prova passa a ser o oficial, como na
+ * All4Running (ver run_scraper.php).
  */
 final class PortugalRunningScraper implements ScraperInterface
 {
     private const URL = 'https://www.portugalrunning.com/calendario-de-corridas-de-estrada/';
+
+    /** Endereço das páginas de cada prova no site. */
+    public const PREFIXO_PAGINA_PROVA = 'https://www.portugalrunning.com/eventos/';
 
     /** @var array<string,string> classes evo_* que identificam o tipo de prova */
     private const TIPOS = [
@@ -40,7 +48,7 @@ final class PortugalRunningScraper implements ScraperInterface
     public function scrape(): array
     {
         $html = $this->http->get(self::URL);
-        $xpath = $this->criarXPath($html);
+        $xpath = self::criarXPath($html);
 
         $cards = $xpath->query('//a[contains(@class,"desc_trig") and contains(@class,"evcal_list_a")]');
 
@@ -131,7 +139,44 @@ final class PortugalRunningScraper implements ScraperInterface
         ];
     }
 
-    private function criarXPath(string $html): DOMXPath
+    /**
+     * Link oficial da prova na página da Portugal Running: o botão "saber mais"
+     * do calendário (EventON, a.evo_clik_row — o site da prova ou a página de
+     * inscrições); senão, o "Regulamento Oficial".
+     */
+    public static function extrairLinkOficial(string $html): ?string
+    {
+        $xpath = self::criarXPath($html);
+
+        foreach ([
+            '//a[contains(@class,"evo_clik_row")]/@href',
+            '//strong[contains(normalize-space(.),"Regulamento")]/following-sibling::span[1]//a/@href',
+        ] as $consulta) {
+            foreach ($xpath->query($consulta) as $atributo) {
+                $url = trim(html_entity_decode($atributo->value, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                if (preg_match('#^https?://#i', $url) && !preg_match('#^https?://(www\.)?portugalrunning\.com#i', $url)
+                    && strlen($url) <= 500
+                ) {
+                    return $url;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /** "Entidade Organizadora" na página da prova (ex. "Futebol Clube do Porto"), ou null. */
+    public static function extrairOrganizador(string $html): ?string
+    {
+        $no = self::criarXPath($html)
+            ->query('//strong[normalize-space(.)="Entidade Organizadora"]/following-sibling::span[1]')
+            ->item(0);
+        $nome = $no !== null ? trim((string) preg_replace('/\s+/u', ' ', $no->textContent)) : '';
+
+        return $nome !== '' && mb_strlen($nome) <= 200 ? $nome : null;
+    }
+
+    private static function criarXPath(string $html): DOMXPath
     {
         $dom = new DOMDocument();
         libxml_use_internal_errors(true);
