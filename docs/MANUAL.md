@@ -43,6 +43,8 @@ Tabelas `corridas` + `corridas_fontes` + `corridas_distancias` (MySQL)
 
 `scripts/run_scraper.php` é o ponto de entrada: instancia todos os scrapers, corre cada um dentro de um `try/catch` (uma fonte a falhar não impede as restantes) e grava os resultados. No fim imprime (em STDERR) uma secção **"ATENÇÃO — fontes com problemas"** quando uma fonte falhou, ou quando devolveu 0 provas apesar de ter provas futuras na BD — sinal de que o site mudou e o scraper precisa de revisão.
 
+Para correr **só uma fonte** (ex. ver como fica a FPA sem esperar pelas outras): `php scripts/run_scraper.php --fonte=FPA` — corre as fontes cujo nome contém o texto (sem distinguir maiúsculas), junta as repetidas e aplica os links oficiais e dos organizadores e as categorias, mas não lê as páginas das provas (imagens, detalhes, prémios, inscrições, coordenadas), que ficam para a execução completa.
+
 ### A mesma prova em várias fontes
 
 A mesma prova aparece muitas vezes em vários sites (ex. All4Running, FPA Competições e a associação distrital), com nomes ligeiramente diferentes ("Meia Maratona Cidade Berço" / "Meia Maratona Cidade Berço - Guimarães"). Fica **uma só linha em `corridas`** e **uma linha em `corridas_fontes` por cada fonte** onde foi encontrada; o site público mostra todas ("Fontes: A · B · C").

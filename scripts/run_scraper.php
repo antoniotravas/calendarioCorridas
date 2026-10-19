@@ -80,6 +80,29 @@ $scrapers = [
     new ProEventsScraper($http),
 ];
 
+// As fontes organizadoras de todas as fontes, mesmo quando só se corre uma (--fonte).
+$organizadoras = array_map(
+    fn (ScraperInterface $s) => $s->nome(),
+    array_values(array_filter($scrapers, fn (ScraperInterface $s) => $s instanceof FonteOrganizadora))
+);
+
+// --fonte=FPA: só as fontes cujo nome contém o texto, para ver uma fonte sem
+// esperar pelas outras. Não lê as páginas das provas (imagens, detalhes,
+// prémios, inscrições...): isso fica para a execução completa.
+$soFonte = null;
+foreach (array_slice($argv, 1) as $argumento) {
+    if (preg_match('/^--fonte=(.+)$/u', $argumento, $m)) {
+        $soFonte = $m[1];
+    }
+}
+if ($soFonte !== null) {
+    $scrapers = array_values(array_filter($scrapers, fn (ScraperInterface $s) => mb_stripos($s->nome(), $soFonte) !== false));
+    if ($scrapers === []) {
+        fwrite(STDERR, "Nenhuma fonte tem \"{$soFonte}\" no nome.\n");
+        exit(1);
+    }
+}
+
 $totalInseridas = 0;
 $totalAtualizadas = 0;
 $totalJuntadas = 0;
@@ -139,6 +162,26 @@ foreach ($scrapers as $scraper) {
 }
 
 $consolidadas = $db->consolidarRepetidas();
+
+if ($soFonte !== null) {
+    $db->aplicarLinksOficiais();
+    $linksOrganizador = $db->aplicarLinksOrganizadores($organizadoras);
+    $db->atualizarCategorias();
+    printf(
+        "\nTotal: %d novas, %d atualizadas, %d juntas a provas de outras fontes, %d repetidas antigas consolidadas, "
+        . "%d links do organizador (re)aplicados.\n(Só %s: as páginas das provas são lidas na execução completa.)\n",
+        $totalInseridas,
+        $totalAtualizadas,
+        $totalJuntadas,
+        $consolidadas,
+        $linksOrganizador,
+        implode(', ', array_map(fn (ScraperInterface $s) => $s->nome(), $scrapers))
+    );
+    foreach ($avisos as $aviso) {
+        fwrite(STDERR, "  - {$aviso}\n");
+    }
+    exit(0);
+}
 
 // Pedidos às páginas das provas (links oficiais e imagens): no máximo um
 // pedido de 5 em 5 segundos ao mesmo site — a All4Running recusa pedidos
@@ -209,10 +252,6 @@ $db->aplicarLinksOficiais();
 // O link das fontes organizadoras é a página oficial da prova: tem prioridade
 // sobre o de qualquer outra fonte (inclui as que falharam nesta execução, pelos
 // links gravados em execuções anteriores).
-$organizadoras = array_map(
-    fn (ScraperInterface $s) => $s->nome(),
-    array_values(array_filter($scrapers, fn (ScraperInterface $s) => $s instanceof FonteOrganizadora))
-);
 $linksOrganizador = $db->aplicarLinksOrganizadores($organizadoras);
 
 // Estrada, trail, corta-mato ou pista, para o filtro "Tipo" do site.
