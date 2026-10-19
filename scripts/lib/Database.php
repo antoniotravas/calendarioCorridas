@@ -194,12 +194,13 @@ final class Database
     private function registarFonte(int $corridaId, Corrida $corrida, string $hash): void
     {
         $stmt = $this->pdo->prepare(<<<SQL
-            INSERT INTO corridas_fontes (corrida_id, fonte, url_fonte, url_evento, hash_dedup)
-            VALUES (:corrida_id, :fonte, :url_fonte, :url_evento, :hash)
+            INSERT INTO corridas_fontes (corrida_id, fonte, url_fonte, url_evento, url_inscricao, hash_dedup)
+            VALUES (:corrida_id, :fonte, :url_fonte, :url_evento, :url_inscricao, :hash)
             ON DUPLICATE KEY UPDATE
                 corrida_id = VALUES(corrida_id),
                 url_fonte = VALUES(url_fonte),
                 url_evento = VALUES(url_evento),
+                url_inscricao = VALUES(url_inscricao),
                 visto_em = CURRENT_TIMESTAMP
             SQL);
         $stmt->execute([
@@ -207,6 +208,7 @@ final class Database
             'fonte' => $corrida->fonte,
             'url_fonte' => $corrida->urlFonte,
             'url_evento' => $corrida->urlEvento,
+            'url_inscricao' => $corrida->urlInscricao !== null && strlen($corrida->urlInscricao) <= 500 ? $corrida->urlInscricao : null,
             'hash' => $hash,
         ]);
     }
@@ -1044,17 +1046,17 @@ final class Database
         $ids = array_map(fn (array $c) => (int) $c['id'], $corridas);
         $marcadores = implode(',', array_fill(0, count($ids), '?'));
         $stmt = $this->pdo->prepare(
-            "SELECT corrida_id, fonte, url_fonte FROM corridas_fontes WHERE corrida_id IN ({$marcadores}) ORDER BY id"
+            "SELECT corrida_id, fonte, url_fonte, url_inscricao FROM corridas_fontes WHERE corrida_id IN ({$marcadores}) ORDER BY id"
         );
         $stmt->execute($ids);
 
         $porCorrida = [];
         foreach ($stmt->fetchAll() as $linha) {
             // Uma fonte pode ter mais do que uma entrada para a mesma prova; mostra-se uma vez.
-            $porCorrida[(int) $linha['corrida_id']][$linha['fonte']] ??= [
-                'fonte' => $linha['fonte'],
-                'url_fonte' => $linha['url_fonte'],
-            ];
+            $fonte = &$porCorrida[(int) $linha['corrida_id']][$linha['fonte']];
+            $fonte ??= ['fonte' => $linha['fonte'], 'url_fonte' => $linha['url_fonte'], 'url_inscricao' => null];
+            $fonte['url_inscricao'] ??= $linha['url_inscricao'];
+            unset($fonte);
         }
 
         foreach ($corridas as &$corrida) {

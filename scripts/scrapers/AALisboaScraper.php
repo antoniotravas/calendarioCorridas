@@ -77,6 +77,7 @@ final class AALisboaScraper implements ScraperInterface
                 $xpath->query('.//div[contains(@id,"div_local")]', $cartao)->item(0)?->textContent ?? ''
             ));
             $imagem = $xpath->query('./img', $cartao)->item(0)?->getAttribute('src') ?? '';
+            [$urlProva, $urlInscricao] = $this->urlProva($xpath, $cartao, $campos);
 
             $corridas[] = new Corrida(
                 nome: $nome,
@@ -85,10 +86,11 @@ final class AALisboaScraper implements ScraperInterface
                 distancias: null,
                 tipo: null,
                 regiao: 'Lisboa',
-                urlEvento: $this->urlProva($xpath, $cartao, $campos),
+                urlEvento: $urlProva,
                 fonte: $this->nome(),
                 urlFonte: self::LISTA_URL,
                 imagemUrl: str_starts_with($imagem, '/') ? self::SITE . $imagem : null,
+                urlInscricao: $urlInscricao,
             );
         }
 
@@ -171,9 +173,12 @@ final class AALisboaScraper implements ScraperInterface
         foreach ($porId as $id => [$nome, $dataProva, $imagem]) {
             $url = self::SITE . '/Competicoes/' . $id;
             $local = null;
+            $urlInscricao = null;
             try {
-                $local = $this->criarXPath($this->http->get($url))
+                $pagina = $this->http->get($url);
+                $local = $this->criarXPath($pagina)
                     ->query('//*[@id="MainContent_EventoDetalhe_span_localidade"]')->item(0)?->textContent;
+                $urlInscricao = $this->inscricaoDaPagina($pagina, $url);
             } catch (RuntimeException) {
             }
             $local = trim((string) $local);
@@ -189,6 +194,7 @@ final class AALisboaScraper implements ScraperInterface
                 fonte: $this->nome(),
                 urlFonte: self::CIRCUITOS_URL,
                 imagemUrl: $imagem,
+                urlInscricao: $urlInscricao,
             );
         }
 
@@ -196,27 +202,53 @@ final class AALisboaScraper implements ScraperInterface
     }
 
     /**
-     * Endereço da página da prova (/Competicoes/{id}), seguindo o botão "Entrar".
-     * Se falhar, fica a lista de competições.
+     * Endereço da página da prova (/Competicoes/{id}), seguindo o botão "Entrar",
+     * e o link da inscrição lido nessa página. Se falhar, fica a lista de competições.
      *
      * @param array<string,string> $campos campos escondidos da página "Por Realizar"
+     * @return array{0: string, 1: ?string} [página da prova, link da inscrição]
      */
-    private function urlProva(DOMXPath $xpath, DOMNode $cartao, array $campos): string
+    private function urlProva(DOMXPath $xpath, DOMNode $cartao, array $campos): array
     {
         $href = $xpath->query('.//a[contains(@id,"linkButton_detail")]', $cartao)->item(0)?->getAttribute('href') ?? '';
         if (!preg_match("/__doPostBack\\('([^']+)'/", $href, $m)) {
-            return self::LISTA_URL;
+            return [self::LISTA_URL, null];
         }
 
         try {
             $destino = $this->http->post(self::LISTA_URL, ['__EVENTTARGET' => $m[1]] + $campos);
         } catch (RuntimeException) {
-            return self::LISTA_URL;
+            return [self::LISTA_URL, null];
         }
 
-        return preg_match('/<form[^>]+action="\.\/(\d+)"/', $destino, $id)
-            ? self::SITE . '/Competicoes/' . $id[1]
-            : self::LISTA_URL;
+        if (!preg_match('/<form[^>]+action="\.\/(\d+)"/', $destino, $id)) {
+            return [self::LISTA_URL, null];
+        }
+        $url = self::SITE . '/Competicoes/' . $id[1];
+
+        return [$url, $this->inscricaoDaPagina($destino, $url)];
+    }
+
+    /**
+     * Onde é a inscrição, pela página da prova: com o botão "Inscrever" é na
+     * própria página (filiados com login; não filiados num formulário); senão, o link em
+     * "Informação" (span_site), que a AAL usa para a inscrição no site do
+     * organizador ou noutra prova da plataforma ("inscritos no torneio da
+     * Amadora estão inscritos no Regional"). Sem nenhum, null.
+     */
+    private function inscricaoDaPagina(string $html, string $url): ?string
+    {
+        $xpath = $this->criarXPath($html);
+        foreach ($xpath->query('//a[contains(@id,"EventoDetalhe_BotaoBig")]//h4') as $titulo) {
+            // "Inscrever", "Inscrever (Filiados)", "Inscrever (Não Filiados)".
+            if (str_starts_with(trim($titulo->textContent), 'Inscrever')) {
+                return $url;
+            }
+        }
+
+        $site = trim($xpath->query('//a[@id="MainContent_EventoDetalhe_span_site"]')->item(0)?->getAttribute('href') ?? '');
+
+        return preg_match('#^https?://#i', $site) ? $site : null;
     }
 
     /**

@@ -101,6 +101,7 @@ CREATE TABLE IF NOT EXISTS corridas_fontes (
     fonte          VARCHAR(100) NOT NULL,
     url_fonte      VARCHAR(500) NULL,
     url_evento     VARCHAR(500) NULL,
+    url_inscricao  VARCHAR(500) NULL,   -- link direto para a inscrição, quando a fonte o dá
     hash_dedup     CHAR(40) NOT NULL,
     visto_em       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),

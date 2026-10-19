@@ -35,22 +35,34 @@ final class Organizador
     }
 
     /**
-     * Link direto para as inscrições, quando algum dos endereços conhecidos da
-     * prova (link da prova, página dos preços, páginas das fontes) é a página
-     * dela numa plataforma de inscrições, ou tem "inscrições" no endereço.
-     * Sem nenhum, null: não se mostra link.
+     * Link direto para as inscrições, por esta ordem: o link da prova ou a
+     * página dos preços, se forem a página da prova numa plataforma de
+     * inscrições (ou tiverem "inscrições" no endereço — abertas a todos); o
+     * link de inscrição dado por uma fonte (ex. AA Lisboa, cuja plataforma é
+     * sobretudo para filiados); as páginas das fontes, nas mesmas condições
+     * do primeiro. Sem nenhum, null: não se mostra link.
      *
      * @param array<string,mixed> $c linha de corridas (com 'fontes', se houver)
      */
     public static function urlInscricao(array $c): ?string
     {
-        $candidatos = [$c['url_evento'] ?? null, $c['inscricao_url'] ?? null];
+        // [endereço, true = link de inscrição dado pela fonte, usa-se tal como está]
+        $candidatos = [[$c['url_evento'] ?? null, false], [$c['inscricao_url'] ?? null, false]];
         foreach ($c['fontes'] ?? [] as $fonte) {
-            $candidatos[] = $fonte['url_fonte'] ?? null;
+            $candidatos[] = [$fonte['url_inscricao'] ?? null, true];
+        }
+        foreach ($c['fontes'] ?? [] as $fonte) {
+            $candidatos[] = [$fonte['url_fonte'] ?? null, false];
         }
 
-        foreach ($candidatos as $url) {
-            if (!is_string($url) || $url === '' || self::eDocumento($url)) {
+        foreach ($candidatos as [$url, $daFonte]) {
+            if (!is_string($url) || $url === '') {
+                continue;
+            }
+            if ($daFonte) {
+                return $url;
+            }
+            if (self::eDocumento($url)) {
                 continue;
             }
             $host = (string) preg_replace('/^www\./', '', (string) parse_url($url, PHP_URL_HOST));

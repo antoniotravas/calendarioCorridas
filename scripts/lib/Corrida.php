@@ -23,6 +23,7 @@ final class Corrida
         public readonly ?array $programa = null,
         public readonly ?string $organizador = null, // nome de quem organiza
         public readonly ?string $organizadorUrl = null, // site do organizador
+        public readonly ?string $urlInscricao = null, // link direto para a inscrição, quando a fonte o dá
     ) {
     }
 
