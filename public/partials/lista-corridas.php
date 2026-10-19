@@ -32,19 +32,18 @@ $etiquetasProva = static function (array $c) use ($nomesCategoria): array {
 };
 
 /**
- * Ícone "€" dos prémios monetários (verde: há; cinzento riscado: o regulamento
- * diz que não há; nada: por saber). Liga ao documento onde foi lido, com o
+ * Ícone "€" dos prémios monetários, só quando há prémios em dinheiro (sem
+ * prémios ou por saber: nada). Liga ao documento onde foi lido, com o
  * excerto como dica.
  */
 $podeVerPremios = $auth->podeVerPremios();
 $iconePremios = static function (array $c) use ($podeVerPremios): void {
-    if (!$podeVerPremios || !isset($c['premios_monetarios'])) {
+    if (!$podeVerPremios || (int) ($c['premios_monetarios'] ?? 0) !== 1) {
         return;
     }
-    $sim = (int) $c['premios_monetarios'] === 1;
-    $texto = $sim ? 'Com prémios monetários' : 'Sem prémios monetários';
+    $texto = 'Com prémios monetários';
     $dica = $texto . (!empty($c['premios_excerto']) ? ': ' . $c['premios_excerto'] : '');
-    $classe = 'premios ' . ($sim ? 'premios-sim' : 'premios-nao');
+    $classe = 'premios premios-sim';
     if (!empty($c['premios_url'])): ?>
         <a class="<?= $classe ?>" href="<?= htmlspecialchars($c['premios_url']) ?>" target="_blank" rel="noopener"
            title="<?= htmlspecialchars($dica) ?>" aria-label="<?= htmlspecialchars($texto) ?> (ver onde foi lido)">€</a>
@@ -125,6 +124,9 @@ foreach ($grupos as $chaveMes => $grupo):
                                     <p class="prova-local">
                                         <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M12 21s-6.5-6.1-6.5-11a6.5 6.5 0 0 1 13 0c0 4.9-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg>
                                         <?= htmlspecialchars($c['local']) ?>
+                                        <?php if (($perto ?? null) !== null && isset($c['latitude'], $c['longitude'])): /* "Perto de mim" (index.php) */ ?>
+                                            <span class="prova-distancia">a <?= max(1, (int) round(Geocodificador::distanciaKm($perto['lat'], $perto['lon'], (float) $c['latitude'], (float) $c['longitude']))) ?> km</span>
+                                        <?php endif; ?>
                                     </p>
                                 <?php endif; ?>
                                 <?php if ($etiquetas !== []): ?>
