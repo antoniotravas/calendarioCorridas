@@ -59,6 +59,11 @@
 
     // 7. Perto de mim ------------------------------------------------------------
     // A posição vai no endereço arredondada a 2 casas decimais (~1 km) e não é guardada.
+    // Com o filtro ativo, mudar o período ("Próximo mês", "Sempre"...) aplica-se logo.
+    var periodoPerto = document.querySelector('form.periodo-perto select');
+    if (periodoPerto) {
+        periodoPerto.addEventListener('change', function () { periodoPerto.form.requestSubmit(); });
+    }
     var botaoPerto = document.querySelector('[data-perto]');
     if (botaoPerto && 'geolocation' in navigator) {
         botaoPerto.hidden = false;

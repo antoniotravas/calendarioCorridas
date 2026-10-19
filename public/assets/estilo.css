@@ -171,6 +171,20 @@ main {
 .resumo .perto-de-mim.ativo { background: var(--sinal); color: var(--branco); }
 .resumo .perto-de-mim.erro { border-color: var(--erro); color: var(--erro); }
 .resumo .perto-de-mim:disabled { cursor: progress; }
+.resumo .periodo-perto { display: inline-block; margin: 0 8px 0 0; vertical-align: 1px; }
+.resumo .periodo-perto label { display: inline; }
+.resumo .periodo-perto select {
+    height: 24px;
+    padding: 0 4px;
+    border: 1px solid var(--sinal);
+    border-radius: 999px;
+    background: var(--branco);
+    color: var(--sinal);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+}
 .prova-distancia { margin-left: 6px; color: var(--sinal); font-weight: 600; white-space: nowrap; }
 
 /* Meses: o título fica fixo ao descer (até o mês seguinte o empurrar) */

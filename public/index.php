@@ -10,9 +10,16 @@ const PROVAS_POR_PAGINA = 20;
 /** Filtro "Tipo": valor de corridas.categoria => texto. */
 const CATEGORIAS = ['estrada' => 'Estrada', 'trail' => 'Trail', 'corta-mato' => 'Corta-mato', 'pista' => 'Pista'];
 
-/** "Perto de mim": provas a menos de RAIO_PERTO_KM, de hoje até DIAS_PERTO dias (contando com hoje). */
+/** "Perto de mim": provas a menos de RAIO_PERTO_KM, no período escolhido. */
 const RAIO_PERTO_KM = 50;
-const DIAS_PERTO = 3;
+/** Períodos do "Perto de mim": valor de ?periodo= => [texto, até quando (strtotime), null = sempre]. O primeiro é o inicial. */
+const PERIODOS_PERTO = [
+    '3d' => ['Próximos 3 dias', '+2 days'],
+    '1m' => ['Próximo mês', '+1 month'],
+    '2m' => ['Próximos 2 meses', '+2 months'],
+    '3m' => ['Próximos 3 meses', '+3 months'],
+    'sempre' => ['Sempre', null],
+];
 
 /** Filtro "Prémios": valor do parâmetro => [texto da opção, corridas.premios_monetarios]. */
 const FILTRO_PREMIOS = ['sim' => ['Com prémios monetários', true], 'nao' => ['Sem prémios monetários', false]];
@@ -34,8 +41,10 @@ $premiosChave = $podeVerPremios && isset($_GET['premios']) && isset(FILTRO_PREMI
 $premios = $premiosChave !== null ? FILTRO_PREMIOS[$premiosChave][1] : null;
 // ?perto=41.15,-8.61 (posição do browser, arredondada a ~1 km pelo assets/app.js; não é guardada).
 $perto = null;
+$periodoChave = isset($_GET['periodo']) && isset(PERIODOS_PERTO[$_GET['periodo']]) ? (string) $_GET['periodo'] : array_key_first(PERIODOS_PERTO);
 if (isset($_GET['perto']) && preg_match('/^(-?\d{1,2}(?:\.\d{1,4})?),(-?\d{1,3}(?:\.\d{1,4})?)$/', (string) $_GET['perto'], $m)) {
-    $perto = ['lat' => (float) $m[1], 'lon' => (float) $m[2], 'raio' => RAIO_PERTO_KM, 'dias' => DIAS_PERTO];
+    $ate = PERIODOS_PERTO[$periodoChave][1];
+    $perto = ['lat' => (float) $m[1], 'lon' => (float) $m[2], 'raio' => RAIO_PERTO_KM, 'ate' => $ate !== null ? date('Y-m-d', strtotime($ate)) : null];
 }
 $pagina = max(1, (int) ($_GET['pagina'] ?? 1));
 // ?parcial=1: só a lista desta página, para o JavaScript a acrescentar à que já está à vista.
@@ -60,7 +69,8 @@ $grupos = DateHelper::agruparPorMes($corridas);
 
 $filtrosAtivos = array_filter(
     ['tipo' => $categoria, 'mes' => $mes, 'distancia' => $distanciaChave, 'inscricao' => $inscricaoChave, 'fonte' => $fonte, 'premios' => $premiosChave, 'procura' => $procura,
-     'perto' => $perto !== null ? $_GET['perto'] : null],
+     'perto' => $perto !== null ? $_GET['perto'] : null,
+     'periodo' => $perto !== null && $periodoChave !== array_key_first(PERIODOS_PERTO) ? $periodoChave : null],
     static fn ($v) => $v !== null
 );
 $voltar = '/' . ($filtrosAtivos !== [] ? '?' . http_build_query($filtrosAtivos) : '');
@@ -92,7 +102,8 @@ $tituloDocumento = 'Calendário de corridas em Portugal — estrada, trail, cort
 $resumo = ($total === 1 ? '1 prova' : $total . ' provas')
     . ($categoria !== null ? ' de ' . mb_strtolower(CATEGORIAS[$categoria]) : '')
     . match (true) {
-        $perto !== null => ' até ' . RAIO_PERTO_KM . ' km de ti, de hoje a ' . mb_strtolower(DateHelper::formatarDiaMes(date('Y-m-d', strtotime('+' . (DIAS_PERTO - 1) . ' days')))),
+        $perto !== null && $perto['ate'] === null => ' até ' . RAIO_PERTO_KM . ' km de ti, a partir de hoje',
+        $perto !== null => ' até ' . RAIO_PERTO_KM . ' km de ti, de hoje a ' . mb_strtolower(DateHelper::formatarDiaMes($perto['ate'])),
         $mes !== null => ' em ' . DateHelper::nomeMes($mes),
         default => ' a partir de hoje',
     };
@@ -208,7 +219,10 @@ if ($detalhes !== []) {
         </label>
         <?php endif; ?>
 
-        <?php if ($perto !== null): ?><input type="hidden" name="perto" value="<?= htmlspecialchars((string) $_GET['perto']) ?>"><?php endif; ?>
+        <?php if ($perto !== null): ?>
+            <input type="hidden" name="perto" value="<?= htmlspecialchars((string) $_GET['perto']) ?>">
+            <?php if (isset($filtrosAtivos['periodo'])): ?><input type="hidden" name="periodo" value="<?= htmlspecialchars($periodoChave) ?>"><?php endif; ?>
+        <?php endif; ?>
         <button type="submit" class="filtrar">Procurar</button>
     </form>
 </div>
@@ -216,24 +230,41 @@ if ($detalhes !== []) {
 <main>
     <h1 class="sr-only">Calendário de corridas em Portugal</h1>
 
-    <p class="resumo" aria-live="polite">
-        <?php /* Pede a posição ao browser (assets/app.js); sem JavaScript fica escondido. Ativo: volta à lista sem ele. */ ?>
-        <?php if ($perto !== null): ?>
-            <a class="perto-de-mim ativo" href="<?= htmlspecialchars('/' . (count($filtrosAtivos) > 1 ? '?' . http_build_query(array_diff_key($filtrosAtivos, ['perto' => 1])) : '')) ?>"
+    <div class="resumo" aria-live="polite">
+        <?php /* Pede a posição ao browser (assets/app.js); sem JavaScript fica escondido. Ativo: volta à lista sem ele e escolhe-se o período. */ ?>
+        <?php if ($perto !== null):
+            $semPerto = array_diff_key($filtrosAtivos, ['perto' => 1, 'periodo' => 1]);
+            ?>
+            <a class="perto-de-mim ativo" href="<?= htmlspecialchars('/' . ($semPerto !== [] ? '?' . http_build_query($semPerto) : '')) ?>"
                title="Deixar de filtrar por proximidade">Perto de mim ✕</a>
+            <form class="periodo-perto" method="get" action="/">
+                <?php foreach (array_diff_key($filtrosAtivos, ['periodo' => 1]) as $nome => $valor): ?>
+                    <input type="hidden" name="<?= htmlspecialchars($nome) ?>" value="<?= htmlspecialchars((string) $valor) ?>">
+                <?php endforeach; ?>
+                <label>
+                    <span class="sr-only">Período</span>
+                    <select name="periodo">
+                        <?php foreach (PERIODOS_PERTO as $chave => [$texto]): ?>
+                            <option value="<?= htmlspecialchars($chave) ?>" <?= $periodoChave === $chave ? 'selected' : '' ?>><?= htmlspecialchars($texto) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+                <noscript><button type="submit">OK</button></noscript>
+            </form>
         <?php else: ?>
             <button type="button" class="perto-de-mim" data-perto hidden
-                    title="Provas até <?= RAIO_PERTO_KM ?> km de ti, de hoje até daqui a <?= DIAS_PERTO - 1 ?> dias">Perto de mim</button>
+                    title="Provas até <?= RAIO_PERTO_KM ?> km de ti (escolhes depois o período)">Perto de mim</button>
         <?php endif; ?>
         <?= htmlspecialchars($resumo) ?>
         <?php if ($filtrosAtivos !== []): ?>
             <a href="/">Limpar filtros</a>
         <?php endif; ?>
-    </p>
+    </div>
 
     <?php if ($corridas === []): ?>
         <p class="vazio"><?= $perto !== null
-            ? 'Nenhuma prova até ' . RAIO_PERTO_KM . ' km de ti nos próximos ' . DIAS_PERTO . ' dias.'
+            ? 'Nenhuma prova até ' . RAIO_PERTO_KM . ' km de ti ' . ($perto['ate'] !== null ? 'até ' . mb_strtolower(DateHelper::formatarDiaMes($perto['ate'])) : 'a partir de hoje')
+                . '. Experimenta um período maior.'
             : 'Nenhuma prova com estes filtros.' ?></p>
     <?php else: ?>
         <div id="lista-provas">

@@ -951,7 +951,7 @@ final class Database
     /**
      * @param array{0:float,1:float}|null $distanciaFaixa
      * @param array{0:float,1:float}|null $inscricaoFaixa valor mínimo da inscrição (InscricaoHelper::FAIXAS)
-     * @param array{lat: float, lon: float, raio: float, dias: int}|null $perto "Perto de mim"
+     * @param array{lat: float, lon: float, raio: float, ate: ?string}|null $perto "Perto de mim" (ate: última data "Y-m-d", null = sempre)
      * @return array{0:string,1:array<string,mixed>} condição WHERE e parâmetros
      */
     private function filtrosCorridas(
@@ -1008,13 +1008,16 @@ final class Database
             $params['insc_max'] = $inscricaoFaixa[1];
         }
 
-        // "Perto de mim": provas dos próximos dias a menos de X km (Haversine).
+        // "Perto de mim": provas até à data escolhida (ou sempre) a menos de X km (Haversine).
         if ($perto !== null) {
-            $condicoes[] = 'c.data_prova BETWEEN CURDATE() AND CURDATE() + INTERVAL :perto_dias DAY';
+            $condicoes[] = 'c.data_prova >= CURDATE()';
+            if ($perto['ate'] !== null) {
+                $condicoes[] = 'c.data_prova <= :perto_ate';
+                $params['perto_ate'] = $perto['ate'];
+            }
             $condicoes[] = 'c.latitude IS NOT NULL';
             $condicoes[] = '6371 * 2 * ASIN(LEAST(1, SQRT(POW(SIN(RADIANS(c.latitude - :perto_lat) / 2), 2)'
                 . ' + COS(RADIANS(:perto_lat2)) * COS(RADIANS(c.latitude)) * POW(SIN(RADIANS(c.longitude - :perto_lon) / 2), 2)))) <= :perto_raio';
-            $params['perto_dias'] = $perto['dias'] - 1;
             $params['perto_lat'] = $perto['lat'];
             $params['perto_lat2'] = $perto['lat'];
             $params['perto_lon'] = $perto['lon'];
