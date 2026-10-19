@@ -10,6 +10,7 @@ declare(strict_types=1);
  *  - Lap2Go: blocos "Organizador" (span.evento-org) e "Site" (span.evento-site);
  *  - Stop and Go: "Organizador" (nome num <h3>) e o botão "Website do Organizador";
  *  - Acorrer: "Sábado, 17 de outubro de 2026 às 17:00" (og:description);
+ *  - Recorde Pessoal: hora no bloco "Data" ("15 Novembro 2026 10h00");
  *  - Xistarca: secção "DISTÂNCIA / HORA / LOCAL" ("» Corrida 10km | 10h00");
  *  - Portugal Running (calendário): "Entidade Organizadora".
  *
@@ -19,7 +20,7 @@ declare(strict_types=1);
 final class DetalhesProvaHelper
 {
     /** Domínios cujas páginas de prova se sabem ler. */
-    public const SITES = ['lap2go.com', 'stopandgo.net', 'acorrer.pt', 'xistarca.pt', 'portugalrunning.com'];
+    public const SITES = ['lap2go.com', 'stopandgo.net', 'acorrer.pt', 'recordepessoal.pt', 'xistarca.pt', 'portugalrunning.com'];
 
     /**
      * @return array{hora_inicio: ?string, programa: ?array, organizador: ?string, organizador_url: ?string}
@@ -43,6 +44,12 @@ final class DetalhesProvaHelper
         } elseif (self::eSite($host, 'acorrer.pt')) {
             $quando = self::texto($xpath, '//meta[@property="og:description"]/@content') ?? '';
             if (preg_match('/\bàs (\d{1,2}):(\d{2})/u', $quando, $m) && (int) $m[1] < 24) {
+                $detalhes['hora_inicio'] = sprintf('%02d:%s', $m[1], $m[2]);
+            }
+        } elseif (self::eSite($host, 'recordepessoal.pt')) {
+            // Bloco "Data": <div>Data</div><div>15 Novembro 2026</div><div>10h00</div>
+            $quando = self::texto($xpath, '//div[@class="dataEvento"]') ?? '';
+            if (preg_match('/\b(\d{1,2})\s*[h:]\s*(\d{2})\b/u', $quando, $m) && (int) $m[1] < 24) {
                 $detalhes['hora_inicio'] = sprintf('%02d:%s', $m[1], $m[2]);
             }
         } elseif (self::eSite($host, 'xistarca.pt')) {

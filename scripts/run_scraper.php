@@ -29,6 +29,9 @@ require __DIR__ . '/scrapers/XistarcaScraper.php';
 require __DIR__ . '/scrapers/TrilhoPerdidoScraper.php';
 require __DIR__ . '/scrapers/StopAndGoScraper.php';
 require __DIR__ . '/scrapers/AcorrerScraper.php';
+require __DIR__ . '/scrapers/RecordePessoalScraper.php';
+require __DIR__ . '/scrapers/RunportoScraper.php';
+require __DIR__ . '/scrapers/ProEventsScraper.php';
 
 $configPath = __DIR__ . '/config.php';
 
@@ -68,6 +71,9 @@ $scrapers = [
     new StopAndGoScraper($http),
     // A Acorrer só devolve os eventos a pedidos feitos na mesma sessão (cookies).
     new AcorrerScraper(new HttpClient(guardarCookies: true)),
+    new RecordePessoalScraper($http),
+    new RunportoScraper($http),
+    new ProEventsScraper($http),
 ];
 
 $totalInseridas = 0;

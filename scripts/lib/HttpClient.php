@@ -94,6 +94,8 @@ final class HttpClient
             CURLOPT_USERAGENT      => self::USER_AGENT,
             CURLOPT_HTTPHEADER     => array_merge(['Accept-Language: pt-PT,pt;q=0.9'], $cabecalhos),
             CURLOPT_SSL_VERIFYPEER => true,
+            // Descomprime gzip/deflate: a Runporto envia gzip mesmo sem o pedir.
+            CURLOPT_ENCODING       => '',
         ];
 
         if ($this->ficheiroCookies !== null) {

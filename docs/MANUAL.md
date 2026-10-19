@@ -56,7 +56,7 @@ A fonte que criou a prova (`corridas.fonte`, "fonte principal") define os dados;
 
 `NomeProvaHelper::mesmaProva()` normaliza os nomes (minúsculas, sem acentos, sem números/ordinais/anos/distâncias, "GP" = "Grande Prémio", "S." = "São"), põe de parte palavras genéricas ("corrida", "meia", "maratona", "são silvestre", "cidade"...) e exige que pelo menos metade das palavras distintivas coincidam. Recusa sempre formatos diferentes ("Maratona do Porto" ≠ "Meia Maratona do Porto"). Nomes só com palavras genéricas — frequentes na pista: "Torneio de Abertura", "Meeting Jovem", em várias associações no mesmo fim de semana — só se juntam se forem iguais **e** os locais tiverem alguma palavra em comum (ou um deles não tiver local). É conservadora de propósito: um par não detetado fica repetido, mas provas diferentes dificilmente são fundidas por engano (ex. "São Silvestre de Vizela" ≠ "São Silvestre de Amares"). Datas diferentes entre fontes (erro de um dia num dos sites) não são juntadas.
 
-**Exceção — fontes organizadoras (Xistarca, Trilho Perdido, Lap2Go, Stop and Go, Acorrer):** são organizadores ou plataformas de inscrição, por isso o link delas é a página oficial da prova. Os scrapers implementam a interface vazia `FonteOrganizadora` e, no fim de cada execução, `Database::aplicarLinksOrganizadores()` põe em `corridas.url_evento` o link da fonte organizadora sempre que a prova aparece numa delas, mesmo que a fonte principal seja outra (usa os links guardados em `corridas_fontes`, por isso vale mesmo quando a organizadora falhou nessa execução). Para tornar outra fonte organizadora, basta acrescentar `, FonteOrganizadora` ao `implements` do scraper; a ordem em `$scrapers` define a prioridade.
+**Exceção — fontes organizadoras (Xistarca, Trilho Perdido, Lap2Go, Stop and Go, Acorrer, Recorde Pessoal, Runporto, ProEvents):** são organizadores ou plataformas de inscrição, por isso o link delas é a página oficial da prova. Os scrapers implementam a interface vazia `FonteOrganizadora` e, no fim de cada execução, `Database::aplicarLinksOrganizadores()` põe em `corridas.url_evento` o link da fonte organizadora sempre que a prova aparece numa delas, mesmo que a fonte principal seja outra (usa os links guardados em `corridas_fontes`, por isso vale mesmo quando a organizadora falhou nessa execução). Para tornar outra fonte organizadora, basta acrescentar `, FonteOrganizadora` ao `implements` do scraper; a ordem em `$scrapers` define a prioridade.
 
 `Database::consolidarRepetidas()` corre no fim de cada execução e aplica a mesma regra às provas já gravadas: a mais antiga fica, a outra passa-lhe as fontes e os favoritos dos utilizadores e é apagada.
 
@@ -81,7 +81,7 @@ scripts/lib/DateHelper.php           -- datas em português: parsing, formataç�
 scripts/lib/DistanciaHelper.php      -- extrai distâncias (km) do texto livre; faixas do filtro de distância
 scripts/lib/NomeProvaHelper.php      -- mesma prova com nomes diferentes? parece corrida / prova de pista (pelo nome)? estrada, trail, corta-mato ou pista?
 scripts/lib/PremiosHelper.php        -- há prémios monetários? (analisa o texto; segue os links do regulamento) e tabela dos valores
-scripts/lib/DetalhesProvaHelper.php  -- hora, programa e organizador lidos nas páginas das provas (Lap2Go, Stop and Go, Acorrer, Xistarca)
+scripts/lib/DetalhesProvaHelper.php  -- hora, programa e organizador lidos nas páginas das provas (Lap2Go, Stop and Go, Acorrer, Recorde Pessoal, Xistarca)
 scripts/lib/DistritoHelper.php       -- distrito e região a partir do local (308 concelhos + localidades conhecidas)
 scripts/lib/PdfTextoHelper.php       -- extrai o texto de PDFs (regulamentos) em PHP puro
 scripts/lib/ProcuraPremios.php       -- percorre as provas por ver, com tempo máximo (usado pelo scraper e por procurar_premios.php)
@@ -101,6 +101,9 @@ scripts/scrapers/XistarcaScraper.php
 scripts/scrapers/TrilhoPerdidoScraper.php
 scripts/scrapers/StopAndGoScraper.php
 scripts/scrapers/AcorrerScraper.php           -- app Livewire: simula a chamada "load" do browser
+scripts/scrapers/RecordePessoalScraper.php
+scripts/scrapers/RunportoScraper.php
+scripts/scrapers/ProEventsScraper.php         -- app Angular: lê as provas no ficheiro JavaScript
 scripts/scrapers/FonteOrganizadora.php        -- marca fontes cujo link do evento tem prioridade
 scripts/run_scraper.php              -- ponto de entrada do scraper (CLI)
 scripts/definir_admin.php            -- torna um utilizador administrador (CLI: php scripts/definir_admin.php email)
@@ -148,6 +151,9 @@ docs/MANUAL.md                       -- este ficheiro
 | Trilho Perdido | `trilhoperdido.com/eventos?cat=5` (Trail Running) e `cat=6` (Atletismo) | Próximos eventos, todas as páginas (`pag=N`, 16 por página) | Organizador e cronometragem, sobretudo trails na região de Lisboa e Vale do Tejo. Cada `div.evento` tem o link, o cartaz, a data em três linhas ("18" / "out" / "2026"), o nome e a localidade. As outras categorias (BTT, TT, Caminhadas) ficam de fora; caminhadas nestas duas são excluídas pelo nome. |
 | Stop and Go | `stopandgo.net/events?status=S&country=178&modality=1` (Atletismo) e `modality=5` (Trail) | Próximos eventos, todas as páginas | Filtros na query string: próximos, modalidade, Portugal. Data da etiqueta "17 de outubro 2026" (em provas de vários dias, "16 - 18 de outubro 2026", fica o 1.º dia). Exclui caminhadas pelo nome. |
 | Acorrer | `acorrer.pt/eventos` | Todos os eventos futuros | App Laravel **Livewire**: o HTML inicial vem sem eventos. O scraper repete o que o browser faz — GET da página (com cookies de sessão, `new HttpClient(guardarCookies: true)`), lê `window.livewireScriptConfig` (CSRF + endereço de atualização) e o `wire:snapshot` do componente `provas-grid`, e faz POST JSON com a chamada `load`; a resposta traz o HTML da grelha. Sem modalidade nem ano: decide-se pelo nome (`pareceCorrida`) e o ano por `proximaOcorrencia()`. |
+| Recorde Pessoal | `recordepessoal.pt/eventos?pagina=-1&cat=atletismo` e `cat=trail` | Todos os próximos eventos (`pagina=-1` = "ver todos") | Plataforma de inscrições e cronometragem, sobretudo distritos de Leiria e Santarém. Cada `div.evento` tem a data ("24 Outubro 2026"), o título, a localidade e o cartaz (no `style` de `div.imagem`). Caminhadas excluídas pelo nome (incluindo "Walk"). A hora lê-se depois na página da prova (`DetalhesProvaHelper`). |
+| Runporto | `runporto.com/pt/novidades/calendario-de-provas-AAAA/` (ano corrente e seguinte, se existir) | Provas a partir de hoje | Organizador das grandes provas do Porto e Braga. Página de texto: `<h2>` com o nome e `<li>` "8 de novembro de 2026 - Porto - 42km/10km/6km". O link de cada prova vem do menu de eventos do topo, emparelhado pelo nome (`NomeProvaHelper::mesmaProva`, fica o que tem mais palavras em comum). O site envia gzip mesmo sem o pedir (por isso o `HttpClient` usa `CURLOPT_ENCODING`). |
+| ProEvents | `proevents.pt` | Provas futuras (`status` diferente de `finished`), categorias `running` e `trail` | Organizador da região do Porto. App **Angular**: as provas estão num dos ficheiros `chunk-*.js` carregados pela página inicial, como objetos `{id:"…",name:"…",date:"2026-12-19",location:"…",distances:[…],category:"running",status:"upcoming",startTime:"10:00"}`; o scraper procura o ficheiro que tem `category:"running"` (os nomes mudam a cada atualização do site). O link da prova é a página de inscrições na Status Marathon (mapa slug ⇒ URL no mesmo ficheiro). "São Silvestre 2026" passa a "São Silvestre de Vila do Conde 2026", para se juntar à mesma prova vinda de outras fontes. |
 
 ### Associações distritais (levantamento de 2026-09-30, revisto a 2026-10-12 para a pista)
 
@@ -237,11 +243,13 @@ O site público está em **https://corridas.eu** (antes: `corridas.espacodecodig
 |---|---|---|
 | FPA Competições | hora, programa com escalões, cartaz | no scraper: a página `/competition/{id}` redireciona para `/inscriptions/{id}` (inscrições abertas) ou `/competition/{id}/schedule` (fechadas) — as duas têm o horário no `__remixContext` |
 | AA Braga | organizador | campo `extendedProps.organization` da listagem |
-| Xistarca, Trilho Perdido | organizador (eles próprios) | no scraper |
+| Xistarca, Trilho Perdido, Runporto, ProEvents | organizador (eles próprios) | no scraper |
+| ProEvents | hora | no scraper (`startTime`) |
 | Lap2Go | organizador e site | página da prova (`span.evento-org`, `span.evento-site`) |
 | Portugal Running | organizador | página da prova ("Entidade Organizadora") |
 | Stop and Go | organizador e site | página da prova ("Organizador" + botão "Website do Organizador") |
 | Acorrer | hora | página da prova (`og:description`: "… às 17:00") |
+| Recorde Pessoal | hora | página da prova (bloco "Data": "15 Novembro 2026 10h00") |
 | Xistarca | programa e hora | página da prova (secção "DISTÂNCIA / HORA / LOCAL") |
 
 As páginas das plataformas são lidas no fim de `run_scraper.php` (`DetalhesProvaHelper`), cada prova uma vez por semana (`detalhes_procurado_em`), até 120 por execução, de 2 em 2 s por site. O que já se sabia nunca é apagado por uma fonte que não tem esse dado. Para as restantes fontes não há hora nem programa (não os publicam de forma legível).
