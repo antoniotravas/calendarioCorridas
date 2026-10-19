@@ -70,7 +70,9 @@ final class FpaCompeticoesScraper implements ScraperInterface
                 regiao: null,
                 urlEvento: $detalhes['urlEvento'],
                 fonte: $this->nome(),
-                urlFonte: self::CALENDAR_URL,
+                // A página da competição: é lá que se fazem as inscrições (redireciona
+                // para /inscriptions/{id} enquanto estão abertas).
+                urlFonte: $id > 0 ? self::BASE_URL . "/competition/{$id}" : self::CALENDAR_URL,
                 imagemUrl: $detalhes['imagem'],
                 horaInicio: $detalhes['hora'],
                 programa: $detalhes['programa'],

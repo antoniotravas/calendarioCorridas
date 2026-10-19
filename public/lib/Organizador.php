@@ -72,7 +72,7 @@ final class Organizador
         'stopandgo.net', 'lap2go.com', 'acorrer.pt', 'recordepessoal.pt', 'sinctime.com', 'queroir.pt',
         'waitastart.com', 'eventsport.pt', 'statusmarathon.run', 'crono.aaalgarve.org', 'portimer.pt',
         'sportmaniacs.com', 'adnrace.pt', 'bttmanager.com', 'xistarca.pt', 'trilhoperdido.com',
-        'proevents.pt', 'runporto.com',
+        'proevents.pt', 'runporto.com', 'fpacompeticoes.pt',
     ];
 
     /** PDF ou encurtador (a FPA usa o regulamento como link da prova). */
