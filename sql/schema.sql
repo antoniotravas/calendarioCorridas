@@ -43,6 +43,19 @@ CREATE TABLE IF NOT EXISTS corridas (
     -- "[]" se não deu para a ler; NULL se ainda não foi procurada.
     premios_tabela TEXT NULL,
     premios_procurado_em DATETIME NULL,
+    -- Valor da inscrição lido na página da prova ou no regulamento
+    -- (InscricaoHelper): o mais baixo e o mais alto (as inscrições sobem por
+    -- fases); 0 = gratuita; NULL = por saber. Filtro "Inscrição" usa o mínimo.
+    inscricao_min  DECIMAL(6,2) NULL,
+    inscricao_max  DECIMAL(6,2) NULL,
+    inscricao_excerto VARCHAR(300) NULL,
+    inscricao_url  VARCHAR(500) NULL,
+    inscricao_procurado_em DATETIME NULL,
+    -- Coordenadas da localidade (Geocodificador, OpenStreetMap), para o botão
+    -- "Perto de mim"; NULL = por saber ou não encontrada.
+    latitude       DECIMAL(9,6) NULL,
+    longitude      DECIMAL(9,6) NULL,
+    coordenadas_procuradas_em DATETIME NULL,
     hash_dedup     CHAR(40) NOT NULL,
     criado_em      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     atualizado_em  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -50,7 +63,8 @@ CREATE TABLE IF NOT EXISTS corridas (
     UNIQUE KEY uq_hash_dedup (hash_dedup),
     KEY idx_data_prova (data_prova),
     KEY idx_categoria (categoria),
-    KEY idx_premios (premios_monetarios)
+    KEY idx_premios (premios_monetarios),
+    KEY idx_inscricao_min (inscricao_min)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Distâncias individuais de cada prova (uma corrida pode ter várias: 10K, 5K, ...),

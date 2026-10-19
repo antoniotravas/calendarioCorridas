@@ -74,6 +74,8 @@ sql/migracao_008_permissoes.sql      -- colunas e_admin e ver_premios em utiliza
 sql/migracao_009_detalhes.sql        -- hora_inicio, programa, organizador, organizador_url, detalhes_procurado_em e premios_tabela em corridas
 sql/migracao_010_premios_tabela.sql  -- volta a ler uma vez os valores dos prémios de todas as provas com prémios
 sql/migracao_011_utilizadores_ativos.sql -- coluna ativo em utilizadores (desativar contas na página Gestão)
+sql/migracao_012_inscricoes.sql      -- colunas inscricao_* em corridas (valor da inscrição e filtro "Inscrição")
+sql/migracao_013_coordenadas.sql     -- latitude/longitude em corridas (botão "Perto de mim")
 
 scripts/config.example.php           -- template de credenciais (copiar para config.php)
 scripts/lib/Corrida.php              -- objeto de valor com os dados normalizados de uma prova
@@ -86,6 +88,9 @@ scripts/lib/DetalhesProvaHelper.php  -- hora, programa e organizador lidos nas p
 scripts/lib/DistritoHelper.php       -- distrito e região a partir do local (308 concelhos + localidades conhecidas)
 scripts/lib/PdfTextoHelper.php       -- extrai o texto de PDFs (regulamentos) em PHP puro
 scripts/lib/ProcuraPremios.php       -- percorre as provas por ver, com tempo máximo (usado pelo scraper e por procurar_premios.php)
+scripts/lib/InscricaoHelper.php      -- lê o valor da inscrição no texto de uma página ou regulamento; faixas do filtro "Inscrição"
+scripts/lib/ProcuraInscricoes.php    -- percorre as provas por ver e grava o valor da inscrição (scraper e procurar_inscricoes.php)
+scripts/lib/Geocodificador.php       -- coordenadas das localidades (Nominatim/OpenStreetMap) e distância em km
 scripts/lib/Database.php             -- ligação PDO: upsert/junção de corridas, listagem com filtros, utilizadores, favoritos
 scripts/scrapers/ScraperInterface.php
 scripts/scrapers/All4RunningScraper.php
@@ -109,6 +114,8 @@ scripts/scrapers/FonteOrganizadora.php        -- marca fontes cujo link do event
 scripts/run_scraper.php              -- ponto de entrada do scraper (CLI)
 scripts/definir_admin.php            -- torna um utilizador administrador (CLI: php scripts/definir_admin.php email)
 scripts/procurar_premios.php         -- procura prémios monetários em todas as provas por ver, sem o resto do scraper (CLI)
+scripts/procurar_inscricoes.php      -- procura o valor da inscrição em todas as provas por ver (CLI)
+scripts/localizar_provas.php         -- procura as coordenadas de todas as provas sem elas (CLI)
 
 public/_bootstrap.php                -- sessão + ligação BD + $auth, incluído por todas as páginas
 public/index.php                     -- calendário público (filtros: mês, distância, fonte, pesquisa), 20 provas por página; ?parcial=1 devolve só a lista (carregamento progressivo)
@@ -261,7 +268,7 @@ As páginas das plataformas são lidas no fim de `run_scraper.php` (`DetalhesPro
 
 **Só para quem tem acesso** (`Auth::podeVerPremios()`): administradores e utilizadores autorizados por eles. Para os restantes — incluindo quem não tem sessão — o ícone, o filtro e o parâmetro `?premios=` não existem. Ver "Administradores e acesso aos prémios" abaixo.
 
-Cada prova pode ter um ícone "€" ao lado do nome: **verde** se os mais bem classificados recebem dinheiro, **cinzento riscado** se o regulamento diz que os prémios são troféus/medalhas (ou que não há prémios monetários); sem ícone enquanto não se sabe. O ícone liga ao documento onde a informação foi lida (`premios_url`) e mostra o excerto (`premios_excerto`) como dica.
+Cada prova pode ter um ícone "€" verde ao lado do nome, só quando os mais bem classificados recebem dinheiro. Quando o regulamento diz que os prémios são troféus/medalhas (ou que não há prémios monetários), ou enquanto não se sabe, não se mostra nada (a informação fica na BD e serve o filtro "Prémios €"). O ícone liga ao documento onde a informação foi lida (`premios_url`) e mostra o excerto (`premios_excerto`) como dica.
 
 **Recolha** (`ProcuraPremios`, no fim de `run_scraper.php`): sem número fixo de provas — vê as que couberem em **10 minutos**, primeiro as nunca vistas (pela data da prova), e a execução seguinte continua onde esta parou. **Cada prova tentada fica marcada** (`premios_procurado_em`), mesmo que nenhum site responda (`Database::marcarPremiosTentados`, que não apaga o que já se sabia) — senão as provas de sites que recusam pedidos ficavam sempre à frente da fila e ocupavam todas as execuções. As que ficaram por saber (ou sem resposta) voltam a ser vistas ao fim de 3 dias (o regulamento costuma sair mais tarde), as "sem prémios" ao fim de 30, as "com prémios" não voltam. Pedidos de 2 em 2 s ao mesmo site; a All4Running usa o cliente de 5 em 5 s das fases anteriores e, se já recusou pedidos nessa execução, não é contactada.
 
@@ -275,6 +282,24 @@ Cada prova pode ter um ícone "€" ao lado do nome: **verde** se os mais bem cl
 É uma heurística: pode falhar em tabelas de prémios que o PDF parte de forma estranha ou em regulamentos muito informais — o link para o documento permite confirmar.
 
 **Tabela dos valores** (`PremiosHelper::tabelas()`, gravada em `premios_tabela` como JSON `[{titulo, linhas: [[lugar, "100 €"], ...]}]`): procura pares "lugar → valor" ("1.º lugar – 100 €", "2º- 50€", "1º Troféu + 150 €", "1º €100", "350 € para o 1.º", "1º Class. 400€", "1. Geral M/F – 100€", lugares por extenso "o vencedor recebe 125 €, o segundo 100 €" / "250 € para o segundo", e listas "respetivamente, 50 €, 25 € e 15 €" / "no valor de 100, 50 e 25 euros" / "50 €, 30 € e 20 € para 1.º, 2.º e 3.º" / "para os três primeiros" → 1.º, 2.º, 3.º; cada valor só conta uma vez; algarismos separados pelo PDF, "12 5 €" / "3 00€", são juntados) e agrupa-os em tabelas que começam no 1.º lugar; um lugar repetido começa outra tabela, exceto quando vem logo a seguir (colunas masculinos/femininos lidas linha a linha — mostra-se a primeira). **Várias colunas** na mesma linha ("1º Classificado 500€ 500€", uma coluna por escalão "50€ 50€ 50€...") são contadas: a tabela guarda `colunas` e `soma` (todos os valores de todas as colunas), e o total usa a soma. Tabelas iguais (masculinos e femininos, ou vários escalões com os mesmos valores) aparecem uma vez mas contam todas (`repeticoes`). Sem tabela, fica o total anunciado ("prize money global de 5.000 euros", "prémios monetários no valor de 2650 €"): uma tabela sem linhas com `anunciado: true` e `soma`. Rejeita valores < 10 € e pares com outras palavras pelo meio ("1.ª fase 15 €"). O título vem de palavras logo antes ("Geral", "Femininos", "M/F", "Juniores", "Vet 40", "10 km"). Tabelas iguais aparecem uma vez. Se o documento que diz "há prémios" não tiver valores, procura-se a tabela nos documentos que faltam (ex. o regulamento em PDF). `"[]"` = não deu para ler; `NULL` = ainda não procurada — as provas "com prémios" lidas antes da migração 009 voltam a ser lidas uma vez por isso, e `sql/migracao_010_premios_tabela.sql` repõe `NULL` em todas as provas com prémios, para serem lidas outra vez com os novos formatos e o leitor de PDF corrigido. Os PDFs chegam muitas vezes com as colunas baralhadas: a tabela mostra só o que deu para ler com segurança e a página pede sempre para confirmar no regulamento.
+
+### Valor das inscrições
+
+Cada prova pode ter o valor da inscrição (`corridas.inscricao_min` / `inscricao_max`, em euros; 0 = gratuita; `NULL` = por saber), mostrado na página da prova ("Inscrição 10 € a 25 €", com "conforme a data e a distância" quando há vários valores, e o link "Ver preços" para `inscricao_url`) e usado pelo filtro **Inscrição** da página inicial, visível a todos (faixas em `InscricaoHelper::FAIXAS`: Gratuita, até 10 €, 10 a 20 €, 20 a 30 €, mais de 30 € — pelo valor **mais baixo**, o de quem se inscreve cedo). Precisa de `sql/migracao_012_inscricoes.sql`.
+
+**Como se lê** (`InscricaoHelper::extrair()`, sobre o texto já extraído — `PremiosHelper::textoHtml` / `PdfTextoHelper`):
+- **blocos de preços** das plataformas: uma linha curta "Preços", "Inscrição", "Quanto?", "Fases de Preço" (Lap2Go) ou "Período de inscrição" (All4Running) abre um bloco de até 40 linhas; cada valor conta para o nome da prova na mesma linha ("Trail Longo – 20€", Trilho Perdido) ou na última linha anterior que não seja uma data/fase ("TRAIL 25KM" / "€ 13,00" na Stop and Go; "corrida" / "10.00€" na Lap2Go). A linha antes do bloco também conta como nome ("Caminhada de 6 km" / "Período de inscrição"). O bloco fecha ao fim de 8 linhas sem valores;
+- **frases**: "A inscrição tem um custo de 12 €", "Inscrição Geral: 10.00 € (até 20/10)" (Portugal Running), "A Corrida de 10 km tem o valor de 7 € e 10 €". O que está entre parênteses ou depois de "inclui" não exclui o valor ("12 € (seguro, dorsal, t-shirt)"); numa frase com corrida e caminhada, cada valor conta para a última prova nomeada;
+- ficam de fora caminhada/marcha, refeições, extras (t-shirt, meias, hoodie, roupeiro), provas jovens/kids, penalizações, taxas administrativas, "acresce", prémios e classificações (`PADRAO_EXCLUIR`); valores fora de 2 € a 250 €;
+- **gratuita** só quando nenhum valor foi lido e uma frase diz "inscrição gratuita" / "inscrições são grátis" (sem ser das provas jovens, de equipas, da cedência de imagem...).
+
+**Onde se lê** (`ProcuraInscricoes`, no fim de `run_scraper.php`, até 8 minutos por execução): as mesmas páginas que para os prémios, mas primeiro as das plataformas (na Stop and Go a página `/prices`) e só depois os regulamentos (até 5 documentos por prova); fica o primeiro documento com valor. Provas nunca vistas primeiro; sem valor, voltam a ser vistas ao fim de 3 dias; com valor, ao fim de 14 (os preços sobem por fases). Um valor lido não é apagado por uma leitura sem resultado. Para pôr tudo em dia: `php scripts/procurar_inscricoes.php` (até 60 minutos, `--minutos=N`).
+
+### Perto de mim
+
+Botão pequeno "Perto de mim" no início da frase do total (página inicial; só aparece com JavaScript e se o browser souber dar a localização). Ao carregar, `assets/app.js` pede a posição ao browser (`navigator.geolocation`) e abre `/?perto=LAT,LON`, com a posição **arredondada a 2 casas decimais (~1 km)**; não é guardada em lado nenhum. `index.php` mostra então as provas **de hoje até daqui a 2 dias** (3 dias, contando com hoje — `DIAS_PERTO`) a menos de **50 km** (`RAIO_PERTO_KM`, distância em linha reta pela fórmula de Haversine, calculada no SQL em `Database::filtrosCorridas()`), com "a N km" em cada cartão. Os outros filtros continuam a aplicar-se (o do mês é retirado ao ativar). Com o filtro ativo o botão fica azul ("Perto de mim ✕") e volta à lista normal.
+
+**Coordenadas das provas** (`corridas.latitude` / `longitude`, `sql/migracao_013_coordenadas.sql`): `Geocodificador` pergunta ao **Nominatim** (OpenStreetMap, gratuito; regras: 1 pedido por segundo e um User-Agent que identifique a aplicação) pelo local da prova com o distrito (`DistritoHelper`, incluindo Açores e Madeira) e ", Portugal" (só resultados em Portugal); se não encontrar, tenta a última parte do local, que costuma ser a localidade ("Parque Urbano da Cidade, Ponta Delgada" → "Ponta Delgada"), e depois a primeira ("Rio Tinto / Gondomar" → "Rio Tinto"). Locais noutro país ("Sevilha, Espanha", "Frankfurt, Alemanha") ficam sem coordenadas — senão a pesquisa dava uma localidade portuguesa qualquer. Reaproveita as coordenadas de outra prova com o mesmo local. No fim de `run_scraper.php` localiza até 150 provas futuras; as não encontradas voltam a ser tentadas ao fim de 30 dias. Para localizar todas de uma vez: `php scripts/localizar_provas.php` (~1 s por localidade nova). Provas sem coordenadas não aparecem no "Perto de mim".
 
 ### Contas e "o meu calendário"
 

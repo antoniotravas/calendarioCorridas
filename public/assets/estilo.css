@@ -149,6 +149,29 @@ main {
 }
 .resumo a { margin-left: 10px; color: var(--sinal); font-weight: 600; text-decoration: none; }
 .resumo a:hover { text-decoration: underline; }
+/* "Perto de mim": botão pequeno no início da frase do total */
+.resumo .perto-de-mim {
+    display: inline-flex;
+    align-items: center;
+    margin: 0 8px 0 0;
+    padding: 2px 9px;
+    border: 1px solid var(--sinal);
+    border-radius: 999px;
+    background: var(--branco);
+    color: var(--sinal);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.5;
+    cursor: pointer;
+    vertical-align: 1px;
+}
+.resumo .perto-de-mim[hidden] { display: none; }
+.resumo .perto-de-mim:hover { background: var(--sinal-suave); text-decoration: none; }
+.resumo .perto-de-mim.ativo { background: var(--sinal); color: var(--branco); }
+.resumo .perto-de-mim.erro { border-color: var(--erro); color: var(--erro); }
+.resumo .perto-de-mim:disabled { cursor: progress; }
+.prova-distancia { margin-left: 6px; color: var(--sinal); font-weight: 600; white-space: nowrap; }
 
 /* Meses: o título fica fixo ao descer (até o mês seguinte o empurrar) */
 section.mes { margin-top: 14px; }
@@ -312,19 +335,6 @@ li.prova > a.favorito-btn { position: relative; z-index: 1; }
 a.premios { cursor: pointer; }
 .premios-sim { background: var(--premios); color: var(--branco); }
 .premios-sim:hover { background: var(--premios-escuro); }
-.premios-nao {
-    position: relative;
-    border: 1px solid var(--linha-forte);
-    color: var(--cinza);
-    background: var(--branco);
-}
-.premios-nao::after {
-    content: "";
-    position: absolute;
-    left: 2px; right: 2px; top: 50%;
-    border-top: 1.5px solid var(--cinza);
-    transform: rotate(-45deg);
-}
 
 .prova-local {
     display: flex;
@@ -335,6 +345,20 @@ a.premios { cursor: pointer; }
     font-size: 0.92rem;
 }
 .prova-local svg { flex: none; fill: none; stroke: currentColor; stroke-width: 2; }
+.prova-inscricao {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+    margin: 0 0 8px;
+    color: var(--cinza);
+    font-size: 0.92rem;
+}
+.prova-inscricao svg { flex: none; fill: none; stroke: currentColor; stroke-width: 2; }
+.prova-inscricao strong { color: var(--asfalto); }
+.prova-inscricao a { margin-left: 4px; color: var(--sinal); font-size: 0.9rem; font-weight: 600; text-decoration: none; }
+.prova-inscricao a:hover { text-decoration: underline; }
+.prova-inscricao .nota-inline { font-size: 0.85rem; }
 
 /* Distâncias: lembram os marcos quilométricos */
 ul.etiquetas {

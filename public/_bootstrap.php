@@ -11,6 +11,8 @@ require __DIR__ . '/../scripts/lib/DistritoHelper.php';
 require __DIR__ . '/../scripts/lib/HttpClient.php';
 require __DIR__ . '/../scripts/lib/Database.php';
 require __DIR__ . '/../scripts/lib/PremiosHelper.php';
+require __DIR__ . '/../scripts/lib/InscricaoHelper.php';
+require __DIR__ . '/../scripts/lib/Geocodificador.php';
 require __DIR__ . '/lib/Auth.php';
 require __DIR__ . '/lib/Organizador.php';
 

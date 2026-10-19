@@ -157,6 +157,14 @@ $iconeExterno = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="tr
                     <a href="<?= htmlspecialchars($urlMapa) ?>" target="_blank" rel="noopener">Ver no mapa</a>
                 </p>
             <?php endif; ?>
+            <?php if (isset($c['inscricao_min'], $c['inscricao_max'])): /* Lido na página da prova ou no regulamento (InscricaoHelper). */ ?>
+                <p class="prova-inscricao" title="<?= htmlspecialchars((string) ($c['inscricao_excerto'] ?? '')) ?>">
+                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4z"/><path d="M14 7v10" stroke-dasharray="2 2"/></svg>
+                    Inscrição <strong><?= htmlspecialchars(InscricaoHelper::formatar((float) $c['inscricao_min'], (float) $c['inscricao_max'])) ?></strong>
+                    <?php if ((float) $c['inscricao_max'] > (float) $c['inscricao_min']): ?><span class="nota-inline">conforme a data e a distância</span><?php endif; ?>
+                    <?php if (!empty($c['inscricao_url'])): ?><a href="<?= htmlspecialchars($c['inscricao_url']) ?>" target="_blank" rel="noopener">Ver preços</a><?php endif; ?>
+                </p>
+            <?php endif; ?>
 
             <?php /* O mais importante: a ligação ao organizador. */ ?>
             <div class="prova-organizacao">

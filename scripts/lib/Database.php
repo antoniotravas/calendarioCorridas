@@ -577,6 +577,123 @@ final class Database
     }
 
     /**
+     * Provas futuras onde procurar o valor da inscrição (ProcuraInscricoes):
+     * primeiro as nunca vistas; as sem valor voltam a ser vistas ao fim de 3
+     * dias e as com valor ao fim de 14 (as inscrições sobem por fases). Mesmas
+     * páginas que para os prémios (Database::provasParaProcurarPremios).
+     *
+     * @param string[] $prefixosPaginaProva
+     * @return array<int,string[]> id da prova => páginas
+     */
+    public function provasParaProcurarInscricoes(int $limite, array $prefixosPaginaProva = []): array
+    {
+        $stmt = $this->pdo->prepare(sprintf(<<<'SQL'
+            SELECT c.id, c.url_evento, cf.url_evento AS url_evento_fonte, cf.url_fonte
+            FROM (
+                SELECT id, url_evento, data_prova, inscricao_procurado_em FROM corridas
+                WHERE data_prova >= CURDATE()
+                  AND (inscricao_procurado_em IS NULL
+                       OR (inscricao_min IS NULL AND inscricao_procurado_em < NOW() - INTERVAL 3 DAY)
+                       OR inscricao_procurado_em < NOW() - INTERVAL 14 DAY)
+                ORDER BY (inscricao_procurado_em IS NOT NULL), inscricao_procurado_em, data_prova, id
+                LIMIT %d
+            ) c
+            LEFT JOIN corridas_fontes cf ON cf.corrida_id = c.id
+            ORDER BY (c.inscricao_procurado_em IS NOT NULL), c.inscricao_procurado_em, c.data_prova, c.id, cf.id
+            SQL, $limite));
+        $stmt->execute();
+
+        $paginas = [];
+        foreach ($stmt->fetchAll() as $linha) {
+            $id = (int) $linha['id'];
+            $paginas[$id] ??= [];
+            $candidatas = [$linha['url_evento'], $linha['url_evento_fonte']];
+            foreach ($prefixosPaginaProva as $prefixo) {
+                if (is_string($linha['url_fonte']) && str_starts_with($linha['url_fonte'], $prefixo)) {
+                    $candidatas[] = $linha['url_fonte'];
+                }
+            }
+            foreach ($candidatas as $url) {
+                if (is_string($url) && preg_match('#^https?://#i', $url) && !in_array($url, $paginas[$id], true)) {
+                    $paginas[$id][] = $url;
+                }
+            }
+        }
+
+        return $paginas;
+    }
+
+    /**
+     * Provas futuras com local mas sem coordenadas (Geocodificador), as mais
+     * próximas primeiro; as não encontradas voltam a ser tentadas ao fim de 30 dias.
+     *
+     * @return array<int,array{id: int, local: string, regiao: ?string}>
+     */
+    public function provasSemCoordenadas(int $limite): array
+    {
+        $stmt = $this->pdo->prepare(sprintf(
+            "SELECT id, local, regiao FROM corridas
+             WHERE data_prova >= CURDATE() AND local IS NOT NULL AND local <> '' AND latitude IS NULL
+               AND (coordenadas_procuradas_em IS NULL OR coordenadas_procuradas_em < NOW() - INTERVAL 30 DAY)
+             ORDER BY (coordenadas_procuradas_em IS NOT NULL), data_prova, id
+             LIMIT %d",
+            $limite
+        ));
+        $stmt->execute();
+
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Coordenadas já conhecidas para o mesmo local (outra prova), para não
+     * voltar a perguntar ao Nominatim.
+     *
+     * @return array{0: float, 1: float}|null
+     */
+    public function coordenadasDoLocal(string $local): ?array
+    {
+        $stmt = $this->pdo->prepare('SELECT latitude, longitude FROM corridas WHERE local = :local AND latitude IS NOT NULL LIMIT 1');
+        $stmt->execute(['local' => $local]);
+        $linha = $stmt->fetch();
+
+        return $linha ? [(float) $linha['latitude'], (float) $linha['longitude']] : null;
+    }
+
+    /** @param array{0: float, 1: float}|null $coordenadas null = não encontradas */
+    public function gravarCoordenadas(int $corridaId, ?array $coordenadas): void
+    {
+        $this->pdo->prepare(
+            'UPDATE corridas SET latitude = :lat, longitude = :lon, coordenadas_procuradas_em = NOW() WHERE id = :id'
+        )->execute(['lat' => $coordenadas[0] ?? null, 'lon' => $coordenadas[1] ?? null, 'id' => $corridaId]);
+    }
+
+    /**
+     * Grava o valor da inscrição (InscricaoHelper::extrair). Sem resultado
+     * ($inscricao null) fica só marcada como vista, sem apagar um valor lido
+     * antes (uma página que deixou de mostrar os preços não o desfaz).
+     *
+     * @param array{min: float, max: float, excerto: string}|null $inscricao
+     */
+    public function gravarInscricao(int $corridaId, ?array $inscricao, ?string $url): void
+    {
+        if ($inscricao === null) {
+            $this->pdo->prepare('UPDATE corridas SET inscricao_procurado_em = NOW() WHERE id = :id')
+                ->execute(['id' => $corridaId]);
+            return;
+        }
+        $this->pdo->prepare(
+            'UPDATE corridas SET inscricao_min = :min, inscricao_max = :max, inscricao_excerto = :excerto,'
+            . ' inscricao_url = :url, inscricao_procurado_em = NOW() WHERE id = :id'
+        )->execute([
+            'min' => $inscricao['min'],
+            'max' => $inscricao['max'],
+            'excerto' => mb_substr($inscricao['excerto'], 0, 300),
+            'url' => $url !== null ? mb_substr($url, 0, 500) : null,
+            'id' => $corridaId,
+        ]);
+    }
+
+    /**
      * Grava o resultado da procura de prémios monetários (true/false, ou null
      * se não deu para saber), com o excerto e o endereço onde foi lido e, se
      * há prémios, a tabela dos valores (PremiosHelper::tabelas; [] se não deu
@@ -740,9 +857,11 @@ final class Database
         ?int $limite = null,
         int $deslocamento = 0,
         ?string $categoria = null,
-        ?bool $premios = null
+        ?bool $premios = null,
+        ?array $inscricaoFaixa = null,
+        ?array $perto = null
     ): array {
-        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria, $premios);
+        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria, $premios, $inscricaoFaixa, $perto);
 
         $camposFavorito = '';
         $juncoes = '';
@@ -817,9 +936,11 @@ final class Database
         ?string $procura = null,
         ?array $distanciaFaixa = null,
         ?string $categoria = null,
-        ?bool $premios = null
+        ?bool $premios = null,
+        ?array $inscricaoFaixa = null,
+        ?array $perto = null
     ): int {
-        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria, $premios);
+        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria, $premios, $inscricaoFaixa, $perto);
 
         $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM corridas c WHERE {$where}");
         $stmt->execute($params);
@@ -829,6 +950,8 @@ final class Database
 
     /**
      * @param array{0:float,1:float}|null $distanciaFaixa
+     * @param array{0:float,1:float}|null $inscricaoFaixa valor mínimo da inscrição (InscricaoHelper::FAIXAS)
+     * @param array{lat: float, lon: float, raio: float, dias: int}|null $perto "Perto de mim"
      * @return array{0:string,1:array<string,mixed>} condição WHERE e parâmetros
      */
     private function filtrosCorridas(
@@ -837,7 +960,9 @@ final class Database
         ?string $procura,
         ?array $distanciaFaixa,
         ?string $categoria,
-        ?bool $premios = null
+        ?bool $premios = null,
+        ?array $inscricaoFaixa = null,
+        ?array $perto = null
     ): array {
         $condicoes = ['(c.data_prova >= CURDATE() OR c.data_prova IS NULL)'];
         $params = [];
@@ -874,6 +999,26 @@ final class Database
         if ($premios !== null) {
             $condicoes[] = 'c.premios_monetarios = :premios';
             $params['premios'] = $premios ? 1 : 0;
+        }
+
+        // Valor da inscrição: conta o mais baixo (o de quem se inscreve cedo).
+        if ($inscricaoFaixa !== null) {
+            $condicoes[] = 'c.inscricao_min BETWEEN :insc_min AND :insc_max';
+            $params['insc_min'] = $inscricaoFaixa[0];
+            $params['insc_max'] = $inscricaoFaixa[1];
+        }
+
+        // "Perto de mim": provas dos próximos dias a menos de X km (Haversine).
+        if ($perto !== null) {
+            $condicoes[] = 'c.data_prova BETWEEN CURDATE() AND CURDATE() + INTERVAL :perto_dias DAY';
+            $condicoes[] = 'c.latitude IS NOT NULL';
+            $condicoes[] = '6371 * 2 * ASIN(LEAST(1, SQRT(POW(SIN(RADIANS(c.latitude - :perto_lat) / 2), 2)'
+                . ' + COS(RADIANS(:perto_lat2)) * COS(RADIANS(c.latitude)) * POW(SIN(RADIANS(c.longitude - :perto_lon) / 2), 2)))) <= :perto_raio';
+            $params['perto_dias'] = $perto['dias'] - 1;
+            $params['perto_lat'] = $perto['lat'];
+            $params['perto_lat2'] = $perto['lat'];
+            $params['perto_lon'] = $perto['lon'];
+            $params['perto_raio'] = $perto['raio'];
         }
 
         return [implode(' AND ', $condicoes), $params];

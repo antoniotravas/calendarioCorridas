@@ -11,6 +11,10 @@ require __DIR__ . '/lib/DetalhesProvaHelper.php';
 require __DIR__ . '/lib/PdfTextoHelper.php';
 require __DIR__ . '/lib/PremiosHelper.php';
 require __DIR__ . '/lib/ProcuraPremios.php';
+require __DIR__ . '/lib/InscricaoHelper.php';
+require __DIR__ . '/lib/ProcuraInscricoes.php';
+require __DIR__ . '/lib/DistritoHelper.php';
+require __DIR__ . '/lib/Geocodificador.php';
 require __DIR__ . '/lib/HttpClient.php';
 require __DIR__ . '/lib/Database.php';
 require __DIR__ . '/scrapers/ScraperInterface.php';
@@ -308,6 +312,38 @@ printf(
     $premios['por_saber'],
     $premios['faltam'] > 0 ? "; faltam {$premios['faltam']} (continua na próxima execução)" : ''
 );
+
+// Valor das inscrições: mesmas páginas, mas primeiro as das plataformas (os
+// preços estão em tabelas) e só depois os regulamentos — ProcuraInscricoes.
+// Até 8 minutos por execução; para pôr tudo em dia: php scripts/procurar_inscricoes.php
+$procuraInscricoes = new ProcuraInscricoes(
+    $db,
+    new HttpClient(25, false, 2000),
+    [All4RunningScraper::PREFIXO_PAGINA_PROVA],
+    ['all4running.pt' => $httpPaginas]
+);
+foreach (array_keys($sitesRecusados) as $site) {
+    $procuraInscricoes->marcarSiteRecusado($site);
+}
+$inscricoes = $procuraInscricoes->executar(8);
+printf(
+    "\nInscrições: procuradas em %d provas — %d com valor, %d gratuitas, %d por saber%s.\n",
+    $inscricoes['vistas'],
+    $inscricoes['com_valor'],
+    $inscricoes['gratuitas'],
+    $inscricoes['por_saber'],
+    $inscricoes['faltam'] > 0 ? "; faltam {$inscricoes['faltam']} (continua na próxima execução)" : ''
+);
+
+// Coordenadas das localidades (botão "Perto de mim"): Nominatim/OpenStreetMap,
+// um pedido por segundo; reaproveita as de outra prova com o mesmo local.
+// Até 150 provas por execução (as mais próximas primeiro).
+// Para localizar todas de uma vez: php scripts/localizar_provas.php
+$coordenadas = (new Geocodificador())->localizarProvas($db, 150);
+if ($coordenadas['recusado'] !== null) {
+    $avisos[] = "Coordenadas: o OpenStreetMap recusou pedidos ({$coordenadas['recusado']}); continua na próxima execução.";
+}
+printf("\nCoordenadas: %d provas vistas, %d localizadas.\n", $coordenadas['vistas'], $coordenadas['encontradas']);
 
 printf(
     "\nTotal: %d novas, %d atualizadas, %d juntas a provas de outras fontes, %d repetidas antigas consolidadas, "
