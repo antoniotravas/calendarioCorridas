@@ -6,9 +6,9 @@ declare(strict_types=1);
  * Página individual de uma prova (/prova.php?id=N), aberta ao clicar num
  * cartão do calendário: no topo, tipo e distâncias, título, data e hora,
  * local (com distrito e região) e organização (com o link para o
- * organizador, em destaque); depois o programa com os escalões, os prémios
- * monetários numa tabela com o total (só para quem tem acesso) e onde foi
- * encontrada (só para administradores).
+ * organizador, em destaque, e o link direto para as inscrições quando se
+ * conhece); depois o programa com os escalões e os prémios monetários numa
+ * tabela com o total (só para quem tem acesso).
  */
 
 require __DIR__ . '/_bootstrap.php';
@@ -62,8 +62,10 @@ $zona = match (true) {
 $subtipo = !empty($c['tipo']) && mb_strtolower((string) $c['tipo']) !== mb_strtolower($nomesCategoria[$categoria] ?? '') ? (string) $c['tipo'] : null;
 
 $organizador = Organizador::de($c);
-// Link da prova (inscrições/página oficial), quando é diferente do site do organizador.
-$urlPaginaProva = !empty($c['url_evento']) && $c['url_evento'] !== ($organizador['url'] ?? null) ? $c['url_evento'] : null;
+// Link direto para as inscrições, só quando se conhece (senão não aparece).
+$urlInscricao = Organizador::urlInscricao($c);
+// O link do organizador já é a página das inscrições: um só botão.
+$organizadorEInscricao = $urlInscricao !== null && $urlInscricao === ($organizador['url'] ?? null);
 
 $programa = json_decode((string) ($c['programa'] ?? ''), true) ?: [];
 $programaTemEscaloes = array_filter(array_column($programa, 'escaloes')) !== [];
@@ -175,6 +177,7 @@ $iconeExterno = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="tr
                     <?php if ($organizador !== null && $organizador['url'] !== null): ?>
                         <a class="botao-organizador" href="<?= htmlspecialchars($organizador['url']) ?>" target="_blank" rel="noopener">
                             <?= match (true) {
+                                $organizadorEInscricao => 'Site da prova e inscrições',
                                 $organizador['e_site'] => 'Site do organizador',
                                 $organizador['e_regulamento'] => 'Regulamento da prova',
                                 default => 'Site da prova',
@@ -182,9 +185,9 @@ $iconeExterno = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="tr
                             <?= $iconeExterno ?>
                         </a>
                     <?php endif; ?>
-                    <?php if ($urlPaginaProva !== null): ?>
-                        <a class="botao-secundario" href="<?= htmlspecialchars($urlPaginaProva) ?>" target="_blank" rel="noopener">
-                            <?= Organizador::eDocumento($urlPaginaProva) ? 'Regulamento' : 'Inscrições / página da prova' ?>
+                    <?php if ($urlInscricao !== null && !$organizadorEInscricao): ?>
+                        <a class="botao-secundario" href="<?= htmlspecialchars($urlInscricao) ?>" target="_blank" rel="noopener">
+                            Inscrição
                             <?= $iconeExterno ?>
                         </a>
                     <?php endif; ?>
@@ -309,12 +312,6 @@ $iconeExterno = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="tr
         </section>
     <?php endif; ?>
 
-    <?php if ($auth->eAdmin()): // as fontes onde foi encontrada só para administradores ?>
-    <p class="prova-encontrada">
-        <?= count($c['fontes']) === 1 ? 'Encontrada em' : 'Encontrada em ' . count($c['fontes']) . ' sites:' ?>
-        <?php foreach ($c['fontes'] as $i => $f): ?><?= $i > 0 ? ', ' : ' ' ?><?php if ($f['url_fonte']): ?><a href="<?= htmlspecialchars($f['url_fonte']) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($f['fonte']) ?></a><?php else: ?><?= htmlspecialchars($f['fonte']) ?><?php endif; ?><?php endforeach; ?>
-    </p>
-    <?php endif; ?>
 </main>
 
 <footer>

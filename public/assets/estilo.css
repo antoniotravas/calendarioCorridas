@@ -880,9 +880,6 @@ li.utilizador.desativado .utilizador-dados { opacity: 0.7; }
 .premios-total { margin: 10px 0 6px !important; font-size: 1.05rem; }
 .premios-total strong { font-family: var(--letra-estreita); font-size: 1.35rem; color: var(--premios); }
 .tabela-valor { font-family: var(--letra-estreita); font-weight: 700; font-size: 1.02rem; color: var(--premios); text-align: right; }
-.prova-encontrada { margin: 14px 4px 0; color: var(--cinza); font-size: 0.85rem; }
-.prova-encontrada a { color: var(--cinza); }
-.prova-encontrada a:hover { color: var(--sinal); }
 
 @media (max-width: 640px) {
     li.utilizador { flex-direction: column; align-items: stretch; gap: 10px; }

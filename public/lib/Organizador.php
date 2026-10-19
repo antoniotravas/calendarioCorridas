@@ -34,6 +34,47 @@ final class Organizador
             : null;
     }
 
+    /**
+     * Link direto para as inscrições, quando algum dos endereços conhecidos da
+     * prova (link da prova, página dos preços, páginas das fontes) é a página
+     * dela numa plataforma de inscrições, ou tem "inscrições" no endereço.
+     * Sem nenhum, null: não se mostra link.
+     *
+     * @param array<string,mixed> $c linha de corridas (com 'fontes', se houver)
+     */
+    public static function urlInscricao(array $c): ?string
+    {
+        $candidatos = [$c['url_evento'] ?? null, $c['inscricao_url'] ?? null];
+        foreach ($c['fontes'] ?? [] as $fonte) {
+            $candidatos[] = $fonte['url_fonte'] ?? null;
+        }
+
+        foreach ($candidatos as $url) {
+            if (!is_string($url) || $url === '' || self::eDocumento($url)) {
+                continue;
+            }
+            $host = (string) preg_replace('/^www\./', '', (string) parse_url($url, PHP_URL_HOST));
+            $caminho = trim((string) parse_url($url, PHP_URL_PATH), '/');
+            $plataforma = array_filter(self::PLATAFORMAS_INSCRICAO, fn (string $p) => $host === $p || str_ends_with($host, '.' . $p)) !== [];
+            $lista = $caminho === '' || preg_match('#^(?:[a-z]{2}|(?:[a-z]{2}/)?(?:eventos?|events))$#i', $caminho);
+            // Na plataforma, só a página de uma prova (não a página inicial nem listas).
+            if (($plataforma && (!$lista || str_ends_with($host, '.statusmarathon.run')) && !str_starts_with($caminho, 'uploads'))
+                || preg_match('#/(inscri[cç][oõ]es|inscricao|inscrever|registo|registration|register)\b#i', $url)) {
+                return preg_replace('#^(https?://(?:www\.)?stopandgo\.net(?:/[a-z]{2})?/events/[^/]+)/prices/?$#i', '$1', $url);
+            }
+        }
+
+        return null;
+    }
+
+    /** Plataformas de inscrições e organizadores que inscrevem na página de cada prova. */
+    private const PLATAFORMAS_INSCRICAO = [
+        'stopandgo.net', 'lap2go.com', 'acorrer.pt', 'recordepessoal.pt', 'sinctime.com', 'queroir.pt',
+        'waitastart.com', 'eventsport.pt', 'statusmarathon.run', 'crono.aaalgarve.org', 'portimer.pt',
+        'sportmaniacs.com', 'adnrace.pt', 'bttmanager.com', 'xistarca.pt', 'trilhoperdido.com',
+        'proevents.pt', 'runporto.com',
+    ];
+
     /** PDF ou encurtador (a FPA usa o regulamento como link da prova). */
     public static function eDocumento(string $url): bool
     {
