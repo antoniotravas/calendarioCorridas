@@ -16,13 +16,18 @@ declare(strict_types=1);
  * Cada cartão tem data (<time datetime="17-10-2026">), nome, local e cartaz,
  * mas o botão "Entrar" é outro __doPostBack que redireciona para a página da
  * prova (/Competicoes/{id}); faz-se esse pedido por prova e lê-se o id no
- * formulário da página de destino (action="./{id}"). Não há tipo de prova:
- * decide-se pelo nome (NomeProvaHelper::pareceCorrida / parecePista).
+ * formulário da página de destino (action="./{id}"). Entram todas as
+ * competições menos as ações de formação (eCompeticao); o tipo (estrada,
+ * trail, pista...) decide-se depois pelo nome.
+ *
+ * Também se leem os circuitos e troféus (/circuitos), que têm provas que não
+ * aparecem na lista "Por Realizar" (provasDosCircuitos).
  */
 final class AALisboaScraper implements ScraperInterface
 {
     private const SITE = 'https://competicoes.aalisboa.com.pt';
     private const LISTA_URL = self::SITE . '/competicoes';
+    private const CIRCUITOS_URL = self::SITE . '/circuitos';
     private const BOTAO_POR_REALIZAR = 'ctl00$MainContent$OpcoesBotoes$BotaoBig_2$LinkButton';
 
     /** Precisa de um HttpClient com cookies (new HttpClient(guardarCookies: true)). */
@@ -53,7 +58,7 @@ final class AALisboaScraper implements ScraperInterface
 
         foreach ($cartoes as $cartao) {
             $nome = trim((string) preg_replace('/\s+/u', ' ', $xpath->query('.//h2[contains(@class,"title")]', $cartao)->item(0)?->textContent ?? ''));
-            if ($nome === '' || !(NomeProvaHelper::pareceCorrida($nome) || NomeProvaHelper::parecePista($nome))) {
+            if (!$this->eCompeticao($nome)) {
                 continue;
             }
 
@@ -84,6 +89,106 @@ final class AALisboaScraper implements ScraperInterface
                 fonte: $this->nome(),
                 urlFonte: self::LISTA_URL,
                 imagemUrl: str_starts_with($imagem, '/') ? self::SITE . $imagem : null,
+            );
+        }
+
+        $jaVistas = [];
+        foreach ($corridas as $corrida) {
+            $jaVistas[(string) $corrida->urlEvento] = true;
+        }
+        foreach ($this->provasDosCircuitos($hoje) as $corrida) {
+            if (!isset($jaVistas[(string) $corrida->urlEvento])) {
+                $jaVistas[(string) $corrida->urlEvento] = true;
+                $corridas[] = $corrida;
+            }
+        }
+
+        return $corridas;
+    }
+
+    /**
+     * Uma plataforma de atletismo: todas as competições contam (estrada, trail,
+     * corta-mato, pista, estafetas, "Linhas De Torres 100"...), menos as ações
+     * de formação e afins que aparecem na mesma lista.
+     */
+    private function eCompeticao(string $nome): bool
+    {
+        return $nome !== ''
+            && !preg_match('/\bcurso\b|reciclagem|forma[cç][aã]o|ju[ií]z(es)?\b|reuni[aã]o|assembleia|\bgala\b/iu', $nome);
+    }
+
+    /**
+     * Provas dos circuitos e troféus (/circuitos): algumas só aparecem aqui
+     * (ex. "4ª ETCA Légua da Amadora", sem inscrições abertas na plataforma).
+     * Cada circuito abre com um __doPostBack ("Ver Detalhe"); cada prova tem
+     * o id da competição (hdnId → /Competicoes/{id}), de onde se lê o local.
+     *
+     * @return Corrida[]
+     */
+    private function provasDosCircuitos(string $hoje): array
+    {
+        try {
+            $lista = $this->criarXPath($this->http->get(self::CIRCUITOS_URL));
+        } catch (RuntimeException) {
+            return []; // os circuitos são um extra: a lista principal já foi lida
+        }
+        $botoes = [];
+        foreach ($lista->query('//a[contains(@id,"link_circuito")]') as $a) {
+            if (preg_match("/__doPostBack\\('([^']+)'/", $a->getAttribute('href'), $m)) {
+                $botoes[] = $m[1];
+            }
+        }
+
+        $porId = [];
+        foreach ($botoes as $botao) {
+            try {
+                // A página dos circuitos é pedida de novo antes de cada botão (campos escondidos frescos).
+                $pagina = $this->criarXPath($this->http->get(self::CIRCUITOS_URL));
+                $xpath = $this->criarXPath($this->http->post(self::CIRCUITOS_URL, $this->camposPostBack($pagina, $botao)));
+            } catch (RuntimeException) {
+                continue;
+            }
+            foreach ($xpath->query('//input[contains(@name,"CardEventosCircuitos$hdnId")]') as $input) {
+                $id = (int) $input->getAttribute('value');
+                $cartao = $xpath->query('following-sibling::div[1]', $input)->item(0);
+                if ($id <= 0 || $cartao === null || isset($porId[$id])) {
+                    continue;
+                }
+                $nome = trim((string) preg_replace('/\s+/u', ' ', $xpath->query('.//h5[contains(@class,"card-title")]', $cartao)->item(0)?->textContent ?? ''));
+                $data = $xpath->query('.//span[contains(@id,"_data_")]', $cartao)->item(0)?->textContent ?? '';
+                $dataProva = preg_match('/(\d{1,2})\s+de\s+(\p{L}+)\s+de\s+(\d{4})/u', $data, $d)
+                    ? DateHelper::toIso((int) $d[1], $d[2], (int) $d[3])
+                    : null;
+                if (!$this->eCompeticao($nome) || $dataProva === null || $dataProva < $hoje) {
+                    continue;
+                }
+                $imagem = $xpath->query('.//img', $cartao)->item(0)?->getAttribute('src') ?? '';
+                $porId[$id] = [$nome, $dataProva, str_starts_with($imagem, '/') ? self::SITE . $imagem : null];
+            }
+        }
+
+        $corridas = [];
+        foreach ($porId as $id => [$nome, $dataProva, $imagem]) {
+            $url = self::SITE . '/Competicoes/' . $id;
+            $local = null;
+            try {
+                $local = $this->criarXPath($this->http->get($url))
+                    ->query('//*[@id="MainContent_EventoDetalhe_span_localidade"]')->item(0)?->textContent;
+            } catch (RuntimeException) {
+            }
+            $local = trim((string) $local);
+
+            $corridas[] = new Corrida(
+                nome: $nome,
+                dataProva: $dataProva,
+                local: $local !== '' ? $local : null,
+                distancias: null,
+                tipo: null,
+                regiao: 'Lisboa',
+                urlEvento: $url,
+                fonte: $this->nome(),
+                urlFonte: self::CIRCUITOS_URL,
+                imagemUrl: $imagem,
             );
         }
 

@@ -34,6 +34,8 @@ final class NomeProvaHelper
         'grande', 'premio', 'atletismo', 'trail', 'km', 'run', 'running', 'cidade', 'vila',
         'internacional', 'nacional', 'regional', 'distrital', 'prova', 'provas', 'estrada',
         'caminhada', 'marcha', 'solidaria', 'solidario', 'noturna', 'night', 'race', 'popular',
+        // "Campeonato Regional Corta-Mato Longo" (Lourinhã) não é o "1º Corta-mato da AASM" (Açores).
+        'corta', 'mato', 'cross',
         // Pista: "Torneio de Abertura", "Campeonato Regional de Pista Coberta"...
         'torneio', 'meeting', 'campeonato', 'campeonatos', 'pista', 'coberta', 'curta', 'ar', 'livre',
         'abertura', 'encerramento', 'jovem', 'jovens', 'absolutos', 'masters', 'veteranos', 'sub',
@@ -123,7 +125,7 @@ final class NomeProvaHelper
     private const PADRAO_TRAIL = '/trail|trilho|\bultra\b|skyrun|km vertical|montanha/';
 
     /** Corta-mato (cross country). */
-    private const PADRAO_CORTA_MATO = '/corta.?mato|\bcross\b|\bxc\b/';
+    private const PADRAO_CORTA_MATO = '/corta\s*.?\s*mato|\bcross\b|\bxc\b/';
 
     /**
      * Para fontes que não indicam o tipo de prova: diz se o nome sugere uma
@@ -165,7 +167,7 @@ final class NomeProvaHelper
 
         // "Caminhada X" sozinha não é corrida; "Corrida e Caminhada X" ou "Trail e Caminhada X" é.
         return str_contains($texto, 'caminhada')
-            && !preg_match('/corrida|\brun\b|maratona|silvestre|trail|trilho|corta.?mato/', $texto);
+            && !preg_match('/corrida|\brun\b|maratona|silvestre|trail|trilho|corta\s*.?\s*mato/', $texto);
     }
 
     /**
