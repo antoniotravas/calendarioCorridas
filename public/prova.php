@@ -8,7 +8,7 @@ declare(strict_types=1);
  * local (com distrito e região) e organização (com o link para o
  * organizador, em destaque); depois o programa com os escalões, os prémios
  * monetários numa tabela com o total (só para quem tem acesso) e onde foi
- * encontrada.
+ * encontrada (só para administradores).
  */
 
 require __DIR__ . '/_bootstrap.php';
@@ -301,10 +301,12 @@ $iconeExterno = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="tr
         </section>
     <?php endif; ?>
 
+    <?php if ($auth->eAdmin()): // as fontes onde foi encontrada só para administradores ?>
     <p class="prova-encontrada">
         <?= count($c['fontes']) === 1 ? 'Encontrada em' : 'Encontrada em ' . count($c['fontes']) . ' sites:' ?>
         <?php foreach ($c['fontes'] as $i => $f): ?><?= $i > 0 ? ', ' : ' ' ?><?php if ($f['url_fonte']): ?><a href="<?= htmlspecialchars($f['url_fonte']) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($f['fonte']) ?></a><?php else: ?><?= htmlspecialchars($f['fonte']) ?><?php endif; ?><?php endforeach; ?>
     </p>
+    <?php endif; ?>
 </main>
 
 <footer>
