@@ -24,7 +24,21 @@ final class Auth
             $this->utilizador = $this->db->encontrarUtilizadorPorId((int) $_SESSION['utilizador_id']);
         }
 
+        // Conta desativada (ou apagada) com a sessão ainda aberta: sai da conta.
+        // (Só se tira o utilizador da sessão: a página pode já ter começado a sair.)
+        if ($this->utilizador === null || !self::contaAtiva($this->utilizador)) {
+            unset($_SESSION['utilizador_id']);
+            $this->utilizador = false;
+            return null;
+        }
+
         return $this->utilizador;
+    }
+
+    /** Desativada pelo administrador na página "Gestão" (utilizadores.ativo = 0). */
+    public static function contaAtiva(array $utilizador): bool
+    {
+        return (int) ($utilizador['ativo'] ?? 1) === 1;
     }
 
     /** Administrador: gere os utilizadores (/gestao-utilizadores.php). */
@@ -56,7 +70,8 @@ final class Auth
 
     public function autenticado(): bool
     {
-        return isset($_SESSION['utilizador_id']);
+        // Pela BD (e não só pela sessão), para que uma conta desativada saia logo.
+        return $this->utilizadorAtual() !== null;
     }
 
     public function iniciarSessao(int $utilizadorId): void

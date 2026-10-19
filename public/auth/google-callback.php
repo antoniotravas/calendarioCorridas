@@ -62,5 +62,10 @@ $utilizador = $db->obterOuCriarUtilizadorGoogle(
     (string) ($perfil['name'] ?? $perfil['email'])
 );
 
+if (!Auth::contaAtiva($utilizador)) {
+    header('Location: /login.php?desativada=1');
+    exit;
+}
+
 $auth->iniciarSessao((int) $utilizador['id']);
 header('Location: ' . $next);

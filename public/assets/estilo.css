@@ -661,6 +661,23 @@ li.utilizador.com-acesso { border-left: 4px solid var(--premios); }
 .acesso-botao.dar:hover { background: var(--premios-escuro); }
 .acesso-botao.retirar { border: 1px solid var(--linha-forte); background: var(--branco); color: var(--cinza); }
 .acesso-botao.retirar:hover { border-color: var(--erro); color: var(--erro); }
+.acesso-botao.secundario { border: 1px solid var(--sinal); background: var(--branco); color: var(--sinal); }
+.acesso-botao.secundario:hover { background: var(--sinal-suave); }
+.utilizador-acoes { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; flex: none; max-width: 60%; }
+.etiqueta-premios,
+.etiqueta-desativado {
+    margin-left: 6px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-family: var(--letra-estreita);
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+.etiqueta-premios { background: var(--trail-suave); color: var(--premios); }
+.etiqueta-desativado { background: var(--erro-soft); color: var(--erro); }
+.etiqueta-eu { margin-left: 4px; color: var(--cinza); font-size: 0.85rem; font-weight: 400; }
+li.utilizador.desativado { background: var(--papel); border-left: 4px solid var(--erro); }
+li.utilizador.desativado .utilizador-dados { opacity: 0.7; }
 /* Página individual da prova (prova.php) */
 .voltar-calendario {
     display: inline-flex;
@@ -832,6 +849,7 @@ li.utilizador.com-acesso { border-left: 4px solid var(--premios); }
 @media (max-width: 640px) {
     li.utilizador { flex-direction: column; align-items: stretch; gap: 10px; }
     .acesso-form { justify-content: space-between; }
+    .utilizador-acoes { justify-content: flex-start; max-width: none; }
 }
 
 .rodape-auth { text-align: center; margin-top: 16px; font-size: 0.88rem; color: var(--cinza); }
@@ -927,7 +945,18 @@ li.utilizador.com-acesso { border-left: 4px solid var(--premios); }
 .ranking-posicao { font-family: var(--letra-estreita); font-weight: 700; font-size: 1.1rem; color: var(--cinza); }
 .ranking-info { display: block; color: var(--cinza); font-size: 0.8rem; }
 .ranking-data { white-space: nowrap; }
-.ranking-total { font-size: 1.15rem; }
+.ranking-total { font-size: 1.15rem; white-space: nowrap; }
+.ranking-data-movel { display: none; }
+/* Telemóvel: a data passa para baixo do nome e os valores encolhem, para a tabela caber. */
+@media (max-width: 640px) {
+    .tabela-ranking th.ranking-data, .tabela-ranking td.ranking-data { display: none; }
+    .ranking-data-movel { display: inline; }
+    .tabela-ranking th, .tabela-ranking td { padding-left: 6px; padding-right: 6px; }
+    .tabela-ranking .tabela-valor { white-space: nowrap; font-size: 0.95rem; }
+    .tabela-ranking .ranking-total { font-size: 1rem; }
+    .tabela-ranking td:first-child, .tabela-ranking th:first-child { padding-right: 2px; }
+    .tabela-ranking td:nth-child(2) { overflow-wrap: anywhere; }
+}
 .ranking-sem-valores { margin: 10px 0 0; padding-left: 18px; display: grid; gap: 8px; }
 .ranking-sem-valores .ranking-info { display: inline; margin-left: 6px; }
 .ranking-sem-valores a.ranking-regulamento { margin-left: 8px; color: var(--sinal); font-size: 0.85rem; }

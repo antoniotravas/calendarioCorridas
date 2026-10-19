@@ -111,7 +111,10 @@ CREATE TABLE IF NOT EXISTS utilizadores (
     e_admin        TINYINT(1) NOT NULL DEFAULT 0,
     -- Pode ver os prémios monetários (ícone "€" e filtro); dado pelo administrador.
     ver_premios    TINYINT(1) NOT NULL DEFAULT 0,
-    criado_em      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- 0 = conta desativada pelo administrador: não entra (email nem Google) e
+    -- o link de subscrição do calendário deixa de funcionar.
+    ativo          TINYINT(1) NOT NULL DEFAULT 1,
+    criado_em     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_email (email),
     UNIQUE KEY uq_google_id (google_id),

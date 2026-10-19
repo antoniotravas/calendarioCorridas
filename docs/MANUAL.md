@@ -73,6 +73,7 @@ sql/migracao_007_premios.sql         -- colunas premios_* em corridas (ícone "�
 sql/migracao_008_permissoes.sql      -- colunas e_admin e ver_premios em utilizadores (gestão de acessos)
 sql/migracao_009_detalhes.sql        -- hora_inicio, programa, organizador, organizador_url, detalhes_procurado_em e premios_tabela em corridas
 sql/migracao_010_premios_tabela.sql  -- volta a ler uma vez os valores dos prémios de todas as provas com prémios
+sql/migracao_011_utilizadores_ativos.sql -- coluna ativo em utilizadores (desativar contas na página Gestão)
 
 scripts/config.example.php           -- template de credenciais (copiar para config.php)
 scripts/lib/Corrida.php              -- objeto de valor com os dados normalizados de uma prova
@@ -114,7 +115,7 @@ public/index.php                     -- calendário público (filtros: mês, dis
 public/prova.php                     -- página individual de uma prova (?id=N), aberta ao clicar num cartão (ver "Página da prova")
 public/lib/Organizador.php           -- referência ao organizador (nome + link) usada no cartão e na página da prova
 public/prova-ics.php                 -- uma prova em .ics (?id=N), para o calendário do telemóvel
-public/gestao-utilizadores.php       -- (só administradores) dar/retirar acesso aos prémios monetários
+public/gestao-utilizadores.php       -- (só administradores) acesso aos prémios, administradores e desativar contas
 public/ranking-premios.php           -- (só administradores) provas ordenadas pelo total dos prémios monetários
 public/meu-calendario.php            -- provas guardadas pelo utilizador autenticado + botões de exportação .ics
 public/meu-calendario-ics.php        -- "o meu calendário" em .ics (descarga com sessão, ou subscrição com ?token=)
@@ -234,7 +235,7 @@ O site público está em **https://corridas.eu** (antes: `corridas.espacodecodig
 - **Organização** (em destaque): nome em `corridas.organizador` e botão para `organizador_url` ("Site do organizador") ou, se não houver, para o link da prova ("Site da prova" / "Regulamento da prova"); se o link da prova for outro (inscrições), aparece num segundo botão.
 - **Programa e escalões** (`corridas.programa`, JSON `[{hora, prova, escaloes}]`): hora, prova e escalões de cada partida.
 - **Prémios monetários** (só para quem tem acesso, e só quando a prova tem prémios em dinheiro — "sem prémios" ou "por saber" não mostram nada): uma só tabela, com uma linha por lugar e uma coluna por classificação (`PremiosHelper::tabelasDaProva()`: `corridas.premios_tabela` ou, se estiver vazia, o que dá para ler no excerto), o total de cada coluna ("× 2" quando vale para masculinos e femininos) e o **total a distribuir** (`PremiosHelper::total()`), com link para o documento onde foram lidos. Sem valores lidos, mostra o excerto do regulamento.
-- Guardar (junto ao botão do organizador), adicionar ao Google Calendar (com a hora, se se souber) ou descarregar `.ics` (`public/prova-ics.php`), e a lista de todas as fontes no fundo.
+- Guardar (junto ao botão do organizador), adicionar ao Google Calendar (com a hora, se se souber) ou descarregar `.ics` (`public/prova-ics.php`), e a lista de todas as fontes no fundo ("Encontrada em…", **só para administradores** — `$auth->eAdmin()`).
 - O link "Calendário" (`data-voltar`) faz `history.back()` quando se veio do calendário, para repor os filtros e a posição na lista; aberta por link direto, vai para `/`.
 
 **De onde vêm hora, programa e organizador:**
@@ -283,13 +284,17 @@ Cada prova pode ter um ícone "€" ao lado do nome: **verde** se os mais bem cl
 - Sessão guardada em `$_SESSION['utilizador_id']`; todas as ações que alteram estado (favoritos, logout) validam um token CSRF guardado em sessão.
 - "O meu calendário" (`public/meu-calendario.php`) lista as provas marcadas pelo utilizador; o botão "Guardar" / "Guardada" em cada prova chama `public/favorito.php` (POST), que alterna a linha em `favoritos`. Sem sessão, o botão leva ao login e volta à mesma página.
 
-### Administradores e acesso aos prémios
+### Administradores, acesso aos prémios e contas desativadas
 
 - `utilizadores.e_admin`: o administrador vê o link **Gestão** no topo e a página `public/gestao-utilizadores.php` (`Auth::exigirAdmin()`: sem sessão vai para o login; sem permissão, 403). Vê sempre os prémios monetários.
 - **Ranking dos prémios** (`public/ranking-premios.php`, link "Ranking €" no topo, só administradores): as provas a partir de hoje com prémios monetários (`Database::listarProvasComPremios()`), ordenadas pelo total a distribuir (`PremiosHelper::total()`: soma de todos os valores das tabelas, incluindo todas as colunas, a dobrar nas que valem para masculinos e femininos — "Masculinos" e "Femininos" ou "M/F" no título —, exceto quando as duas colunas já são femininos e masculinos), com o maior 1.º prémio. As provas com prémios mas sem valores lidos ficam numa lista à parte, com o link do regulamento.
-- `utilizadores.ver_premios`: dado/retirado pelo administrador nessa página (um botão por utilizador, POST com CSRF; pesquisa por nome ou email).
-- **Tornar alguém administrador** (tem de já ter conta): `php scripts/definir_admin.php email@exemplo.pt` (`--retirar` para deixar de ser). O email fica só na base de dados — não é escrito no código, porque o repositório é público.
-- **Base de dados criada antes desta funcionalidade:** correr uma vez `sql/migracao_008_permissoes.sql`.
+- Na página **Gestão**, para cada utilizador (um formulário POST com CSRF por botão, campos `acao` = `premios` | `admin` | `ativo` e `valor` = 0/1; pesquisa por nome ou email):
+  - `utilizadores.ver_premios`: "Dar acesso aos prémios" / "Retirar prémios" (os administradores veem sempre);
+  - `utilizadores.e_admin`: "Tornar administrador" / "Retirar administrador" (`Database::definirAdminPorId`);
+  - `utilizadores.ativo`: "Desativar" / "Reativar" (`Database::definirAtivo`). Uma conta desativada não entra com email nem com Google (`Auth::contaAtiva()` em `login.php` e `auth/google-callback.php`, que volta ao login com `?desativada=1`), sai da sessão aberta no pedido seguinte (`Auth::utilizadorAtual()` tira-a da sessão; `autenticado()` passou a confirmar na BD) e o link de subscrição `.ics` dá 404. As provas guardadas mantêm-se, para o caso de ser reativada.
+  - Os botões de administrador e de desativar não aparecem na própria conta (e o servidor recusa-os), para o administrador não ficar sem acesso à página.
+- **Primeiro administrador** (tem de já ter conta): `php scripts/definir_admin.php email@exemplo.pt` (`--retirar` para deixar de ser). O email fica só na base de dados — não é escrito no código, porque o repositório é público.
+- **Base de dados criada antes desta funcionalidade:** correr uma vez `sql/migracao_008_permissoes.sql` e, para desativar contas, `sql/migracao_011_utilizadores_ativos.sql` (pode ser antes do `git pull`; sem ela a página Gestão dá erro).
 
 ### Exportar "o meu calendário" (.ics)
 

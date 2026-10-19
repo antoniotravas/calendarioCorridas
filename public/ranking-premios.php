@@ -50,15 +50,9 @@ $tituloDocumento = 'Ranking dos prémios — Calendário de corridas';
         <h1 class="pagina-titulo">Ranking dos prémios</h1>
     </div>
 
-    <p class="gestao-explicacao">
-        Provas a partir de hoje com <strong>prémios monetários</strong>, ordenadas pelo total que distribuem.
-        O total soma todos os valores lidos no regulamento e conta a dobrar as tabelas que valem para
-        masculinos e femininos. É uma estimativa: confirma sempre no regulamento.
-    </p>
-
     <p class="resumo">
-        <?= count($ranking) === 1 ? '1 prova' : count($ranking) . ' provas' ?> com valores lidos,
-        <?= PremiosHelper::formatarEuros($totalGeral) ?> em prémios no total
+        <?= count($ranking) === 1 ? '1 prova' : count($ranking) . ' provas' ?> ·
+        <strong><?= PremiosHelper::formatarEuros($totalGeral) ?></strong> em prémios
     </p>
 
     <?php if ($ranking === []): ?>
@@ -70,8 +64,8 @@ $tituloDocumento = 'Ranking dos prémios — Calendário de corridas';
                     <tr>
                         <th scope="col">#</th>
                         <th scope="col">Prova</th>
-                        <th scope="col">Data</th>
-                        <th scope="col">1.º prémio</th>
+                        <th scope="col" class="ranking-data">Data</th>
+                        <th scope="col" class="ranking-primeiro">1.º prémio</th>
                         <th scope="col">Total</th>
                     </tr>
                 </thead>
@@ -82,11 +76,11 @@ $tituloDocumento = 'Ranking dos prémios — Calendário de corridas';
                             <td>
                                 <a href="/prova.php?id=<?= (int) $p['id'] ?>"><?= htmlspecialchars($p['nome']) ?></a>
                                 <span class="ranking-info">
-                                    <?= htmlspecialchars($nomesCategoria[$p['categoria'] ?? 'estrada'] ?? 'Estrada') ?><?= $p['local'] ? ' · ' . htmlspecialchars($p['local']) : '' ?><?= $p['distancias'] ? ' · ' . htmlspecialchars($p['distancias']) : '' ?>
+                                    <span class="ranking-data-movel"><?= date('d/m/Y', (int) strtotime((string) $p['data_prova'])) ?> · </span><?= htmlspecialchars($nomesCategoria[$p['categoria'] ?? 'estrada'] ?? 'Estrada') ?><?= $p['local'] ? ' · ' . htmlspecialchars($p['local']) : '' ?><?= $p['distancias'] ? ' · ' . htmlspecialchars($p['distancias']) : '' ?>
                                 </span>
                             </td>
                             <td class="ranking-data"><?= date('d/m/Y', (int) strtotime((string) $p['data_prova'])) ?></td>
-                            <td class="tabela-valor"><?= $p['primeiro'] !== null ? PremiosHelper::formatarEuros($p['primeiro']) : '—' ?></td>
+                            <td class="tabela-valor ranking-primeiro"><?= $p['primeiro'] !== null ? PremiosHelper::formatarEuros($p['primeiro']) : '—' ?></td>
                             <td class="tabela-valor ranking-total">
                                 <?= PremiosHelper::formatarEuros($p['total']) ?>
                                 <?php if ($p['anunciado']): ?><span class="ranking-info">total anunciado</span><?php endif; ?>

@@ -972,7 +972,7 @@ final class Database
      */
     public function listarUtilizadores(?string $procura = null): array
     {
-        $sql = 'SELECT u.id, u.nome, u.email, u.criado_em, u.e_admin, u.ver_premios,'
+        $sql = 'SELECT u.id, u.nome, u.email, u.criado_em, u.e_admin, u.ver_premios, u.ativo,'
             . ' (u.password_hash IS NOT NULL) AS tem_password, (u.google_id IS NOT NULL) AS tem_google,'
             . ' (SELECT COUNT(*) FROM favoritos f WHERE f.utilizador_id = u.id) AS provas_guardadas'
             . ' FROM utilizadores u';
@@ -992,6 +992,24 @@ final class Database
     {
         $stmt = $this->pdo->prepare('UPDATE utilizadores SET ver_premios = :ver WHERE id = :id');
         $stmt->execute(['ver' => (int) $ver, 'id' => $utilizadorId]);
+    }
+
+    /** Torna administrador (ou deixa de ser) um utilizador, a partir da página de gestão. */
+    public function definirAdminPorId(int $utilizadorId, bool $admin): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE utilizadores SET e_admin = :admin WHERE id = :id');
+        $stmt->execute(['admin' => (int) $admin, 'id' => $utilizadorId]);
+    }
+
+    /**
+     * Ativa ou desativa uma conta. Desativada, não entra (email nem Google),
+     * a sessão aberta termina no pedido seguinte (Auth::utilizadorAtual) e o
+     * link de subscrição do calendário deixa de funcionar.
+     */
+    public function definirAtivo(int $utilizadorId, bool $ativo): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE utilizadores SET ativo = :ativo WHERE id = :id');
+        $stmt->execute(['ativo' => (int) $ativo, 'id' => $utilizadorId]);
     }
 
     /**

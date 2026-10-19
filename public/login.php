@@ -25,13 +25,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($utilizador !== null && $utilizador['password_hash'] !== null
             && password_verify($password, $utilizador['password_hash'])
         ) {
-            $auth->iniciarSessao((int) $utilizador['id']);
-            header('Location: ' . $next);
-            exit;
+            if (!Auth::contaAtiva($utilizador)) {
+                $erro = 'Esta conta foi desativada.';
+            } else {
+                $auth->iniciarSessao((int) $utilizador['id']);
+                header('Location: ' . $next);
+                exit;
+            }
+        } else {
+            $erro = 'Email ou password incorretos.';
         }
-
-        $erro = 'Email ou password incorretos.';
     }
+} elseif (isset($_GET['desativada'])) {
+    // Vindo do login com a Google (auth/google-callback.php).
+    $erro = 'Esta conta foi desativada.';
 }
 
 $googleUrl = '/auth/google-iniciar.php?next=' . urlencode($next);

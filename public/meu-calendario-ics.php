@@ -18,7 +18,7 @@ $token = isset($_GET['token']) ? (string) $_GET['token'] : null;
 
 if ($token !== null) {
     $utilizador = preg_match('/^[0-9a-f]{32}$/', $token) ? $db->encontrarUtilizadorPorTokenIcs($token) : null;
-    if ($utilizador === null) {
+    if ($utilizador === null || !Auth::contaAtiva($utilizador)) {
         http_response_code(404);
         header('Content-Type: text/plain; charset=utf-8');
         die('Link de calendário inválido ou renovado. Obtém o link atual em "O meu calendário".');
