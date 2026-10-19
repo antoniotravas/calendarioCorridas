@@ -15,10 +15,27 @@ if ($clientId === '' || $clientSecret === '') {
 }
 
 $state = $_GET['state'] ?? null;
-if ($state === null || !isset($_SESSION['google_oauth_state']) || !hash_equals($_SESSION['google_oauth_state'], $state)) {
+if ($state === null || !isset($_SESSION['google_oauth_state']) || !hash_equals((string) $_SESSION['google_oauth_state'], (string) $state)) {
+    // O código "state" só vale uma vez. Alguns browsers (sobretudo no telemóvel)
+    // abrem esta página duas vezes: a primeira já iniciou a sessão, por isso
+    // segue-se para o site. Sem sessão (voltou atrás para a Google, ou a sessão
+    // expirou), recomeça-se o login em vez de mostrar um erro.
+    if ($auth->autenticado()) {
+        header('Location: ' . $next);
+        exit;
+    }
+    $recomecos = (int) ($_SESSION['google_oauth_recomecos'] ?? 0);
+    if ($recomecos < 1) {
+        $_SESSION['google_oauth_recomecos'] = $recomecos + 1;
+        header('Location: /auth/google-iniciar.php?next=' . urlencode($next));
+        exit;
+    }
+    unset($_SESSION['google_oauth_recomecos']);
     http_response_code(400);
-    die('Pedido de login inválido, tenta novamente a partir da página de login.');
+    die('Não foi possível concluir o login com a Google. Fecha esta página e tenta outra vez a partir de /login.php '
+        . '(se usas o browser de outra aplicação, como o Gmail ou o Facebook, abre o site no browser do telemóvel).');
 }
+unset($_SESSION['google_oauth_recomecos']);
 unset($_SESSION['google_oauth_state']);
 
 $code = $_GET['code'] ?? null;
