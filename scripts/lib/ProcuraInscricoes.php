@@ -95,6 +95,9 @@ final class ProcuraInscricoes
                 continue;
             }
             $vistos[$url] = true;
+            if (PremiosHelper::ePaginaGeral($url, true)) {
+                continue;
+            }
 
             $conteudo = $this->obter($url);
             if ($conteudo === null) {

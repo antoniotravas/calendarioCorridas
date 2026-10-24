@@ -107,7 +107,11 @@ final class FpaCompeticoesScraper implements ScraperInterface
             ?? [];
 
         $regulamento = $compData['regulamento'] ?? null;
-        $urlEvento = !empty($regulamento) ? (string) $regulamento : self::BASE_URL . "/competition/{$id}";
+        // Às vezes o "regulamento" é só a página inicial/notícias do organizador
+        // (ex. Cardielos): aí fica a página da competição na FPA.
+        $urlEvento = !empty($regulamento) && !PremiosHelper::ePaginaGeral((string) $regulamento)
+            ? (string) $regulamento
+            : self::BASE_URL . "/competition/{$id}";
         $imagem = !empty($compData['imagem']) && preg_match('#^https?://#', (string) $compData['imagem']) ? (string) $compData['imagem'] : null;
 
         $nomesEscaloes = [];

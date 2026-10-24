@@ -509,6 +509,9 @@ final class PremiosHelper
                 continue;
             }
             $vistos[$url] = true;
+            if (self::ePaginaGeral($url, true)) {
+                continue;
+            }
 
             $conteudo = $obter($url);
             if ($conteudo === null) {
@@ -582,6 +585,28 @@ final class PremiosHelper
         $excerto = mb_substr($original, $inicio, 200);
 
         return ($inicio > 0 ? '…' : '') . trim($excerto) . '…';
+    }
+
+    /**
+     * Página inicial de um site ("https://site.pt/", "/index.php") ou, com
+     * $soListagens, só as listagens ("/index.php?limit=6&start=0"): a página
+     * inicial pode ser o site da própria prova, uma listagem nunca é — os
+     * regulamentos e preços que lá estejam são de outras provas (ex. a FPA dá
+     * a página de notícias do organizador como regulamento do corta-mato).
+     */
+    public static function ePaginaGeral(string $url, bool $soListagens = false): bool
+    {
+        $caminho = (string) parse_url($url, PHP_URL_PATH);
+        if (!preg_match('#^/?(?:index\.(?:php|html?|aspx?))?$#i', $caminho)) {
+            return false;
+        }
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $parametros);
+        $chaves = array_keys($parametros);
+        $paginacao = ['limit', 'start', 'page', 'pagina'];
+
+        // Só parâmetros de paginação/idioma; "?id=..."/"?option=..." já podem ser a prova.
+        return array_diff($chaves, [...$paginacao, 'lang']) === []
+            && (!$soListagens || array_intersect($chaves, $paginacao) !== []);
     }
 
     /**
