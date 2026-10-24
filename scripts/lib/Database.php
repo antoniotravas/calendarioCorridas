@@ -1122,7 +1122,7 @@ final class Database
      */
     public function listarUtilizadores(?string $procura = null): array
     {
-        $sql = 'SELECT u.id, u.nome, u.email, u.criado_em, u.e_admin, u.ver_premios, u.ativo,'
+        $sql = 'SELECT u.id, u.nome, u.email, u.criado_em, u.e_admin, u.ver_premios, u.ver_ranking, u.ativo,'
             . ' (u.password_hash IS NOT NULL) AS tem_password, (u.google_id IS NOT NULL) AS tem_google,'
             . ' (SELECT COUNT(*) FROM favoritos f WHERE f.utilizador_id = u.id) AS provas_guardadas'
             . ' FROM utilizadores u';
@@ -1137,11 +1137,25 @@ final class Database
         return $stmt->fetchAll();
     }
 
-    /** Dá ou retira a um utilizador o acesso aos prémios monetários. */
+    /**
+     * Dá ou retira a um utilizador o acesso aos prémios monetários; sem
+     * prémios, perde também o ranking.
+     */
     public function definirVerPremios(int $utilizadorId, bool $ver): void
     {
-        $stmt = $this->pdo->prepare('UPDATE utilizadores SET ver_premios = :ver WHERE id = :id');
-        $stmt->execute(['ver' => (int) $ver, 'id' => $utilizadorId]);
+        $sql = $ver
+            ? 'UPDATE utilizadores SET ver_premios = 1 WHERE id = :id'
+            : 'UPDATE utilizadores SET ver_premios = 0, ver_ranking = 0 WHERE id = :id';
+        $this->pdo->prepare($sql)->execute(['id' => $utilizadorId]);
+    }
+
+    /** Dá ou retira o acesso ao ranking dos prémios (dar, só a quem já vê os prémios). */
+    public function definirVerRanking(int $utilizadorId, bool $ver): void
+    {
+        $sql = $ver
+            ? 'UPDATE utilizadores SET ver_ranking = 1 WHERE id = :id AND ver_premios = 1'
+            : 'UPDATE utilizadores SET ver_ranking = 0 WHERE id = :id';
+        $this->pdo->prepare($sql)->execute(['id' => $utilizadorId]);
     }
 
     /** Torna administrador (ou deixa de ser) um utilizador, a partir da página de gestão. */

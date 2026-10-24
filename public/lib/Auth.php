@@ -58,6 +58,18 @@ final class Auth
         return !empty($utilizador['e_admin']) || !empty($utilizador['ver_premios']);
     }
 
+    /**
+     * Pode ver o ranking dos prémios (/ranking-premios.php): os
+     * administradores e quem, além dos prémios, tiver também este acesso.
+     */
+    public function podeVerRanking(): bool
+    {
+        $utilizador = $this->utilizadorAtual();
+
+        return !empty($utilizador['e_admin'])
+            || (!empty($utilizador['ver_premios']) && !empty($utilizador['ver_ranking']));
+    }
+
     /** Página só para administradores: login primeiro; sem permissão, 403. */
     public function exigirAdmin(string $destinoAposLogin = '/'): void
     {

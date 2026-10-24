@@ -78,6 +78,9 @@ sql/migracao_010_premios_tabela.sql  -- volta a ler uma vez os valores dos prém
 sql/migracao_011_utilizadores_ativos.sql -- coluna ativo em utilizadores (desativar contas na página Gestão)
 sql/migracao_012_inscricoes.sql      -- colunas inscricao_* em corridas (valor da inscrição e filtro "Inscrição")
 sql/migracao_013_coordenadas.sql     -- latitude/longitude em corridas (botão "Perto de mim")
+sql/migracao_014_url_inscricao.sql   -- url_inscricao em corridas_fontes (link direto para a inscrição dado pela fonte)
+sql/migracao_015_paginas_gerais.sql  -- volta a ler prémios e inscrição das provas cujo site era uma listagem/página inicial
+sql/migracao_016_ver_ranking.sql     -- coluna ver_ranking em utilizadores (acesso ao ranking dos prémios)
 
 scripts/config.example.php           -- template de credenciais (copiar para config.php)
 scripts/lib/Corrida.php              -- objeto de valor com os dados normalizados de uma prova
@@ -314,14 +317,15 @@ Botão pequeno "Perto de mim" no início da frase do total (página inicial; só
 ### Administradores, acesso aos prémios e contas desativadas
 
 - `utilizadores.e_admin`: o administrador vê o link **Gestão** no topo e a página `public/gestao-utilizadores.php` (`Auth::exigirAdmin()`: sem sessão vai para o login; sem permissão, 403). Vê sempre os prémios monetários.
-- **Ranking dos prémios** (`public/ranking-premios.php`, link "Ranking €" no topo, só administradores): as provas a partir de hoje com prémios monetários (`Database::listarProvasComPremios()`), ordenadas pelo total a distribuir (`PremiosHelper::total()`: soma de todos os valores das tabelas, incluindo todas as colunas, a dobrar nas que valem para masculinos e femininos — "Masculinos" e "Femininos" ou "M/F" no título —, exceto quando as duas colunas já são femininos e masculinos), com o maior 1.º prémio. As provas com prémios mas sem valores lidos ficam numa lista à parte, com o link do regulamento.
-- Na página **Gestão**, para cada utilizador (um formulário POST com CSRF por botão, campos `acao` = `premios` | `admin` | `ativo` e `valor` = 0/1; pesquisa por nome ou email):
-  - `utilizadores.ver_premios`: "Dar acesso aos prémios" / "Retirar prémios" (os administradores veem sempre);
+- **Ranking dos prémios** (`public/ranking-premios.php`, link "Ranking €" no topo; administradores e quem tiver `ver_premios` e `ver_ranking` — `Auth::podeVerRanking()`, os restantes recebem 403): as provas a partir de hoje com prémios monetários (`Database::listarProvasComPremios()`), ordenadas pelo total a distribuir (`PremiosHelper::total()`: soma de todos os valores das tabelas, incluindo todas as colunas, a dobrar nas que valem para masculinos e femininos — "Masculinos" e "Femininos" ou "M/F" no título —, exceto quando as duas colunas já são femininos e masculinos), com o maior 1.º prémio. As provas com prémios mas sem valores lidos ficam numa lista à parte, com o link do regulamento.
+- Na página **Gestão**, para cada utilizador (um formulário POST com CSRF por botão, campos `acao` = `premios` | `ranking` | `admin` | `ativo` e `valor` = 0/1; pesquisa por nome ou email):
+  - `utilizadores.ver_premios`: "Dar acesso aos prémios" / "Retirar prémios" (os administradores veem sempre); retirar os prémios retira também o ranking;
+  - `utilizadores.ver_ranking`: "Dar acesso ao ranking" / "Retirar ranking", só para quem já vê os prémios (`Database::definirVerRanking`, que não dá o ranking a quem não vê os prémios); etiqueta "Vê prémios e ranking";
   - `utilizadores.e_admin`: "Tornar administrador" / "Retirar administrador" (`Database::definirAdminPorId`);
   - `utilizadores.ativo`: "Desativar" / "Reativar" (`Database::definirAtivo`). Uma conta desativada não entra com email nem com Google (`Auth::contaAtiva()` em `login.php` e `auth/google-callback.php`, que volta ao login com `?desativada=1`), sai da sessão aberta no pedido seguinte (`Auth::utilizadorAtual()` tira-a da sessão; `autenticado()` passou a confirmar na BD) e o link de subscrição `.ics` dá 404. As provas guardadas mantêm-se, para o caso de ser reativada.
   - Os botões de administrador e de desativar não aparecem na própria conta (e o servidor recusa-os), para o administrador não ficar sem acesso à página.
 - **Primeiro administrador** (tem de já ter conta): `php scripts/definir_admin.php email@exemplo.pt` (`--retirar` para deixar de ser). O email fica só na base de dados — não é escrito no código, porque o repositório é público.
-- **Base de dados criada antes desta funcionalidade:** correr uma vez `sql/migracao_008_permissoes.sql` e, para desativar contas, `sql/migracao_011_utilizadores_ativos.sql` (pode ser antes do `git pull`; sem ela a página Gestão dá erro).
+- **Base de dados criada antes desta funcionalidade:** correr uma vez `sql/migracao_008_permissoes.sql` e, para desativar contas, `sql/migracao_011_utilizadores_ativos.sql` e, para o acesso ao ranking, `sql/migracao_016_ver_ranking.sql` (podem ser antes do `git pull`; sem elas a página Gestão dá erro).
 
 ### Exportar "o meu calendário" (.ics)
 

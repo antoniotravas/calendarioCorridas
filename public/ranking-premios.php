@@ -5,14 +5,19 @@ declare(strict_types=1);
 require __DIR__ . '/_bootstrap.php';
 
 /*
- * Ranking dos prémios monetários (só administradores): as provas a partir
+ * Ranking dos prémios monetários (administradores e quem eles autorizarem
+ * na página "Gestão", Auth::podeVerRanking): as provas a partir
  * de hoje ordenadas pelo total que distribuem em prémios (prize money
  * total), do maior para o menor. O total soma todos os valores das tabelas
  * lidas no regulamento, a dobrar quando a tabela vale para masculinos e
  * femininos (PremiosHelper::total). As provas com prémios cujos valores não
  * foram lidos ficam numa lista à parte, no fim.
  */
-$auth->exigirAdmin('/ranking-premios.php');
+$auth->exigirLogin('/ranking-premios.php');
+if (!$auth->podeVerRanking()) {
+    http_response_code(403);
+    die('Não tens acesso ao ranking dos prémios.');
+}
 
 $ranking = [];
 $semValores = [];

@@ -126,6 +126,9 @@ CREATE TABLE IF NOT EXISTS utilizadores (
     e_admin        TINYINT(1) NOT NULL DEFAULT 0,
     -- Pode ver os prémios monetários (ícone "€" e filtro); dado pelo administrador.
     ver_premios    TINYINT(1) NOT NULL DEFAULT 0,
+    -- Pode ver também o ranking dos prémios (/ranking-premios.php); só conta
+    -- com ver_premios = 1. Dado pelo administrador.
+    ver_ranking    TINYINT(1) NOT NULL DEFAULT 0,
     -- 0 = conta desativada pelo administrador: não entra (email nem Google) e
     -- o link de subscrição do calendário deixa de funcionar.
     ativo          TINYINT(1) NOT NULL DEFAULT 1,

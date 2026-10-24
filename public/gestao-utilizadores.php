@@ -6,7 +6,8 @@ require __DIR__ . '/_bootstrap.php';
 
 /*
  * Gestão de utilizadores (só administradores): decidir quem pode ver os
- * prémios monetários (ícone "€" e filtro "Prémios" do calendário), quem é
+ * prémios monetários (ícone "€" e filtro "Prémios" do calendário) e, desses,
+ * quem vê também o ranking dos prémios (/ranking-premios.php), quem é
  * administrador (vê sempre os prémios) e desativar contas. O primeiro
  * administrador define-se com scripts/definir_admin.php. Ninguém se pode
  * retirar de administrador nem desativar a própria conta (para não ficar
@@ -33,7 +34,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             : 'Não podes desativar a tua própria conta.';
     } elseif ($alvo !== null && $acao === 'premios') {
         $db->definirVerPremios((int) $alvo['id'], $valor);
-        $_SESSION['gestao_aviso'] = ($valor ? 'Acesso aos prémios dado a ' : 'Acesso aos prémios retirado a ') . $alvo['nome'] . '.';
+        $_SESSION['gestao_aviso'] = ($valor ? 'Acesso aos prémios dado a ' : 'Acesso aos prémios (e ao ranking) retirado a ') . $alvo['nome'] . '.';
+    } elseif ($alvo !== null && $acao === 'ranking') {
+        $db->definirVerRanking((int) $alvo['id'], $valor);
+        $_SESSION['gestao_aviso'] = ($valor ? 'Acesso ao ranking dos prémios dado a ' : 'Acesso ao ranking dos prémios retirado a ') . $alvo['nome'] . '.';
     } elseif ($alvo !== null && $acao === 'admin') {
         $db->definirAdminPorId((int) $alvo['id'], $valor);
         $_SESSION['gestao_aviso'] = $alvo['nome'] . ($valor ? ' passou a administrador.' : ' deixou de ser administrador.');
@@ -83,7 +87,8 @@ $tituloDocumento = 'Gestão de utilizadores — Calendário de corridas';
     <p class="gestao-explicacao">
         Escolhe quem pode ver os <strong>prémios monetários</strong> no calendário (o ícone
         <span class="premios premios-sim" aria-hidden="true">€</span> e o filtro «Prémios €»).
-        Quem não tem acesso não vê nem o ícone nem o filtro. Os <strong>administradores</strong> veem
+        Quem não tem acesso não vê nem o ícone nem o filtro. A quem já vê os prémios podes dar também
+        o <strong>ranking dos prémios</strong> (link «Ranking €» no topo). Os <strong>administradores</strong> veem
         sempre os prémios e as fontes, e gerem esta página. Uma conta <strong>desativada</strong> deixa
         de conseguir entrar (com email ou Google) e o link do seu calendário deixa de funcionar.
     </p>
@@ -120,7 +125,7 @@ $tituloDocumento = 'Gestão de utilizadores — Calendário de corridas';
                         <p class="utilizador-nome">
                             <?= htmlspecialchars($u['nome']) ?>
                             <?php if ($u['e_admin']): ?><span class="etiqueta-admin">Administrador</span><?php endif; ?>
-                            <?php if (!$u['e_admin'] && $u['ver_premios']): ?><span class="etiqueta-premios">Vê prémios</span><?php endif; ?>
+                            <?php if (!$u['e_admin'] && $u['ver_premios']): ?><span class="etiqueta-premios"><?= $u['ver_ranking'] ? 'Vê prémios e ranking' : 'Vê prémios' ?></span><?php endif; ?>
                             <?php if (!$u['ativo']): ?><span class="etiqueta-desativado">Desativado</span><?php endif; ?>
                             <?php if ((int) $u['id'] === $euId): ?><span class="etiqueta-eu">(tu)</span><?php endif; ?>
                         </p>
@@ -134,8 +139,11 @@ $tituloDocumento = 'Gestão de utilizadores — Calendário de corridas';
 
                     <div class="utilizador-acoes">
                         <?php if ($u['e_admin']): ?>
-                            <span class="acesso-estado">Vê sempre os prémios</span>
+                            <span class="acesso-estado">Vê sempre os prémios e o ranking</span>
                         <?php elseif ($u['ver_premios']): ?>
+                            <?= $u['ver_ranking']
+                                ? $botao($u, 'ranking', false, 'Retirar ranking', 'retirar')
+                                : $botao($u, 'ranking', true, 'Dar acesso ao ranking', 'dar') ?>
                             <?= $botao($u, 'premios', false, 'Retirar prémios', 'retirar') ?>
                         <?php else: ?>
                             <?= $botao($u, 'premios', true, 'Dar acesso aos prémios', 'dar') ?>
