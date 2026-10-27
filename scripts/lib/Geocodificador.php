@@ -16,6 +16,7 @@ declare(strict_types=1);
 final class Geocodificador
 {
     private const URL = 'https://nominatim.openstreetmap.org/search';
+    private const URL_INVERSA = 'https://nominatim.openstreetmap.org/reverse';
     private const USER_AGENT = 'User-Agent: CalendarioCorridas/1.0 (+https://corridas.eu)';
 
     private readonly HttpClient $http;
@@ -60,6 +61,40 @@ final class Geocodificador
         }
 
         return null;
+    }
+
+    /**
+     * Localidade de umas coordenadas, para as fontes que só dão o ponto no
+     * mapa (ex. Sinctime): "Silvares, Guimarães" (localidade e concelho) ou só
+     * o concelho quando é a mesma. Null se não se encontrar.
+     *
+     * @throws RuntimeException quando o Nominatim recusa pedidos (HTTP 429/403)
+     */
+    public function localidade(float $latitude, float $longitude): ?string
+    {
+        try {
+            $resposta = $this->http->get(self::URL_INVERSA . '?' . http_build_query([
+                'lat' => $latitude,
+                'lon' => $longitude,
+                'zoom' => 14,
+                'format' => 'jsonv2',
+                'accept-language' => 'pt-PT',
+            ]), [self::USER_AGENT]);
+        } catch (RuntimeException $e) {
+            if (in_array($e->getCode(), [HttpClient::DEMASIADOS_PEDIDOS], true) || str_contains($e->getMessage(), 'HTTP 403')) {
+                throw $e;
+            }
+
+            return null;
+        }
+        $morada = json_decode($resposta, true)['address'] ?? [];
+        $localidade = $morada['village'] ?? $morada['town'] ?? $morada['city'] ?? $morada['suburb'] ?? null;
+        $concelho = $morada['municipality'] ?? $morada['city'] ?? $morada['town'] ?? null;
+        if ($localidade === null) {
+            return $concelho;
+        }
+
+        return $concelho !== null && $concelho !== $localidade ? "{$localidade}, {$concelho}" : $localidade;
     }
 
     /** @return string[] */

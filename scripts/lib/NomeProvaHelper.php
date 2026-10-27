@@ -99,9 +99,12 @@ final class NomeProvaHelper
      */
     public static function palavras(string $nome): array
     {
+        // Palavras coladas: "36ªMEIA-MARATONA" (ordinal) e "TechRun" (maiúscula a meio).
+        $nome = preg_replace(['/(\d\s*[ªº°])(?=\p{L})/u', '/(?<=\p{Ll})(?=\p{Lu})/u'], ['$1 ', ' '], $nome);
         $texto = strtr(mb_strtolower($nome), self::ACENTOS);
         $texto = preg_replace('/\bgp\b/', 'grande premio', $texto);
         $texto = preg_replace('/\bs\.\s*/', 'sao ', $texto);
+        $texto = preg_replace(['/\bsto\.?\s+/', '/\bsta\.?\s+/'], ['santo ', 'santa '], $texto);
         $texto = preg_replace('/[^a-z0-9]+/', ' ', $texto);
 
         $palavras = [];
@@ -142,7 +145,7 @@ final class NomeProvaHelper
 
         return preg_match(self::PADRAO_TRAIL, $texto) || preg_match(self::PADRAO_CORTA_MATO, $texto)
             || preg_match(
-                '/corrida|\bcorre\b|maratona|milha|legua|silvestre|grande premio|\bgp\b|\bestrada\b|\brun\b|\broad\b|\d+\s?(k|km|kms)\b/',
+                '/corrida|\bcorre\b|maratona|milha|legua|silvestre|grande premio|\bgpa?\b|\bestrada\b|\brun\b|\broad\b|\d+\s?(k|km|kms)\b/',
                 $texto
             );
     }
