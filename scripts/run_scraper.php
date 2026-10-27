@@ -15,6 +15,7 @@ require __DIR__ . '/lib/InscricaoHelper.php';
 require __DIR__ . '/lib/ProcuraInscricoes.php';
 require __DIR__ . '/lib/DistritoHelper.php';
 require __DIR__ . '/lib/Geocodificador.php';
+require __DIR__ . '/lib/RadarOrganizadores.php';
 require __DIR__ . '/lib/HttpClient.php';
 require __DIR__ . '/lib/Database.php';
 require __DIR__ . '/scrapers/ScraperInterface.php';
@@ -167,6 +168,7 @@ if ($soFonte !== null) {
     $db->aplicarLinksOficiais();
     $linksOrganizador = $db->aplicarLinksOrganizadores($organizadoras);
     $db->atualizarCategorias();
+    RadarOrganizadores::atualizar($db);
     printf(
         "\nTotal: %d novas, %d atualizadas, %d juntas a provas de outras fontes, %d repetidas antigas consolidadas, "
         . "%d links do organizador (re)aplicados.\n(Só %s: as páginas das provas são lidas na execução completa.)\n",
@@ -383,6 +385,12 @@ if ($coordenadas['recusado'] !== null) {
     $avisos[] = "Coordenadas: o OpenStreetMap recusou pedidos ({$coordenadas['recusado']}); continua na próxima execução.";
 }
 printf("\nCoordenadas: %d provas vistas, %d localizadas.\n", $coordenadas['vistas'], $coordenadas['encontradas']);
+
+// Radar dos organizadores (/organizadores.php): sites para onde as provas
+// apontam e quantas provas têm, para escolher novas fontes.
+$sitesRadar = RadarOrganizadores::atualizar($db);
+$candidatos = count(array_filter($db->listarOrganizadores(), fn (array $o) => RadarOrganizadores::eCandidato($o)));
+printf("\nRadar dos organizadores: %d sites, %d candidatos a nova fonte.\n", $sitesRadar, $candidatos);
 
 printf(
     "\nTotal: %d novas, %d atualizadas, %d juntas a provas de outras fontes, %d repetidas antigas consolidadas, "

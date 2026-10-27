@@ -11,6 +11,7 @@ $utilizador = $auth->utilizadorAtual();
             <?php if ($utilizador !== null): ?>
                 <?php if ($auth->eAdmin()): ?>
                     <a href="/gestao-utilizadores.php">Gestão</a>
+                    <a href="/organizadores.php">Organizadores</a>
                 <?php endif; ?>
                 <?php if ($auth->podeVerRanking()): ?>
                     <a href="/ranking-premios.php">Ranking €</a>

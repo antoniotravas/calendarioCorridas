@@ -995,3 +995,30 @@ li.utilizador.desativado .utilizador-dados { opacity: 0.7; }
 .ranking-sem-valores { margin: 10px 0 0; padding-left: 18px; display: grid; gap: 8px; }
 .ranking-sem-valores .ranking-info { display: inline; margin-left: 6px; }
 .ranking-sem-valores a.ranking-regulamento { margin-left: 8px; color: var(--sinal); font-size: 0.85rem; }
+
+/* Radar dos organizadores (administradores) */
+.radar-ver { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.radar-ver a {
+    padding: 5px 12px;
+    border: 1px solid var(--linha);
+    border-radius: 999px;
+    color: var(--asfalto);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+.radar-ver a:hover { border-color: var(--sinal); color: var(--sinal); }
+.radar-ver a[aria-current="page"] { background: var(--sinal); border-color: var(--sinal); color: var(--branco); }
+.tabela-radar th:nth-child(2), .tabela-radar th:nth-child(3) { text-align: right; }
+.tabela-radar th:nth-child(4) { text-align: left; }
+.tabela-radar td:first-child { overflow-wrap: anywhere; }
+.tabela-radar .etiqueta-admin, .tabela-radar .etiqueta-premios { white-space: nowrap; }
+.tabela-radar a.radar-exemplo { color: var(--cinza); font-weight: 400; }
+.tabela-radar tr.radar-candidato td { background: var(--trail-suave); }
+.radar-fontes { max-width: 260px; }
+.radar-fontes-movel { display: none; }
+@media (max-width: 640px) {
+    .tabela-radar .radar-fontes { display: none; }
+    .tabela-radar .radar-fontes-movel { display: block; }
+    .tabela-radar th, .tabela-radar td { padding-left: 6px; padding-right: 6px; }
+}

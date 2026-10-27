@@ -81,6 +81,7 @@ sql/migracao_013_coordenadas.sql     -- latitude/longitude em corridas (botão "
 sql/migracao_014_url_inscricao.sql   -- url_inscricao em corridas_fontes (link direto para a inscrição dado pela fonte)
 sql/migracao_015_paginas_gerais.sql  -- volta a ler prémios e inscrição das provas cujo site era uma listagem/página inicial
 sql/migracao_016_ver_ranking.sql     -- coluna ver_ranking em utilizadores (acesso ao ranking dos prémios)
+sql/migracao_017_organizadores.sql   -- tabela organizadores (radar dos organizadores)
 
 scripts/config.example.php           -- template de credenciais (copiar para config.php)
 scripts/lib/Corrida.php              -- objeto de valor com os dados normalizados de uma prova
@@ -118,6 +119,8 @@ scripts/scrapers/ProEventsScraper.php         -- app Angular: lê as provas no f
 scripts/scrapers/FonteOrganizadora.php        -- marca fontes cujo link do evento tem prioridade
 scripts/run_scraper.php              -- ponto de entrada do scraper (CLI)
 scripts/definir_admin.php            -- torna um utilizador administrador (CLI: php scripts/definir_admin.php email)
+scripts/atualizar_organizadores.php  -- recalcula o radar dos organizadores e mostra os candidatos a nova fonte
+scripts/lib/RadarOrganizadores.php   -- radar dos organizadores: agrupa as provas pelo site para onde apontam
 scripts/procurar_premios.php         -- procura prémios monetários em todas as provas por ver, sem o resto do scraper (CLI)
 scripts/procurar_inscricoes.php      -- procura o valor da inscrição em todas as provas por ver (CLI)
 scripts/localizar_provas.php         -- procura as coordenadas de todas as provas sem elas (CLI)
@@ -129,6 +132,7 @@ public/lib/Organizador.php           -- referência ao organizador (nome + link)
 public/prova-ics.php                 -- uma prova em .ics (?id=N), para o calendário do telemóvel
 public/gestao-utilizadores.php       -- (só administradores) acesso aos prémios, administradores e desativar contas
 public/ranking-premios.php           -- (só administradores) provas ordenadas pelo total dos prémios monetários
+public/organizadores.php             -- (só administradores) radar dos organizadores: sites com mais provas e candidatos a nova fonte
 public/meu-calendario.php            -- provas guardadas pelo utilizador autenticado + botões de exportação .ics
 public/meu-calendario-ics.php        -- "o meu calendário" em .ics (descarga com sessão, ou subscrição com ?token=)
 public/lib/CalendarioIcs.php         -- gera o texto iCalendar (RFC 5545) a partir das provas
@@ -179,6 +183,17 @@ Das 22 associações filiadas na FPA ([lista](https://fpatletismo.pt/atletismo/i
 **Pista:** as associações sem calendário legível registam as suas competições (incluindo as de pista) na FPA Competições, que as traz com o tipo certo ("Pista Ar Livre", "Pista Coberta") e o campo `owner` (ex. AAVR, AADP, AARAM). As fontes que publicam todas as competições sem tipo (Leiria, Coimbra, Lisboa) usam `NomeProvaHelper::parecePista()`; as fontes de corridas (Lap2Go, Acorrer, Xistarca, Stop and Go, Trilho Perdido) continuam a excluir pista, porque pelo nome os falsos positivos seriam muitos. Atenção à época: a pista coberta é de dezembro a março e a pista ao ar livre de abril a setembro, por isso fora dessas alturas aparecem poucas provas de pista.
 
 Grande parte das provas das associações já aparece noutras fontes; o ganho está em confirmar provas e apanhar as pequenas provas locais.
+
+### Radar dos organizadores (escolher novas fontes)
+
+Para decidir a que organizadores e plataformas vale a pena fazer um scraper próprio ("ir direto aos organizadores"), o scraper calcula no fim de cada execução (também com `--fonte`) a tabela `organizadores` — `RadarOrganizadores::atualizar()`; para a calcular sem correr o scraper: `php scripts/atualizar_organizadores.php`, que mostra também os candidatos. Migração: `sql/migracao_017_organizadores.sql`.
+
+- **Agrupa pelo site, não pelo nome** (os nomes vêm sujos: "Runporto" e "CM VNF / Runporto"). Cada prova conta para os sites de `organizador_url`, `url_evento` e, em `corridas_fontes`, `url_evento` e `url_inscricao` de cada fonte (`RadarOrganizadores::chave()`): domínio sem `www.` nem subdomínios (`beta.fpacompeticoes.pt` → `fpacompeticoes.pt`, `corrida2026.statusmarathon.run` → `statusmarathon.run`), exceto alojamentos em que cada subdomínio é outro site (`aavilareal.wixsite.com`) e redes sociais (`facebook.com/pagina`). Ignora documentos, encurtadores e formulários (Google Drive/Forms, tinyurl...). O nome é o `organizador` mais usado quando o site é o `organizador_url` da prova.
+- **Colunas:** provas desde há um ano (inclui as futuras), futuras, total, fontes onde essas provas foram encontradas, e `tem_scraper` — o site é o de alguma página de onde o scraper lê provas (`corridas_fontes.url_fonte`). Uma fonte que deixou de devolver provas (ex. AA Madeira e AA Santarém em 2026-10) aparece como sem scraper, o que também serve de aviso.
+- **Candidato a nova fonte:** sem scraper e com `RadarOrganizadores::MINIMO_PROVAS` (3) ou mais provas no último ano.
+- **Página** `public/organizadores.php` (link "Organizadores" no topo, só administradores): separadores "Sem scraper" (inicial), "Candidatos" e "Todos"; cada site com o link, o nome, uma prova de exemplo e onde foi encontrado.
+
+Os organizadores pequenos (clubes, câmaras, 1 prova por ano, muitas vezes só no Facebook) não compensam um scraper: continuam a ser descobertos pelos agregadores (All4Running, Portugal Running) e os dados oficiais lidos na página de cada prova.
 
 ### Fontes deixadas para mais tarde
 

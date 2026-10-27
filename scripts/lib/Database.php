@@ -1083,6 +1083,79 @@ final class Database
     }
 
     // ---------------------------------------------------------------------
+    // Radar dos organizadores (RadarOrganizadores)
+    // ---------------------------------------------------------------------
+
+    /**
+     * Uma linha por prova e fonte, com os endereços de onde se tira o site do
+     * organizador: o da prova, o do organizador e os de cada fonte.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public function linhasParaRadarOrganizadores(): array
+    {
+        return $this->pdo->query(<<<SQL
+            SELECT c.id, c.data_prova, c.organizador, c.organizador_url, c.url_evento,
+                   cf.fonte, cf.url_fonte, cf.url_evento AS fonte_url_evento, cf.url_inscricao AS fonte_url_inscricao
+            FROM corridas c
+            LEFT JOIN corridas_fontes cf ON cf.corrida_id = c.id
+            ORDER BY c.data_prova, c.id
+            SQL)->fetchAll();
+    }
+
+    /**
+     * Troca o conteúdo da tabela organizadores pelo radar acabado de calcular
+     * (é toda calculada a partir das provas; não há nada escrito à mão).
+     *
+     * @param array<int,array<string,mixed>> $radar RadarOrganizadores::calcular()
+     */
+    public function substituirOrganizadores(array $radar): void
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $this->pdo->exec('DELETE FROM organizadores');
+            $stmt = $this->pdo->prepare(<<<SQL
+                INSERT INTO organizadores
+                    (dominio, nome, site_url, provas_ano, provas_futuras, provas_total, fontes, tem_scraper, exemplo_corrida_id)
+                VALUES (:dominio, :nome, :site_url, :provas_ano, :provas_futuras, :provas_total, :fontes, :tem_scraper, :exemplo_corrida_id)
+                SQL);
+            foreach ($radar as $site) {
+                $stmt->execute([
+                    'dominio' => mb_substr($site['dominio'], 0, 190),
+                    'nome' => $site['nome'],
+                    'site_url' => mb_substr($site['site_url'], 0, 500),
+                    'provas_ano' => $site['provas_ano'],
+                    'provas_futuras' => $site['provas_futuras'],
+                    'provas_total' => $site['provas_total'],
+                    'fontes' => mb_substr($site['fontes'], 0, 500),
+                    'tem_scraper' => $site['tem_scraper'] ? 1 : 0,
+                    'exemplo_corrida_id' => $site['exemplo_corrida_id'],
+                ]);
+            }
+            $this->pdo->commit();
+        } catch (Throwable $e) {
+            $this->pdo->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Sites do radar, os com mais provas no último ano primeiro, com o nome da
+     * prova de exemplo.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public function listarOrganizadores(): array
+    {
+        return $this->pdo->query(<<<SQL
+            SELECT o.*, c.nome AS exemplo_nome
+            FROM organizadores o
+            LEFT JOIN corridas c ON c.id = o.exemplo_corrida_id
+            ORDER BY o.provas_ano DESC, o.provas_total DESC, o.dominio
+            SQL)->fetchAll();
+    }
+
+    // ---------------------------------------------------------------------
     // Utilizadores e autenticação
     // ---------------------------------------------------------------------
 
