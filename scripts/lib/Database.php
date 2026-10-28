@@ -51,8 +51,22 @@ final class Database
         $existenteId = $verifica->fetchColumn();
 
         if ($existenteId !== false) {
-            $this->atualizarComFonte((int) $existenteId, $corrida);
+            $this->atualizarComFonte((int) $existenteId, $corrida, fonteJaPublicou: true);
             $this->registarFonte((int) $existenteId, $corrida, $hash);
+
+            return 'updated';
+        }
+
+        // Mesma prova da mesma fonte (mesmo link do evento), mas com data, hora ou local
+        // diferentes: o nome-data-local muda o hash, por isso tem de ser reconhecida pelo link.
+        $porEvento = $this->encontrarPorUrlEvento($corrida);
+        if ($porEvento !== null) {
+            [$corridaId, $hashAntigo] = $porEvento;
+            $this->atualizarComFonte($corridaId, $corrida, fonteJaPublicou: true);
+            // A linha desta fonte passa a ter o novo hash; registarFonte atualiza o resto.
+            $this->pdo->prepare('UPDATE corridas_fontes SET hash_dedup = :novo WHERE corrida_id = :id AND fonte = :fonte AND hash_dedup = :antigo')
+                ->execute(['novo' => $hash, 'id' => $corridaId, 'fonte' => $corrida->fonte, 'antigo' => $hashAntigo]);
+            $this->registarFonte($corridaId, $corrida, $hash);
 
             return 'updated';
         }
@@ -136,9 +150,11 @@ final class Database
      * Atualiza a prova com os dados desta fonte: substitui tudo se for a fonte
      * principal, senão só preenche campos vazios.
      */
-    private function atualizarComFonte(int $corridaId, Corrida $corrida): void
+    private function atualizarComFonte(int $corridaId, Corrida $corrida, bool $fonteJaPublicou = false): void
     {
         $atual = $this->obterCorrida($corridaId);
+        // A fonte que publica a prova manda nos seus dados, mesmo que não tenha sido a primeira.
+        $mesmaFonte = $fonteJaPublicou || $atual['fonte'] === $corrida->fonte;
 
         $novos = [
             'local' => $corrida->local,
@@ -148,7 +164,7 @@ final class Database
             'url_evento' => $corrida->urlEvento,
         ];
 
-        if ($atual['fonte'] === $corrida->fonte) {
+        if ($mesmaFonte) {
             $valores = $novos + [
                 'nome' => $corrida->nome,
                 'data_prova' => $corrida->dataProva,
@@ -163,19 +179,96 @@ final class Database
 
         // A imagem nunca é apagada por uma fonte que não a tem: pode ter sido
         // encontrada noutra fonte ou na página do evento (provasParaProcurarImagem).
-        if ($corrida->imagemUrl !== null && ($atual['fonte'] === $corrida->fonte || empty($atual['imagem_url']))) {
+        if ($corrida->imagemUrl !== null && ($mesmaFonte || empty($atual['imagem_url']))) {
             $valores['imagem_url'] = $corrida->imagemUrl;
         }
         // Hora, programa e organizador: o mesmo — também vêm das páginas das
         // provas nas plataformas (gravarDetalhes), que não se apagam.
         foreach ($this->camposDetalhes($corrida) as $campo => $valor) {
-            if ($valor !== null && ($atual['fonte'] === $corrida->fonte || empty($atual[$campo]))) {
+            if ($valor !== null && ($mesmaFonte || empty($atual[$campo]))) {
                 $valores[$campo] = $valor;
+            }
+        }
+
+        // Alterações só são contadas pela fonte que publicou a prova: as outras só preenchem o que está vazio.
+        if ($mesmaFonte) {
+            $alteracoes = $this->registarAlteracoes($corridaId, $atual, $valores);
+            if ($alteracoes !== []) {
+                $valores['alterada_em'] = date('Y-m-d H:i:s');
             }
         }
 
         $this->atualizarCampos($corridaId, $valores);
         $this->sincronizarDistancias($corridaId, $valores['distancias']);
+    }
+
+    /**
+     * Procura a prova desta fonte pelo link do evento. Só conta se o link identificar
+     * uma única prova (algumas fontes repetem o mesmo link para provas diferentes).
+     *
+     * @return array{0: int, 1: string}|null [corrida_id, hash_dedup antigo]
+     */
+    private function encontrarPorUrlEvento(Corrida $corrida): ?array
+    {
+        if ($corrida->urlEvento === null || $corrida->urlEvento === '') {
+            return null;
+        }
+
+        $stmt = $this->pdo->prepare('SELECT corrida_id, hash_dedup FROM corridas_fontes WHERE fonte = :fonte AND url_evento = :url');
+        $stmt->execute(['fonte' => $corrida->fonte, 'url' => $corrida->urlEvento]);
+        $linhas = $stmt->fetchAll();
+
+        if (count($linhas) !== 1) {
+            return null;
+        }
+
+        return [(int) $linhas[0]['corrida_id'], (string) $linhas[0]['hash_dedup']];
+    }
+
+    /**
+     * Compara data, hora e local com os valores anteriores. O primeiro preenchimento
+     * (valor anterior vazio) não é uma alteração. Grava o histórico e avisa quem tem a
+     * prova guardada (notificacoes_pendentes).
+     *
+     * @param array<string,mixed> $atual   linha atual da prova
+     * @param array<string,mixed> $valores valores que vão ser gravados
+     * @return array<int,string> campos alterados
+     */
+    private function registarAlteracoes(int $corridaId, array $atual, array $valores): array
+    {
+        $campos = [
+            'data_prova' => ['campo' => 'data', 'normalizar' => fn ($v) => (string) $v],
+            'hora_inicio' => ['campo' => 'hora', 'normalizar' => fn ($v) => substr((string) $v, 0, 5)],
+            'local' => ['campo' => 'local', 'normalizar' => fn ($v) => mb_strtolower(trim((string) $v))],
+        ];
+
+        $alterados = [];
+        foreach ($campos as $coluna => $config) {
+            $novo = $valores[$coluna] ?? null;
+            $antigo = $atual[$coluna] ?? null;
+            if ($novo === null || $novo === '' || $antigo === null || $antigo === '') {
+                continue;
+            }
+            if ($config['normalizar']($novo) === $config['normalizar']($antigo)) {
+                continue;
+            }
+
+            $this->pdo->prepare(
+                'INSERT INTO corridas_alteracoes (corrida_id, campo, valor_antigo, valor_novo) VALUES (:id, :campo, :antigo, :novo)'
+            )->execute(['id' => $corridaId, 'campo' => $config['campo'], 'antigo' => (string) $antigo, 'novo' => (string) $novo]);
+
+            $alterados[] = $config['campo'];
+        }
+
+        if ($alterados !== []) {
+            $mensagem = mb_substr(sprintf('"%s": alterada (%s).', $atual['nome'], implode(', ', $alterados)), 0, 500);
+            $this->pdo->prepare(
+                'INSERT INTO notificacoes_pendentes (utilizador_id, corrida_id, mensagem)
+                 SELECT utilizador_id, :id, :mensagem FROM favoritos WHERE corrida_id = :id2'
+            )->execute(['id' => $corridaId, 'mensagem' => $mensagem, 'id2' => $corridaId]);
+        }
+
+        return $alterados;
     }
 
     /**
@@ -1046,7 +1139,7 @@ final class Database
         $ids = array_map(fn (array $c) => (int) $c['id'], $corridas);
         $marcadores = implode(',', array_fill(0, count($ids), '?'));
         $stmt = $this->pdo->prepare(
-            "SELECT corrida_id, fonte, url_fonte, url_inscricao FROM corridas_fontes WHERE corrida_id IN ({$marcadores}) ORDER BY id"
+            "SELECT corrida_id, fonte, url_fonte, url_evento, url_inscricao FROM corridas_fontes WHERE corrida_id IN ({$marcadores}) ORDER BY id"
         );
         $stmt->execute($ids);
 
@@ -1054,7 +1147,7 @@ final class Database
         foreach ($stmt->fetchAll() as $linha) {
             // Uma fonte pode ter mais do que uma entrada para a mesma prova; mostra-se uma vez.
             $fonte = &$porCorrida[(int) $linha['corrida_id']][$linha['fonte']];
-            $fonte ??= ['fonte' => $linha['fonte'], 'url_fonte' => $linha['url_fonte'], 'url_inscricao' => null];
+            $fonte ??= ['fonte' => $linha['fonte'], 'url_fonte' => $linha['url_fonte'], 'url_evento' => $linha['url_evento'], 'url_inscricao' => null];
             $fonte['url_inscricao'] ??= $linha['url_inscricao'];
             unset($fonte);
         }

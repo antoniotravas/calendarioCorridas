@@ -15,4 +15,7 @@ return [
     'google_client_id'     => '',
     'google_client_secret' => '',
     'google_redirect_uri'  => 'http://localhost:8000/auth/google-callback.php',
+    // Alertas por email (scripts/enviar_alertas.php): remetente e endereço público do site.
+    'email_remetente' => 'Calendário de Corridas <noreply@o-teu-dominio.pt>',
+    'url_publica'     => 'https://o-teu-dominio.pt',
 ];

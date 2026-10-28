@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS corridas (
     latitude       DECIMAL(9,6) NULL,
     longitude      DECIMAL(9,6) NULL,
     coordenadas_procuradas_em DATETIME NULL,
+    alterada_em    DATETIME NULL,              -- última alteração de data, hora ou local (migração 018)
     hash_dedup     CHAR(40) NOT NULL,
     criado_em      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     atualizado_em  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -169,4 +170,62 @@ CREATE TABLE IF NOT EXISTS organizadores (
     atualizado_em  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (dominio),
     KEY idx_provas_ano (provas_ano)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Alterações às provas (migração 018): histórico e fila de notificações por email.
+CREATE TABLE IF NOT EXISTS corridas_alteracoes (
+    id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    corrida_id    INT UNSIGNED NOT NULL,
+    campo         VARCHAR(30)  NOT NULL,
+    valor_antigo  VARCHAR(255) NULL,
+    valor_novo    VARCHAR(255) NULL,
+    detetado_em   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_alteracoes_corrida (corrida_id),
+    CONSTRAINT fk_alteracoes_corrida FOREIGN KEY (corrida_id)
+        REFERENCES corridas (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS notificacoes_pendentes (
+    id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    utilizador_id   INT UNSIGNED NOT NULL,
+    corrida_id      INT UNSIGNED NOT NULL,
+    mensagem        VARCHAR(500) NOT NULL,
+    criado_em       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    enviado_em      DATETIME NULL,
+    PRIMARY KEY (id),
+    KEY idx_notificacoes_envio (enviado_em),
+    CONSTRAINT fk_notificacoes_utilizador FOREIGN KEY (utilizador_id)
+        REFERENCES utilizadores (id) ON DELETE CASCADE,
+    CONSTRAINT fk_notificacoes_corrida FOREIGN KEY (corrida_id)
+        REFERENCES corridas (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Alterações às provas (migração 018): histórico e fila de notificações por email.
+CREATE TABLE IF NOT EXISTS corridas_alteracoes (
+    id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    corrida_id    INT UNSIGNED NOT NULL,
+    campo         VARCHAR(30)  NOT NULL,
+    valor_antigo  VARCHAR(255) NULL,
+    valor_novo    VARCHAR(255) NULL,
+    detetado_em   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_alteracoes_corrida (corrida_id),
+    CONSTRAINT fk_alteracoes_corrida FOREIGN KEY (corrida_id)
+        REFERENCES corridas (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS notificacoes_pendentes (
+    id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    utilizador_id   INT UNSIGNED NOT NULL,
+    corrida_id      INT UNSIGNED NOT NULL,
+    mensagem        VARCHAR(500) NOT NULL,
+    criado_em       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    enviado_em      DATETIME NULL,
+    PRIMARY KEY (id),
+    KEY idx_notificacoes_envio (enviado_em),
+    CONSTRAINT fk_notificacoes_utilizador FOREIGN KEY (utilizador_id)
+        REFERENCES utilizadores (id) ON DELETE CASCADE,
+    CONSTRAINT fk_notificacoes_corrida FOREIGN KEY (corrida_id)
+        REFERENCES corridas (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

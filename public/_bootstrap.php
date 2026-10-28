@@ -15,6 +15,7 @@ require __DIR__ . '/../scripts/lib/InscricaoHelper.php';
 require __DIR__ . '/../scripts/lib/Geocodificador.php';
 require __DIR__ . '/lib/Auth.php';
 require __DIR__ . '/lib/Organizador.php';
+require __DIR__ . '/lib/ListaInscritos.php';
 
 $configPath = __DIR__ . '/../scripts/config.php';
 
