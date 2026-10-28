@@ -14,6 +14,18 @@ declare(strict_types=1);
  */
 
 $config = require __DIR__ . '/config.php';
+
+/**
+ * "Calendário de Corridas <noreply@x.pt>" -> nome codificado (acentos) + endereço em texto simples.
+ */
+function codificarRemetente(string $remetente): string
+{
+    if (preg_match('/^(.*?)\s*<([^>]+)>$/', $remetente, $m) !== 1) {
+        return $remetente;
+    }
+
+    return '=?UTF-8?B?' . base64_encode($m[1]) . '?= <' . $m[2] . '>';
+}
 $enviar = in_array('--enviar', $argv, true);
 
 $remetente = (string) ($config['email_remetente'] ?? '');
@@ -58,7 +70,7 @@ foreach ($pendentes as $n) {
         continue;
     }
 
-    $cabecalhos = "From: {$remetente}\r\n"
+    $cabecalhos = 'From: ' . codificarRemetente($remetente) . "\r\n"
         . "Content-Type: text/plain; charset=UTF-8\r\n"
         . "Content-Transfer-Encoding: 8bit\r\n";
 
