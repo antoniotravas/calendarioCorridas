@@ -612,7 +612,10 @@ details.exportar-link[open] > summary { border-color: var(--sinal); color: var(-
 }
 .botao-principal:hover { background: var(--sinal-escuro); }
 .botao-google {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
     width: 100%;
     padding: 10px;
     border: 1px solid var(--linha);
