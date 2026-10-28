@@ -42,6 +42,9 @@ require __DIR__ . '/scrapers/QueroirScraper.php';
 require __DIR__ . '/scrapers/WaitastartScraper.php';
 require __DIR__ . '/scrapers/AAAlgarveScraper.php';
 require __DIR__ . '/scrapers/AAGuardaScraper.php';
+require __DIR__ . '/scrapers/AAPortalegreScraper.php';
+require __DIR__ . '/scrapers/DesportaveScraper.php';
+require __DIR__ . '/scrapers/CyclonesSportsScraper.php';
 
 $configPath = __DIR__ . '/config.php';
 
@@ -90,6 +93,9 @@ $scrapers = [
     new WaitastartScraper($http),
     new AAAlgarveScraper($http),
     new AAGuardaScraper($http),
+    new AAPortalegreScraper($http),
+    new DesportaveScraper($http),
+    new CyclonesSportsScraper($http),
 ];
 
 // As fontes organizadoras de todas as fontes, mesmo quando só se corre uma (--fonte).
