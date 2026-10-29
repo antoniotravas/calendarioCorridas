@@ -19,7 +19,7 @@ $c = $corridaId > 0 ? $db->obterProva($corridaId, $utilizadorAtual['id'] ?? null
 
 if ($c === null) {
     http_response_code(404);
-    $tituloDocumento = 'Prova não encontrada — Calendário de corridas';
+    $tituloDocumento = 'Prova não encontrada — Corridas';
     ?><!DOCTYPE html>
 <html lang="pt-PT">
 <head>
@@ -105,7 +105,7 @@ $urlMapa = $c['local']
     ? 'https://www.google.com/maps/search/?' . http_build_query(['api' => 1, 'query' => $c['local'] . ', Portugal'])
     : null;
 
-$tituloDocumento = $c['nome'] . ($ts !== null ? ' — ' . date('j/n/Y', $ts) : '') . ' — Calendário de corridas';
+$tituloDocumento = $c['nome'] . ($ts !== null ? ' — ' . date('j/n/Y', $ts) : '') . ' — Corridas';
 $voltar = '/prova.php?id=' . (int) $c['id'];
 $iconeGuardar = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 3.5h10a1 1 0 0 1 1 1v16l-6-4-6 4v-16a1 1 0 0 1 1-1z"/></svg>';
 $iconeExterno = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8M17 14v5H5V7h5"/></svg>';

@@ -62,13 +62,30 @@ header.topo { padding: 16px 16px 6px; }
     gap: 12px;
 }
 .marca {
-    font-family: var(--letra-estreita);
-    font-weight: 700;
-    font-size: 1.6rem;
-    line-height: 1;
-    letter-spacing: -0.01em;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
     text-decoration: none;
     color: var(--asfalto);
+}
+.marca-simbolo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #2f6fd0 0%, var(--sinal) 55%, var(--sinal-escuro) 100%);
+    color: #fff;
+    box-shadow: 0 4px 12px -4px rgba(28, 79, 160, 0.55);
+}
+.marca-nome {
+    font-family: var(--letra-estreita);
+    font-weight: 800;
+    font-size: 1.75rem;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
 }
 nav.conta { display: flex; align-items: center; gap: 16px; font-size: 0.92rem; }
 nav.conta a { text-decoration: none; color: var(--cinza); display: inline-flex; align-items: center; gap: 6px; }
@@ -891,7 +908,8 @@ li.utilizador.desativado .utilizador-dados { opacity: 0.7; }
 
 /* Telemóvel */
 @media (max-width: 700px) {
-    .marca { font-size: 1.4rem; }
+    .marca-nome { font-size: 1.5rem; }
+    .marca-simbolo { width: 28px; height: 28px; border-radius: 8px; }
     nav.conta { gap: 4px; font-size: 0.88rem; }
     /* Só os ícones (o nome fica em title/aria-label); "Entrar" e "Criar conta" mantêm o texto */
     nav.conta .conta-rotulo { display: none; }

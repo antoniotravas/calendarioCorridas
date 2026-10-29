@@ -6,7 +6,10 @@ $utilizador = $auth->utilizadorAtual();
 ?>
 <header class="topo">
     <div class="topo-linha">
-        <a class="marca" href="/">Calendário de corridas</a>
+        <a class="marca" href="/">
+            <span class="marca-simbolo" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5l6 7-6 7M14 5l6 7-6 7"/></svg></span>
+            <span class="marca-nome">Corridas</span>
+        </a>
         <nav class="conta" aria-label="Conta">
             <?php if ($utilizador !== null): ?>
                 <?php /* No telemóvel só aparecem os ícones (classe conta-rotulo escondida em estilo.css). */ ?>

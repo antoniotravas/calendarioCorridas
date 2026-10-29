@@ -39,7 +39,7 @@ usort($ranking, fn (array $a, array $b) => [$b['total'], $a['data_prova']] <=> [
 $totalGeral = array_sum(array_column($ranking, 'total'));
 
 $nomesCategoria = ['estrada' => 'Estrada', 'trail' => 'Trail', 'corta-mato' => 'Corta-mato', 'pista' => 'Pista'];
-$tituloDocumento = 'Ranking dos prémios — Calendário de corridas';
+$tituloDocumento = 'Ranking dos prémios — Corridas';
 
 ?><!DOCTYPE html>
 <html lang="pt-PT">

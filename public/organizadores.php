@@ -26,7 +26,7 @@ $organizadores = match ($ver) {
 $atualizado = $todos !== [] ? max(array_column($todos, 'atualizado_em')) : null;
 $separadores = ['sem-scraper' => 'Sem scraper', 'candidatos' => 'Candidatos', 'todos' => 'Todos'];
 
-$tituloDocumento = 'Organizadores — Calendário de corridas';
+$tituloDocumento = 'Organizadores — Corridas';
 
 ?><!DOCTYPE html>
 <html lang="pt-PT">

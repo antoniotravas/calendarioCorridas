@@ -60,7 +60,7 @@ $botao = function (array $u, string $acao, bool $valor, string $texto, string $c
         . '</form>';
 };
 
-$tituloDocumento = 'Gestão de utilizadores — Calendário de corridas';
+$tituloDocumento = 'Gestão de utilizadores — Corridas';
 
 ?><!DOCTYPE html>
 <html lang="pt-PT">
