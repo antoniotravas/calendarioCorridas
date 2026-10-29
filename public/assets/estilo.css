@@ -71,14 +71,16 @@ header.topo { padding: 16px 16px 6px; }
     color: var(--asfalto);
 }
 nav.conta { display: flex; align-items: center; gap: 16px; font-size: 0.92rem; }
-nav.conta a { text-decoration: none; color: var(--cinza); }
+nav.conta a { text-decoration: none; color: var(--cinza); display: inline-flex; align-items: center; gap: 6px; }
 nav.conta a:hover { color: var(--sinal); }
 nav.conta a.conta-destaque { color: var(--sinal); font-weight: 600; }
 nav.conta form { margin: 0; }
 nav.conta button.link {
     background: none; border: none; padding: 0; margin: 0;
     color: var(--cinza); font: inherit; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
 }
+nav.conta svg { flex: none; }
 nav.conta button.link:hover { color: var(--sinal); }
 
 /* Filtros: barra fixa no topo ao descer */
@@ -890,7 +892,11 @@ li.utilizador.desativado .utilizador-dados { opacity: 0.7; }
 /* Telemóvel */
 @media (max-width: 700px) {
     .marca { font-size: 1.4rem; }
-    nav.conta { gap: 12px; font-size: 0.88rem; }
+    nav.conta { gap: 4px; font-size: 0.88rem; }
+    /* Só os ícones (o nome fica em title/aria-label); "Entrar" e "Criar conta" mantêm o texto */
+    nav.conta .conta-rotulo { display: none; }
+    nav.conta a:has(> svg),
+    nav.conta button.link:has(> svg) { padding: 8px; border-radius: 8px; }
 
     .barra-filtros { padding: 8px 16px; }
     /* Telemóvel: procura (e "Prémios €") na 1.ª linha, as outras listas na 2.ª;
