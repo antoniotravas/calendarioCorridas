@@ -5,10 +5,9 @@ declare(strict_types=1);
 require __DIR__ . '/_bootstrap.php';
 
 /*
- * Gestão de utilizadores (só administradores): decidir quem pode ver os
- * prémios monetários (ícone "€" e filtro "Prémios" do calendário) e, desses,
- * quem vê também o ranking dos prémios (/ranking-premios.php), quem é
- * administrador (vê sempre os prémios) e desativar contas. O primeiro
+ * Gestão de utilizadores (só administradores): quem é administrador e
+ * desativar contas. Os prémios monetários são visíveis a todos os utilizadores
+ * com sessão iniciada, e o ranking dos prémios só a administradores. O primeiro
  * administrador define-se com scripts/definir_admin.php. Ninguém se pode
  * retirar de administrador nem desativar a própria conta (para não ficar
  * sem acesso a esta página).
@@ -32,12 +31,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['gestao_aviso'] = $acao === 'admin'
             ? 'Não podes deixar de ser administrador por ti próprio.'
             : 'Não podes desativar a tua própria conta.';
-    } elseif ($alvo !== null && $acao === 'premios') {
-        $db->definirVerPremios((int) $alvo['id'], $valor);
-        $_SESSION['gestao_aviso'] = ($valor ? 'Acesso aos prémios dado a ' : 'Acesso aos prémios (e ao ranking) retirado a ') . $alvo['nome'] . '.';
-    } elseif ($alvo !== null && $acao === 'ranking') {
-        $db->definirVerRanking((int) $alvo['id'], $valor);
-        $_SESSION['gestao_aviso'] = ($valor ? 'Acesso ao ranking dos prémios dado a ' : 'Acesso ao ranking dos prémios retirado a ') . $alvo['nome'] . '.';
     } elseif ($alvo !== null && $acao === 'admin') {
         $db->definirAdminPorId((int) $alvo['id'], $valor);
         $_SESSION['gestao_aviso'] = $alvo['nome'] . ($valor ? ' passou a administrador.' : ' deixou de ser administrador.');
@@ -53,7 +46,6 @@ $aviso = $_SESSION['gestao_aviso'] ?? null;
 unset($_SESSION['gestao_aviso']);
 
 $utilizadores = $db->listarUtilizadores($procura);
-$comAcesso = count(array_filter($utilizadores, fn (array $u) => $u['e_admin'] || $u['ver_premios']));
 $desativados = count(array_filter($utilizadores, fn (array $u) => !$u['ativo']));
 $euId = (int) $auth->utilizadorAtual()['id'];
 
@@ -85,12 +77,10 @@ $tituloDocumento = 'Gestão de utilizadores — Calendário de corridas';
     </div>
 
     <p class="gestao-explicacao">
-        Escolhe quem pode ver os <strong>prémios monetários</strong> no calendário (o ícone
-        <span class="premios premios-sim" aria-hidden="true">€</span> e o filtro «Prémios €»).
-        Quem não tem acesso não vê nem o ícone nem o filtro. A quem já vê os prémios podes dar também
-        o <strong>ranking dos prémios</strong> (link «Ranking €» no topo). Os <strong>administradores</strong> veem
-        sempre os prémios e as fontes, e gerem esta página. Uma conta <strong>desativada</strong> deixa
-        de conseguir entrar (com email ou Google) e o link do seu calendário deixa de funcionar.
+        Os <strong>prémios monetários</strong> são visíveis a todos os utilizadores com sessão iniciada.
+        Os <strong>administradores</strong> gerem esta página, vêem o ranking dos prémios (link «Ranking €»
+        no topo) e as fontes. Uma conta <strong>desativada</strong> deixa de conseguir entrar (com email
+        ou Google) e o link do seu calendário deixa de funcionar.
     </p>
 
     <form class="gestao-procura" method="get" action="/gestao-utilizadores.php" role="search">
@@ -108,7 +98,7 @@ $tituloDocumento = 'Gestão de utilizadores — Calendário de corridas';
 
     <p class="resumo">
         <?= count($utilizadores) === 1 ? '1 utilizador' : count($utilizadores) . ' utilizadores' ?><?= $procura !== null ? ' com «' . htmlspecialchars($procura) . '»' : '' ?>,
-        <?= $comAcesso ?> com acesso aos prémios<?= $desativados > 0 ? ', ' . ($desativados === 1 ? '1 desativado' : $desativados . ' desativados') : '' ?>
+        <?= $desativados > 0 ? ($desativados === 1 ? '1 desativado' : $desativados . ' desativados') : 'nenhum desativado' ?>
         <?php if ($procura !== null): ?><a href="/gestao-utilizadores.php">Ver todos</a><?php endif; ?>
     </p>
 
@@ -117,15 +107,13 @@ $tituloDocumento = 'Gestão de utilizadores — Calendário de corridas';
     <?php else: ?>
         <ul class="utilizadores">
             <?php foreach ($utilizadores as $u):
-                $temAcesso = $u['e_admin'] || $u['ver_premios'];
                 $entrada = array_filter([$u['tem_password'] ? 'email e password' : null, $u['tem_google'] ? 'Google' : null]);
                 ?>
-                <li class="utilizador<?= $temAcesso ? ' com-acesso' : '' ?><?= $u['ativo'] ? '' : ' desativado' ?>">
+                <li class="utilizador<?= $u['ativo'] ? '' : ' desativado' ?>">
                     <div class="utilizador-dados">
                         <p class="utilizador-nome">
                             <?= htmlspecialchars($u['nome']) ?>
                             <?php if ($u['e_admin']): ?><span class="etiqueta-admin">Administrador</span><?php endif; ?>
-                            <?php if (!$u['e_admin'] && $u['ver_premios']): ?><span class="etiqueta-premios"><?= $u['ver_ranking'] ? 'Vê prémios e ranking' : 'Vê prémios' ?></span><?php endif; ?>
                             <?php if (!$u['ativo']): ?><span class="etiqueta-desativado">Desativado</span><?php endif; ?>
                             <?php if ((int) $u['id'] === $euId): ?><span class="etiqueta-eu">(tu)</span><?php endif; ?>
                         </p>
@@ -138,17 +126,6 @@ $tituloDocumento = 'Gestão de utilizadores — Calendário de corridas';
                     </div>
 
                     <div class="utilizador-acoes">
-                        <?php if ($u['e_admin']): ?>
-                            <span class="acesso-estado">Vê sempre os prémios e o ranking</span>
-                        <?php elseif ($u['ver_premios']): ?>
-                            <?= $u['ver_ranking']
-                                ? $botao($u, 'ranking', false, 'Retirar ranking', 'retirar')
-                                : $botao($u, 'ranking', true, 'Dar acesso ao ranking', 'dar') ?>
-                            <?= $botao($u, 'premios', false, 'Retirar prémios', 'retirar') ?>
-                        <?php else: ?>
-                            <?= $botao($u, 'premios', true, 'Dar acesso aos prémios', 'dar') ?>
-                        <?php endif; ?>
-
                         <?php if ((int) $u['id'] !== $euId): ?>
                             <?= $u['e_admin']
                                 ? $botao($u, 'admin', false, 'Retirar administrador', 'retirar')

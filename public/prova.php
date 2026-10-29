@@ -146,9 +146,6 @@ $iconeExterno = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="tr
                 <?php endforeach; ?>
             </ul>
             <h1><?= htmlspecialchars($c['nome']) ?></h1>
-            <?php if (!empty($c['alterada_em']) && strtotime($c['alterada_em']) > strtotime('-14 days')): ?>
-                <p class="alterada-aviso">Esta prova foi alterada em <?= htmlspecialchars(date('d/m/Y', strtotime($c['alterada_em']))) ?> (data, hora ou local). Confirma antes de te deslocares.</p>
-            <?php endif; ?>
             <p class="prova-quando">
                 <?= $ts !== null ? htmlspecialchars(DateHelper::formatarLongo($data)) : 'Data por confirmar' ?>
                 <?php if ($horaTexto !== null): ?><span class="prova-hora">às <?= $horaTexto ?></span><?php elseif ($ts !== null): ?><span class="nota-inline">· hora por confirmar</span><?php endif; ?>

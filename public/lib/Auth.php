@@ -48,26 +48,18 @@ final class Auth
     }
 
     /**
-     * Pode ver os prémios monetários (ícone "€" e filtro "Prémios"): os
-     * administradores e quem eles autorizarem. Sem sessão, não.
+     * Pode ver os prémios monetários (ícone "€", filtro "Prémios" e secção na
+     * página da prova): qualquer utilizador com sessão iniciada. Sem sessão, não.
      */
     public function podeVerPremios(): bool
     {
-        $utilizador = $this->utilizadorAtual();
-
-        return !empty($utilizador['e_admin']) || !empty($utilizador['ver_premios']);
+        return $this->utilizadorAtual() !== null;
     }
 
-    /**
-     * Pode ver o ranking dos prémios (/ranking-premios.php): os
-     * administradores e quem, além dos prémios, tiver também este acesso.
-     */
+    /** Pode ver o ranking dos prémios (/ranking-premios.php): só administradores. */
     public function podeVerRanking(): bool
     {
-        $utilizador = $this->utilizadorAtual();
-
-        return !empty($utilizador['e_admin'])
-            || (!empty($utilizador['ver_premios']) && !empty($utilizador['ver_ranking']));
+        return $this->eAdmin();
     }
 
     /** Página só para administradores: login primeiro; sem permissão, 403. */

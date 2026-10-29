@@ -119,9 +119,6 @@ foreach ($grupos as $chaveMes => $grupo):
                                     <?php /* Abre a página da prova; o ::after deste link cobre o cartão todo (ver .prova-link no CSS). */ ?>
                                     <a class="prova-link" href="/prova.php?id=<?= (int) $c['id'] ?>"><?= htmlspecialchars($c['nome']) ?></a>
                                     <?php $iconePremios($c); ?>
-                                    <?php if (!empty($c['alterada_em']) && strtotime($c['alterada_em']) > strtotime('-14 days')): ?>
-                                        <span class="alterada">Alterada</span>
-                                    <?php endif; ?>
                                 </h4>
                                 <?php if ($c['local']): ?>
                                     <p class="prova-local">

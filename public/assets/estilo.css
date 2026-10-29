@@ -186,8 +186,6 @@ main {
     cursor: pointer;
 }
 .prova-distancia { margin-left: 6px; color: var(--sinal); font-weight: 600; white-space: nowrap; }
-.alterada { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; vertical-align: middle; background: #fde68a; color: #7c2d12; }
-.alterada-aviso { margin: 8px 0; padding: 8px 12px; border-radius: 8px; background: #fef3c7; color: #7c2d12; font-size: 0.9rem; }
 
 /* Meses: o título fica fixo ao descer (até o mês seguinte o empurrar) */
 section.mes { margin-top: 14px; }
@@ -672,7 +670,6 @@ li.utilizador {
     border-radius: 12px;
     background: var(--branco);
 }
-li.utilizador.com-acesso { border-left: 4px solid var(--premios); }
 .utilizador-dados { min-width: 0; }
 .utilizador-dados p { margin: 0; }
 .utilizador-nome { font-weight: 600; }
@@ -689,7 +686,6 @@ li.utilizador.com-acesso { border-left: 4px solid var(--premios); }
     font-weight: 600;
 }
 .acesso-form { display: flex; align-items: center; gap: 10px; margin: 0; flex: none; }
-.acesso-estado { color: var(--premios); font-size: 0.85rem; font-weight: 600; flex: none; }
 .acesso-botao {
     height: 36px;
     padding: 0 14px;
@@ -700,14 +696,11 @@ li.utilizador.com-acesso { border-left: 4px solid var(--premios); }
     cursor: pointer;
     white-space: nowrap;
 }
-.acesso-botao.dar { border: none; background: var(--premios); color: var(--branco); }
-.acesso-botao.dar:hover { background: var(--premios-escuro); }
 .acesso-botao.retirar { border: 1px solid var(--linha-forte); background: var(--branco); color: var(--cinza); }
 .acesso-botao.retirar:hover { border-color: var(--erro); color: var(--erro); }
 .acesso-botao.secundario { border: 1px solid var(--sinal); background: var(--branco); color: var(--sinal); }
 .acesso-botao.secundario:hover { background: var(--sinal-suave); }
 .utilizador-acoes { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; flex: none; max-width: 60%; }
-.etiqueta-premios,
 .etiqueta-desativado {
     margin-left: 6px;
     padding: 2px 7px;
@@ -716,7 +709,6 @@ li.utilizador.com-acesso { border-left: 4px solid var(--premios); }
     font-size: 0.82rem;
     font-weight: 600;
 }
-.etiqueta-premios { background: var(--trail-suave); color: var(--premios); }
 .etiqueta-desativado { background: var(--erro-soft); color: var(--erro); }
 .etiqueta-eu { margin-left: 4px; color: var(--cinza); font-size: 0.85rem; font-weight: 400; }
 li.utilizador.desativado { background: var(--papel); border-left: 4px solid var(--erro); }

@@ -5,8 +5,8 @@ declare(strict_types=1);
 require __DIR__ . '/_bootstrap.php';
 
 /*
- * Ranking dos prémios monetários (administradores e quem eles autorizarem
- * na página "Gestão", Auth::podeVerRanking): as provas a partir
+ * Ranking dos prémios monetários (só administradores, Auth::podeVerRanking):
+ * as provas a partir
  * de hoje ordenadas pelo total que distribuem em prémios (prize money
  * total), do maior para o menor. O total soma todos os valores das tabelas
  * lidas no regulamento, a dobrar quando a tabela vale para masculinos e
