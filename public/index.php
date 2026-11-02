@@ -120,49 +120,10 @@ $numeroFiltros = 6 + ($podeFiltrarFonte ? 1 : 0) + ($podeVerPremios ? 1 : 0);
 $painelAberto = $filtrosAtivos !== [];
 $tituloDocumento = 'Calendário de corridas em Portugal — estrada, trail, corta-mato e pista';
 
-/**
- * Frase do total, de acordo com os filtros escolhidos, ex.:
- * "12 provas de trail em novembro, de 5 a 10 km, encontradas em All4Running".
- */
+// Frase do total: sempre "N provas", também com filtros ativos.
 $resumo = $visitante
     ? min(PROVAS_POR_PAGINA, $total) . ' das ' . $total . ' próximas provas'
-    : ($total === 1 ? '1 prova' : $total . ' provas')
-    . ($categoria !== null ? ' de ' . mb_strtolower(CATEGORIAS[$categoria]) : '')
-    . ($mes !== null ? ' em ' . DateHelper::nomeMes($mes) : '');
-$detalhes = [];
-if ($distanciaChave !== null && isset(DistanciaHelper::FAIXAS[$distanciaChave])) {
-    $faixa = mb_strtolower(trim(preg_replace('/\(.*\)/', '', DistanciaHelper::FAIXAS[$distanciaChave]['label'])));
-    $detalhes[] = match (true) {
-        str_starts_with($faixa, 'mais') => 'com ' . $faixa,
-        ctype_digit($faixa[0]) => 'de ' . $faixa,
-        default => $faixa,
-    };
-}
-if ($inscricaoChave !== null) {
-    $detalhes[] = $inscricaoChave === 'gratuita'
-        ? 'com inscrição gratuita'
-        : 'com inscrição ' . mb_strtolower(InscricaoHelper::FAIXAS[$inscricaoChave]['label']);
-}
-if ($premiosChave !== null) {
-    $detalhes[] = mb_strtolower(FILTRO_PREMIOS[$premiosChave][0]);
-}
-if ($paisChave !== null) {
-    $detalhes[] = 'em ' . PAISES[$paisChave];
-}
-if ($distritoEscolhido !== null) {
-    $detalhes[] = in_array($distritoEscolhido, $distritosDisponiveis['PT'] ?? [], true)
-        ? 'no distrito de ' . $distritoEscolhido
-        : 'na província de ' . $distritoEscolhido;
-}
-if ($fonte !== null) {
-    $detalhes[] = ($total === 1 ? 'encontrada em ' : 'encontradas em ') . $fonte;
-}
-if ($procura !== null) {
-    $detalhes[] = 'com «' . $procura . '»';
-}
-if ($detalhes !== []) {
-    $resumo .= ', ' . implode(', ', $detalhes);
-}
+    : ($total === 1 ? '1 prova' : $total . ' provas');
 
 ?><!DOCTYPE html>
 <html lang="pt-PT">
