@@ -6,7 +6,6 @@
  *  4. botão para voltar ao topo depois de descer bastante;
  *  5. os cartões das provas aparecem com fade in ao chegar ao ecrã;
  *  6. na página da prova, "Calendário" volta atrás (mesmos filtros e posição);
- *  7. "Perto de mim": pede a posição ao browser e mostra as provas próximas.
  */
 (function () {
     'use strict';
@@ -64,39 +63,6 @@
         botaoFiltros.addEventListener('click', function () {
             var aberto = painelFiltros.classList.toggle('aberto');
             botaoFiltros.setAttribute('aria-expanded', aberto ? 'true' : 'false');
-        });
-    }
-
-    // 7. Perto de mim ------------------------------------------------------------
-    // A posição vai no endereço arredondada a 2 casas decimais (~1 km) e não é guardada.
-    // Com o filtro ativo, mudar o período ("Próximo mês", "Sempre"...) aplica-se logo.
-    var periodoPerto = document.querySelector('form.periodo-perto select');
-    if (periodoPerto) {
-        periodoPerto.addEventListener('change', function () { periodoPerto.form.requestSubmit(); });
-    }
-    var botaoPerto = document.querySelector('[data-perto]');
-    if (botaoPerto && 'geolocation' in navigator) {
-        botaoPerto.hidden = false;
-        botaoPerto.addEventListener('click', function () {
-            var texto = botaoPerto.textContent;
-            botaoPerto.disabled = true;
-            botaoPerto.textContent = 'A localizar…';
-            navigator.geolocation.getCurrentPosition(function (posicao) {
-                var url = new URL(window.location.href);
-                url.searchParams.delete('pagina');
-                url.searchParams.delete('mes');
-                url.searchParams.set('perto', posicao.coords.latitude.toFixed(2) + ',' + posicao.coords.longitude.toFixed(2));
-                window.location.href = url.pathname + url.search;
-            }, function (erro) {
-                // Escrito no botão (no telemóvel a dica do title não se vê); volta ao normal ao fim de 4 s.
-                botaoPerto.textContent = erro.code === erro.PERMISSION_DENIED ? 'Localização não autorizada' : 'Localização indisponível';
-                botaoPerto.classList.add('erro');
-                setTimeout(function () {
-                    botaoPerto.disabled = false;
-                    botaoPerto.textContent = texto;
-                    botaoPerto.classList.remove('erro');
-                }, 4000);
-            }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 });
         });
     }
 

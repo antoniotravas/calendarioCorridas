@@ -956,11 +956,10 @@ final class Database
         ?string $categoria = null,
         ?bool $premios = null,
         ?array $inscricaoFaixa = null,
-        ?array $perto = null,
         ?string $pais = null,
         ?string $distrito = null
     ): array {
-        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria, $premios, $inscricaoFaixa, $perto, $pais, $distrito);
+        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria, $premios, $inscricaoFaixa, $pais, $distrito);
 
         $camposFavorito = '';
         $juncoes = '';
@@ -1037,11 +1036,10 @@ final class Database
         ?string $categoria = null,
         ?bool $premios = null,
         ?array $inscricaoFaixa = null,
-        ?array $perto = null,
         ?string $pais = null,
         ?string $distrito = null
     ): int {
-        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria, $premios, $inscricaoFaixa, $perto, $pais, $distrito);
+        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria, $premios, $inscricaoFaixa, $pais, $distrito);
 
         $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM corridas c WHERE {$where}");
         $stmt->execute($params);
@@ -1052,7 +1050,6 @@ final class Database
     /**
      * @param array{0:float,1:float}|null $distanciaFaixa
      * @param array{0:float,1:float}|null $inscricaoFaixa valor mínimo da inscrição (InscricaoHelper::FAIXAS)
-     * @param array{lat: float, lon: float, raio: float, ate: ?string}|null $perto "Perto de mim" (ate: última data "Y-m-d", null = sempre)
      * @return array{0:string,1:array<string,mixed>} condição WHERE e parâmetros
      */
     private function filtrosCorridas(
@@ -1063,7 +1060,6 @@ final class Database
         ?string $categoria,
         ?bool $premios = null,
         ?array $inscricaoFaixa = null,
-        ?array $perto = null,
         ?string $pais = null,
         ?string $distrito = null
     ): array {
@@ -1120,21 +1116,6 @@ final class Database
             $params['insc_max'] = $inscricaoFaixa[1];
         }
 
-        // "Perto de mim": provas até à data escolhida (ou sempre) a menos de X km (Haversine).
-        if ($perto !== null) {
-            $condicoes[] = 'c.data_prova >= CURDATE()';
-            if ($perto['ate'] !== null) {
-                $condicoes[] = 'c.data_prova <= :perto_ate';
-                $params['perto_ate'] = $perto['ate'];
-            }
-            $condicoes[] = 'c.latitude IS NOT NULL';
-            $condicoes[] = '6371 * 2 * ASIN(LEAST(1, SQRT(POW(SIN(RADIANS(c.latitude - :perto_lat) / 2), 2)'
-                . ' + COS(RADIANS(:perto_lat2)) * COS(RADIANS(c.latitude)) * POW(SIN(RADIANS(c.longitude - :perto_lon) / 2), 2)))) <= :perto_raio';
-            $params['perto_lat'] = $perto['lat'];
-            $params['perto_lat2'] = $perto['lat'];
-            $params['perto_lon'] = $perto['lon'];
-            $params['perto_raio'] = $perto['raio'];
-        }
 
         return [implode(' AND ', $condicoes), $params];
     }
