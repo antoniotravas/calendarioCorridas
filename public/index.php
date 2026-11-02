@@ -40,7 +40,8 @@ $inscricaoFaixa = InscricaoHelper::intervaloPorChave($inscricaoChave);
 $categoria = isset($_GET['tipo']) && isset(CATEGORIAS[$_GET['tipo']]) ? (string) $_GET['tipo'] : null;
 // Os prémios monetários só são visíveis para quem tem acesso (ver Auth::podeVerPremios).
 $podeVerPremios = $auth->podeVerPremios();
-$paisChave = isset($_GET['pais']) && isset(PAISES[$_GET['pais']]) ? (string) $_GET['pais'] : null;
+// Filtro "País" só para administradores (como o "Fonte"): os restantes veem só Portugal.
+$paisChave = $podeFiltrarFonte && isset($_GET['pais']) && isset(PAISES[$_GET['pais']]) ? (string) $_GET['pais'] : null;
 $premiosChave = $podeVerPremios && isset($_GET['premios']) && isset(FILTRO_PREMIOS[$_GET['premios']]) ? (string) $_GET['premios'] : null;
 $premios = $premiosChave !== null ? FILTRO_PREMIOS[$premiosChave][1] : null;
 // ?perto=41.15,-8.61 (posição do browser, arredondada a ~1 km pelo assets/app.js; não é guardada).
@@ -82,12 +83,17 @@ if ($visitante) {
 
 // Distritos (PT) e províncias (ES) com provas futuras, por país. Só para quem tem sessão.
 $distritosDisponiveis = $visitante ? [] : $db->listarDistritos();
+if (!$podeFiltrarFonte) {
+    unset($distritosDisponiveis['ES']);
+}
+// País efetivo nas consultas: quem não é administrador só vê provas de Portugal.
+$paisConsulta = $podeFiltrarFonte ? $paisChave : 'PT';
 $todosDistritos = array_merge([], ...array_values($distritosDisponiveis));
 $distritoEscolhido = !$visitante && isset($_GET['distrito']) && in_array((string) $_GET['distrito'], $todosDistritos, true)
     ? (string) $_GET['distrito'] : null;
 
 $total = $db->contarCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria, $premios, $inscricaoFaixa, $perto,
-    pais: $paisChave, distrito: $distritoEscolhido);
+    pais: $paisConsulta, distrito: $distritoEscolhido);
 $corridas = $db->listarCorridas(
     $mes,
     $fonte,
@@ -100,7 +106,7 @@ $corridas = $db->listarCorridas(
     $premios,
     $inscricaoFaixa,
     $perto,
-    pais: $paisChave,
+    pais: $paisConsulta,
     distrito: $distritoEscolhido
 );
 $grupos = DateHelper::agruparPorMes($corridas);
@@ -195,125 +201,130 @@ if ($detalhes !== []) {
 
 <?php if (!$visitante): ?>
 <div class="barra-filtros">
-    <div class="filtros-topo">
-        <button type="button" class="botao-filtros" aria-expanded="<?= $painelAberto ? 'true' : 'false' ?>" aria-controls="painel-filtros">
-            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M6 12h12M10 19h4"/></svg>
-            <span>Filtros</span>
-            <?php if ($filtrosAtivos !== []): ?><span class="contagem-filtros" aria-label="<?= count($filtrosAtivos) ?> filtros ativos"><?= count($filtrosAtivos) ?></span><?php endif; ?>
-            <svg class="seta" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-        </button>
-    </div>
-    <div class="painel-filtros<?= $painelAberto ? ' aberto' : '' ?>" id="painel-filtros">
-    <div class="painel-interior">
-    <form class="filtros<?= $podeVerPremios ? '' : ' sem-premios' ?>" method="get" action="/" role="search"
-          style="--filtros: <?= $numeroFiltros ?>; --colunas: <?= $numeroFiltros - ($podeVerPremios ? 1 : 0) ?>">
-        <label class="procura">
-            <span class="sr-only">Procurar prova ou localidade</span>
-            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
-            <input type="search" name="procura" placeholder="Prova ou localidade"
-                   value="<?= htmlspecialchars($procura ?? '') ?>" autocomplete="off">
-        </label>
+    <form class="filtros" method="get" action="/" role="search">
+        <div class="linha-principal">
+            <button type="button" class="botao-filtros" aria-expanded="<?= $painelAberto ? 'true' : 'false' ?>" aria-controls="painel-filtros">
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M6 12h12M10 19h4"/></svg>
+                <span>Filtros</span>
+                <?php if ($filtrosAtivos !== []): ?><span class="contagem-filtros" aria-label="<?= count($filtrosAtivos) ?> filtros ativos"><?= count($filtrosAtivos) ?></span><?php endif; ?>
+                <svg class="seta" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
 
-        <label>
-            <span class="sr-only">Tipo de corrida</span>
-            <select name="tipo">
-                <option value="">Tipo</option>
-                <?php foreach (CATEGORIAS as $valor => $nome): ?>
-                    <option value="<?= htmlspecialchars($valor) ?>" <?= $categoria === $valor ? 'selected' : '' ?>><?= htmlspecialchars($nome) ?></option>
-                <?php endforeach; ?>
-            </select>
-        </label>
+            <label class="procura">
+                <span class="sr-only">Procurar prova ou localidade</span>
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+                <input type="search" name="procura" placeholder="Prova ou localidade"
+                       value="<?= htmlspecialchars($procura ?? '') ?>" autocomplete="off">
+            </label>
 
-        <label>
-            <span class="sr-only">Mês</span>
-            <select name="mes">
-                <option value="">Mês</option>
-                <?php for ($m = 1; $m <= 12; $m++): ?>
-                    <option value="<?= $m ?>" <?= $mes === $m ? 'selected' : '' ?>><?= ucfirst(DateHelper::nomeMes($m)) ?></option>
-                <?php endfor; ?>
-            </select>
-        </label>
+            <label>
+                <span class="sr-only">Tipo de corrida</span>
+                <select name="tipo">
+                    <option value="">Tipo</option>
+                    <?php foreach (CATEGORIAS as $valor => $nome): ?>
+                        <option value="<?= htmlspecialchars($valor) ?>" <?= $categoria === $valor ? 'selected' : '' ?>><?= htmlspecialchars($nome) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
 
-        <label>
-            <span class="sr-only">Distância</span>
-            <select name="distancia">
-                <option value="">Distância</option>
-                <?php foreach (DistanciaHelper::FAIXAS as $chave => $faixa): ?>
-                    <option value="<?= htmlspecialchars($chave) ?>" <?= $distanciaChave === $chave ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($faixa['label']) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </label>
+            <label>
+                <span class="sr-only">Mês</span>
+                <select name="mes">
+                    <option value="">Mês</option>
+                    <?php for ($m = 1; $m <= 12; $m++): ?>
+                        <option value="<?= $m ?>" <?= $mes === $m ? 'selected' : '' ?>><?= ucfirst(DateHelper::nomeMes($m)) ?></option>
+                    <?php endfor; ?>
+                </select>
+            </label>
 
-        <label>
-            <span class="sr-only">Valor da inscrição</span>
-            <select name="inscricao">
-                <option value="">Inscrição</option>
-                <?php foreach (InscricaoHelper::FAIXAS as $chave => $faixa): ?>
-                    <option value="<?= htmlspecialchars($chave) ?>" <?= $inscricaoChave === $chave ? 'selected' : '' ?>><?= htmlspecialchars($faixa['label']) ?></option>
-                <?php endforeach; ?>
-            </select>
-        </label>
+            <button type="submit" class="filtrar">Procurar</button>
+        </div>
 
-        <label>
-            <span class="sr-only">País</span>
-            <select name="pais">
-                <option value="">País</option>
-                <?php foreach (PAISES as $valor => $nome): ?>
-                    <option value="<?= htmlspecialchars($valor) ?>" <?= $paisChave === $valor ? 'selected' : '' ?>><?= htmlspecialchars($nome) ?></option>
-                <?php endforeach; ?>
-            </select>
-        </label>
-
-        <label>
-            <span class="sr-only">Distrito (Portugal) ou província (Espanha)</span>
-            <select name="distrito">
-                <option value="">Distrito / província</option>
-                <?php foreach (PAISES as $valor => $nome): ?>
-                    <?php if (!empty($distritosDisponiveis[$valor]) && ($paisChave === null || $paisChave === $valor)): ?>
-                        <optgroup label="<?= htmlspecialchars($nome) ?>">
-                            <?php foreach ($distritosDisponiveis[$valor] as $distrito): ?>
-                                <option value="<?= htmlspecialchars($distrito) ?>" <?= $distritoEscolhido === $distrito ? 'selected' : '' ?>><?= htmlspecialchars($distrito) ?></option>
+        <div class="painel-filtros<?= $painelAberto ? ' aberto' : '' ?>" id="painel-filtros">
+            <div class="painel-interior">
+                <div class="campos-painel">
+                    <label>
+                        <span class="sr-only">Distrito (Portugal) ou província (Espanha)</span>
+                        <select name="distrito">
+                            <option value="">Distrito / província</option>
+                            <?php foreach (PAISES as $valor => $nome): ?>
+                                <?php if (!empty($distritosDisponiveis[$valor]) && ($paisChave === null || $paisChave === $valor)): ?>
+                                    <optgroup label="<?= htmlspecialchars($nome) ?>">
+                                        <?php foreach ($distritosDisponiveis[$valor] as $distrito): ?>
+                                            <option value="<?= htmlspecialchars($distrito) ?>" <?= $distritoEscolhido === $distrito ? 'selected' : '' ?>><?= htmlspecialchars($distrito) ?></option>
+                                        <?php endforeach; ?>
+                                    </optgroup>
+                                <?php endif; ?>
                             <?php endforeach; ?>
-                        </optgroup>
+                        </select>
+                    </label>
+
+                    <?php if ($podeFiltrarFonte): ?>
+                    <label>
+                        <span class="sr-only">País</span>
+                        <select name="pais">
+                            <option value="">País</option>
+                            <?php foreach (PAISES as $valor => $nome): ?>
+                                <option value="<?= htmlspecialchars($valor) ?>" <?= $paisChave === $valor ? 'selected' : '' ?>><?= htmlspecialchars($nome) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
                     <?php endif; ?>
-                <?php endforeach; ?>
-            </select>
-        </label>
 
-        <?php if ($podeFiltrarFonte): ?>
-        <label>
-            <span class="sr-only">Fonte</span>
-            <select name="fonte">
-                <option value="">Fonte</option>
-                <?php foreach ($fontesDisponiveis as $f): ?>
-                    <option value="<?= htmlspecialchars($f) ?>" <?= $fonte === $f ? 'selected' : '' ?>><?= htmlspecialchars($f) ?></option>
-                <?php endforeach; ?>
-            </select>
-        </label>
-        <?php endif; ?>
+                    <label>
+                        <span class="sr-only">Distância</span>
+                        <select name="distancia">
+                            <option value="">Distância</option>
+                            <?php foreach (DistanciaHelper::FAIXAS as $chave => $faixa): ?>
+                                <option value="<?= htmlspecialchars($chave) ?>" <?= $distanciaChave === $chave ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($faixa['label']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
 
-        <?php if ($podeVerPremios): ?>
-        <label class="filtro-premios">
-            <span class="sr-only">Prémios monetários</span>
-            <select name="premios">
-                <option value="">Prémios €</option>
-                <?php foreach (FILTRO_PREMIOS as $valor => [$nome]): ?>
-                    <option value="<?= htmlspecialchars($valor) ?>" <?= $premiosChave === $valor ? 'selected' : '' ?>><?= htmlspecialchars($nome) ?></option>
-                <?php endforeach; ?>
-            </select>
-        </label>
-        <?php endif; ?>
+                    <label>
+                        <span class="sr-only">Valor da inscrição</span>
+                        <select name="inscricao">
+                            <option value="">Inscrição</option>
+                            <?php foreach (InscricaoHelper::FAIXAS as $chave => $faixa): ?>
+                                <option value="<?= htmlspecialchars($chave) ?>" <?= $inscricaoChave === $chave ? 'selected' : '' ?>><?= htmlspecialchars($faixa['label']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+
+                    <?php if ($podeFiltrarFonte): ?>
+                    <label>
+                        <span class="sr-only">Fonte</span>
+                        <select name="fonte">
+                            <option value="">Fonte</option>
+                            <?php foreach ($fontesDisponiveis as $f): ?>
+                                <option value="<?= htmlspecialchars($f) ?>" <?= $fonte === $f ? 'selected' : '' ?>><?= htmlspecialchars($f) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+                    <?php endif; ?>
+
+                    <?php if ($podeVerPremios): ?>
+                    <label>
+                        <span class="sr-only">Prémios monetários</span>
+                        <select name="premios">
+                            <option value="">Prémios €</option>
+                            <?php foreach (FILTRO_PREMIOS as $valor => [$nome]): ?>
+                                <option value="<?= htmlspecialchars($valor) ?>" <?= $premiosChave === $valor ? 'selected' : '' ?>><?= htmlspecialchars($nome) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
 
         <?php if ($perto !== null): ?>
             <input type="hidden" name="perto" value="<?= htmlspecialchars((string) $_GET['perto']) ?>">
             <?php if (isset($filtrosAtivos['periodo'])): ?><input type="hidden" name="periodo" value="<?= htmlspecialchars($periodoChave) ?>"><?php endif; ?>
         <?php endif; ?>
-        <button type="submit" class="filtrar">Procurar</button>
     </form>
-    </div>
-    </div>
 </div>
 <?php endif; ?>
 

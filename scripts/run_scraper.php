@@ -46,6 +46,8 @@ require __DIR__ . '/scrapers/AAPortalegreScraper.php';
 require __DIR__ . '/scrapers/DesportaveScraper.php';
 require __DIR__ . '/scrapers/CyclonesSportsScraper.php';
 require __DIR__ . '/scrapers/FamMadridScraper.php';
+require __DIR__ . '/scrapers/FederacionCantabraScraper.php';
+require __DIR__ . '/scrapers/FaaAragonScraper.php';
 
 $configPath = __DIR__ . '/config.php';
 
@@ -98,6 +100,8 @@ $scrapers = [
     new DesportaveScraper($http),
     // Espanha (país ES): calendário da Federação de Atletismo de Madrid.
     new FamMadridScraper($http),
+    new FederacionCantabraScraper($http),
+    new FaaAragonScraper($http),
     // CyclonesSportsScraper: fora da recolha. O robots.txt do site proíbe todos os robôs (Disallow: /).
 ];
 
