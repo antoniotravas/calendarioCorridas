@@ -229,6 +229,15 @@ $iconeExterno = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="tr
         </div>
     </article>
 
+    <?php /* Crédito: de onde vem a informação, com link para a página original em cada fonte. */ ?>
+    <p class="prova-credito">
+        Informação recolhida em
+        <?php foreach ($c['fontes'] as $i => $f): ?>
+            <?= $i > 0 ? ', ' : '' ?><?php if (!empty($f['url_fonte'])): ?><a href="<?= htmlspecialchars($f['url_fonte']) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($f['fonte']) ?></a><?php else: ?><?= htmlspecialchars($f['fonte']) ?><?php endif; ?>
+        <?php endforeach; ?>.
+        A informação oficial está no site do organizador; confirma sempre aí.
+    </p>
+
     <?php if ($programa !== []): ?>
         <section class="prova-seccao">
             <h2><?= $programaTemEscaloes ? 'Programa e escalões' : 'Programa' ?></h2>

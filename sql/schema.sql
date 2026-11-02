@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS corridas (
     -- "estrada", "trail", "corta-mato" ou "pista" (NomeProvaHelper::categoria), para o filtro "Tipo".
     categoria      VARCHAR(20) NOT NULL DEFAULT 'estrada',
     regiao         VARCHAR(100) NULL,
+    pais           CHAR(2) NOT NULL DEFAULT 'PT', -- PT ou ES
+    distrito       VARCHAR(100) NULL,             -- distrito (PT) ou província (ES)
     url_evento     VARCHAR(500) NULL,
     fonte          VARCHAR(100) NOT NULL,
     url_fonte      VARCHAR(500) NULL,
@@ -65,7 +67,9 @@ CREATE TABLE IF NOT EXISTS corridas (
     KEY idx_data_prova (data_prova),
     KEY idx_categoria (categoria),
     KEY idx_premios (premios_monetarios),
-    KEY idx_inscricao_min (inscricao_min)
+    KEY idx_inscricao_min (inscricao_min),
+    KEY idx_pais (pais),
+    KEY idx_distrito (distrito)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Distâncias individuais de cada prova (uma corrida pode ter várias: 10K, 5K, ...),

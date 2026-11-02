@@ -45,6 +45,7 @@ require __DIR__ . '/scrapers/AAGuardaScraper.php';
 require __DIR__ . '/scrapers/AAPortalegreScraper.php';
 require __DIR__ . '/scrapers/DesportaveScraper.php';
 require __DIR__ . '/scrapers/CyclonesSportsScraper.php';
+require __DIR__ . '/scrapers/FamMadridScraper.php';
 
 $configPath = __DIR__ . '/config.php';
 
@@ -95,7 +96,9 @@ $scrapers = [
     new AAGuardaScraper($http),
     new AAPortalegreScraper($http),
     new DesportaveScraper($http),
-    new CyclonesSportsScraper($http),
+    // Espanha (país ES): calendário da Federação de Atletismo de Madrid.
+    new FamMadridScraper($http),
+    // CyclonesSportsScraper: fora da recolha. O robots.txt do site proíbe todos os robôs (Disallow: /).
 ];
 
 // As fontes organizadoras de todas as fontes, mesmo quando só se corre uma (--fonte).

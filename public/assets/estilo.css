@@ -845,6 +845,8 @@ li.utilizador.desativado .utilizador-dados { opacity: 0.7; }
 .prova-zona::before { content: "·"; margin: 0 6px 0 2px; }
 .prova-links { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; margin: 12px 0 0; font-size: 0.9rem; }
 .prova-links span { color: var(--cinza); }
+.prova-credito { margin: 24px 0 0; font-size: 0.85rem; color: var(--cinza); }
+.prova-credito a { color: inherit; text-decoration: underline; }
 .prova-links a { color: var(--sinal); font-weight: 600; text-decoration: none; }
 .prova-links a:hover { text-decoration: underline; }
 .premios-excerto { margin: 8px 0; padding-left: 10px; border-left: 3px solid var(--linha); color: var(--cinza); font-size: 0.9rem; }
@@ -927,7 +929,7 @@ li.utilizador.desativado .utilizador-dados { opacity: 0.7; }
     form.filtros:not(.com-js) .filtrar { grid-column: 1 / -1; }
     form.filtros select { font-size: 0.82rem; padding: 0 2px; }
 
-    :root { --altura-filtros: 102px; --altura-mes: 48px; }
+    :root { --altura-filtros: 56px; --altura-mes: 48px; }
     /* No telemóvel fixa-se o dia (que já diz o mês, "Domingo, 11 de outubro")
        em vez do título do mês: fixar os dois ocupava demasiado ecrã. */
     section.mes > h2 {
@@ -1043,3 +1045,52 @@ li.utilizador.desativado .utilizador-dados { opacity: 0.7; }
     .tabela-radar .radar-fontes-movel { display: block; }
     .tabela-radar th, .tabela-radar td { padding-left: 6px; padding-right: 6px; }
 }
+
+/* Painel "Filtros": abre-se e fecha-se como um elevador, por cima da lista (não a empurra),
+   e a barra fixa fica só com o botão. Sem JavaScript o painel fica sempre aberto. */
+.filtros-topo { max-width: var(--largura); margin: 0 auto; }
+.botao-filtros {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 14px;
+    border: 1px solid var(--linha-forte);
+    border-radius: 10px;
+    background: var(--branco);
+    color: var(--asfalto);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+.js .botao-filtros { display: inline-flex; }
+.botao-filtros:hover { border-color: var(--sinal); }
+.botao-filtros:focus-visible { outline: 2px solid var(--sinal); outline-offset: 2px; }
+.botao-filtros .seta { transition: transform 0.25s ease; }
+.botao-filtros[aria-expanded="true"] .seta { transform: rotate(180deg); }
+.contagem-filtros {
+    display: inline-grid;
+    place-items: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 11px;
+    background: var(--sinal);
+    color: var(--branco);
+    font-size: 0.8rem;
+}
+.painel-interior { min-height: 0; overflow: hidden; padding: 10px 16px 14px; }
+.js .painel-filtros {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    z-index: 9;
+    display: grid;
+    grid-template-rows: 0fr;
+    visibility: hidden;
+    background: var(--papel);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+    transition: grid-template-rows 0.3s ease, visibility 0.3s;
+}
+.js .painel-filtros.aberto { grid-template-rows: 1fr; visibility: visible; }

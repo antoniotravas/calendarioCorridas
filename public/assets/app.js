@@ -57,6 +57,16 @@
         });
     }
 
+    // Painel "Filtros": abre-se e fecha-se (estilo.css). Com filtros ativos, abre-se logo.
+    var botaoFiltros = document.querySelector('.botao-filtros');
+    var painelFiltros = document.getElementById('painel-filtros');
+    if (botaoFiltros && painelFiltros) {
+        botaoFiltros.addEventListener('click', function () {
+            var aberto = painelFiltros.classList.toggle('aberto');
+            botaoFiltros.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+        });
+    }
+
     // 7. Perto de mim ------------------------------------------------------------
     // A posição vai no endereço arredondada a 2 casas decimais (~1 km) e não é guardada.
     // Com o filtro ativo, mudar o período ("Próximo mês", "Sempre"...) aplica-se logo.

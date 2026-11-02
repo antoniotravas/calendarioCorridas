@@ -24,6 +24,8 @@ final class Corrida
         public readonly ?string $organizador = null, // nome de quem organiza
         public readonly ?string $organizadorUrl = null, // site do organizador
         public readonly ?string $urlInscricao = null, // link direto para a inscrição, quando a fonte o dá
+        public readonly string $pais = 'PT', // código ISO do país da prova: PT ou ES
+        public readonly ?string $distrito = null, // distrito (PT) ou província (ES); em PT calcula-se a partir do local se for null
     ) {
     }
 

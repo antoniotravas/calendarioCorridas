@@ -24,6 +24,9 @@ const PERIODOS_PERTO = [
 /** Filtro "Prémios": valor do parâmetro => [texto da opção, corridas.premios_monetarios]. */
 const FILTRO_PREMIOS = ['sim' => ['Com prémios monetários', true], 'nao' => ['Sem prémios monetários', false]];
 
+/** Filtro "País": código => nome. */
+const PAISES = ['PT' => 'Portugal', 'ES' => 'Espanha'];
+
 $mes = isset($_GET['mes']) && $_GET['mes'] !== '' ? (int) $_GET['mes'] : null;
 // O filtro "Fonte" só existe para administradores.
 $podeFiltrarFonte = $auth->eAdmin();
@@ -37,6 +40,7 @@ $inscricaoFaixa = InscricaoHelper::intervaloPorChave($inscricaoChave);
 $categoria = isset($_GET['tipo']) && isset(CATEGORIAS[$_GET['tipo']]) ? (string) $_GET['tipo'] : null;
 // Os prémios monetários só são visíveis para quem tem acesso (ver Auth::podeVerPremios).
 $podeVerPremios = $auth->podeVerPremios();
+$paisChave = isset($_GET['pais']) && isset(PAISES[$_GET['pais']]) ? (string) $_GET['pais'] : null;
 $premiosChave = $podeVerPremios && isset($_GET['premios']) && isset(FILTRO_PREMIOS[$_GET['premios']]) ? (string) $_GET['premios'] : null;
 $premios = $premiosChave !== null ? FILTRO_PREMIOS[$premiosChave][1] : null;
 // ?perto=41.15,-8.61 (posição do browser, arredondada a ~1 km pelo assets/app.js; não é guardada).
@@ -73,9 +77,17 @@ if ($visitante) {
     $pagina = 1;
     $podeFiltrarFonte = false;
     $podeVerPremios = false;
+    $paisChave = null;
 }
 
-$total = $db->contarCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria, $premios, $inscricaoFaixa, $perto);
+// Distritos (PT) e províncias (ES) com provas futuras, por país. Só para quem tem sessão.
+$distritosDisponiveis = $visitante ? [] : $db->listarDistritos();
+$todosDistritos = array_merge([], ...array_values($distritosDisponiveis));
+$distritoEscolhido = !$visitante && isset($_GET['distrito']) && in_array((string) $_GET['distrito'], $todosDistritos, true)
+    ? (string) $_GET['distrito'] : null;
+
+$total = $db->contarCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria, $premios, $inscricaoFaixa, $perto,
+    pais: $paisChave, distrito: $distritoEscolhido);
 $corridas = $db->listarCorridas(
     $mes,
     $fonte,
@@ -87,12 +99,14 @@ $corridas = $db->listarCorridas(
     $categoria,
     $premios,
     $inscricaoFaixa,
-    $perto
+    $perto,
+    pais: $paisChave,
+    distrito: $distritoEscolhido
 );
 $grupos = DateHelper::agruparPorMes($corridas);
 
 $filtrosAtivos = array_filter(
-    ['tipo' => $categoria, 'mes' => $mes, 'distancia' => $distanciaChave, 'inscricao' => $inscricaoChave, 'fonte' => $fonte, 'premios' => $premiosChave, 'procura' => $procura,
+    ['tipo' => $categoria, 'mes' => $mes, 'distancia' => $distanciaChave, 'inscricao' => $inscricaoChave, 'fonte' => $fonte, 'premios' => $premiosChave, 'procura' => $procura, 'pais' => $paisChave, 'distrito' => $distritoEscolhido,
      'perto' => $perto !== null ? $_GET['perto'] : null,
      'periodo' => $perto !== null && $periodoChave !== array_key_first(PERIODOS_PERTO) ? $periodoChave : null],
     static fn ($v) => $v !== null
@@ -116,7 +130,9 @@ if ($parcial) {
 
 $fontesDisponiveis = $podeFiltrarFonte ? $db->listarFontes() : [];
 // Número de listas de filtros, para a grelha (ver form.filtros no CSS).
-$numeroFiltros = 4 + ($podeFiltrarFonte ? 1 : 0) + ($podeVerPremios ? 1 : 0);
+$numeroFiltros = 6 + ($podeFiltrarFonte ? 1 : 0) + ($podeVerPremios ? 1 : 0);
+// O painel de filtros abre-se sozinho quando há algum filtro ativo.
+$painelAberto = $filtrosAtivos !== [];
 $tituloDocumento = 'Calendário de corridas em Portugal — estrada, trail, corta-mato e pista';
 
 /**
@@ -150,6 +166,14 @@ if ($inscricaoChave !== null) {
 if ($premiosChave !== null) {
     $detalhes[] = mb_strtolower(FILTRO_PREMIOS[$premiosChave][0]);
 }
+if ($paisChave !== null) {
+    $detalhes[] = 'em ' . PAISES[$paisChave];
+}
+if ($distritoEscolhido !== null) {
+    $detalhes[] = in_array($distritoEscolhido, $distritosDisponiveis['PT'] ?? [], true)
+        ? 'no distrito de ' . $distritoEscolhido
+        : 'na província de ' . $distritoEscolhido;
+}
 if ($fonte !== null) {
     $detalhes[] = ($total === 1 ? 'encontrada em ' : 'encontradas em ') . $fonte;
 }
@@ -171,6 +195,16 @@ if ($detalhes !== []) {
 
 <?php if (!$visitante): ?>
 <div class="barra-filtros">
+    <div class="filtros-topo">
+        <button type="button" class="botao-filtros" aria-expanded="<?= $painelAberto ? 'true' : 'false' ?>" aria-controls="painel-filtros">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M6 12h12M10 19h4"/></svg>
+            <span>Filtros</span>
+            <?php if ($filtrosAtivos !== []): ?><span class="contagem-filtros" aria-label="<?= count($filtrosAtivos) ?> filtros ativos"><?= count($filtrosAtivos) ?></span><?php endif; ?>
+            <svg class="seta" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+    </div>
+    <div class="painel-filtros<?= $painelAberto ? ' aberto' : '' ?>" id="painel-filtros">
+    <div class="painel-interior">
     <form class="filtros<?= $podeVerPremios ? '' : ' sem-premios' ?>" method="get" action="/" role="search"
           style="--filtros: <?= $numeroFiltros ?>; --colunas: <?= $numeroFiltros - ($podeVerPremios ? 1 : 0) ?>">
         <label class="procura">
@@ -222,6 +256,32 @@ if ($detalhes !== []) {
             </select>
         </label>
 
+        <label>
+            <span class="sr-only">País</span>
+            <select name="pais">
+                <option value="">País</option>
+                <?php foreach (PAISES as $valor => $nome): ?>
+                    <option value="<?= htmlspecialchars($valor) ?>" <?= $paisChave === $valor ? 'selected' : '' ?>><?= htmlspecialchars($nome) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+
+        <label>
+            <span class="sr-only">Distrito (Portugal) ou província (Espanha)</span>
+            <select name="distrito">
+                <option value="">Distrito / província</option>
+                <?php foreach (PAISES as $valor => $nome): ?>
+                    <?php if (!empty($distritosDisponiveis[$valor]) && ($paisChave === null || $paisChave === $valor)): ?>
+                        <optgroup label="<?= htmlspecialchars($nome) ?>">
+                            <?php foreach ($distritosDisponiveis[$valor] as $distrito): ?>
+                                <option value="<?= htmlspecialchars($distrito) ?>" <?= $distritoEscolhido === $distrito ? 'selected' : '' ?>><?= htmlspecialchars($distrito) ?></option>
+                            <?php endforeach; ?>
+                        </optgroup>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </select>
+        </label>
+
         <?php if ($podeFiltrarFonte): ?>
         <label>
             <span class="sr-only">Fonte</span>
@@ -252,6 +312,8 @@ if ($detalhes !== []) {
         <?php endif; ?>
         <button type="submit" class="filtrar">Procurar</button>
     </form>
+    </div>
+    </div>
 </div>
 <?php endif; ?>
 

@@ -82,10 +82,10 @@ final class Database
         $stmt = $this->pdo->prepare(<<<SQL
             INSERT INTO corridas
                 (nome, data_prova, hora_inicio, programa, local, distancias, tipo, regiao, url_evento, fonte, url_fonte,
-                 organizador, organizador_url, imagem_url, hash_dedup)
+                 organizador, organizador_url, imagem_url, hash_dedup, pais, distrito)
             VALUES
                 (:nome, :data_prova, :hora_inicio, :programa, :local, :distancias, :tipo, :regiao, :url_evento, :fonte, :url_fonte,
-                 :organizador, :organizador_url, :imagem_url, :hash_dedup)
+                 :organizador, :organizador_url, :imagem_url, :hash_dedup, :pais, :distrito)
             SQL);
         $stmt->execute([
             'nome' => $corrida->nome,
@@ -99,6 +99,8 @@ final class Database
             'url_fonte' => $corrida->urlFonte,
             'imagem_url' => $corrida->imagemUrl,
             'hash_dedup' => $hash,
+            'pais' => $corrida->pais,
+            'distrito' => $this->distritoDe($corrida),
         ] + $this->camposDetalhes($corrida));
         $corridaId = (int) $this->pdo->lastInsertId();
 
@@ -954,9 +956,11 @@ final class Database
         ?string $categoria = null,
         ?bool $premios = null,
         ?array $inscricaoFaixa = null,
-        ?array $perto = null
+        ?array $perto = null,
+        ?string $pais = null,
+        ?string $distrito = null
     ): array {
-        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria, $premios, $inscricaoFaixa, $perto);
+        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria, $premios, $inscricaoFaixa, $perto, $pais, $distrito);
 
         $camposFavorito = '';
         $juncoes = '';
@@ -1033,9 +1037,11 @@ final class Database
         ?string $categoria = null,
         ?bool $premios = null,
         ?array $inscricaoFaixa = null,
-        ?array $perto = null
+        ?array $perto = null,
+        ?string $pais = null,
+        ?string $distrito = null
     ): int {
-        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria, $premios, $inscricaoFaixa, $perto);
+        [$where, $params] = $this->filtrosCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria, $premios, $inscricaoFaixa, $perto, $pais, $distrito);
 
         $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM corridas c WHERE {$where}");
         $stmt->execute($params);
@@ -1057,10 +1063,21 @@ final class Database
         ?string $categoria,
         ?bool $premios = null,
         ?array $inscricaoFaixa = null,
-        ?array $perto = null
+        ?array $perto = null,
+        ?string $pais = null,
+        ?string $distrito = null
     ): array {
         $condicoes = ['(c.data_prova >= CURDATE() OR c.data_prova IS NULL)'];
         $params = [];
+
+        if ($pais !== null) {
+            $condicoes[] = 'c.pais = :pais';
+            $params['pais'] = $pais;
+        }
+        if ($distrito !== null) {
+            $condicoes[] = 'c.distrito = :distrito';
+            $params['distrito'] = $distrito;
+        }
 
         if ($mes !== null) {
             $condicoes[] = 'MONTH(c.data_prova) = :mes';
@@ -1161,6 +1178,38 @@ final class Database
         unset($corrida);
 
         return $corridas;
+    }
+
+    /**
+     * Distritos (PT) e províncias (ES) com provas futuras, por país: ['PT' => [...], 'ES' => [...]].
+     *
+     * @return array<string,string[]>
+     */
+    public function listarDistritos(): array
+    {
+        $linhas = $this->pdo->query(
+            "SELECT DISTINCT pais, distrito FROM corridas WHERE distrito IS NOT NULL AND (data_prova >= CURDATE() OR data_prova IS NULL) ORDER BY pais, distrito"
+        )->fetchAll();
+
+        $porPais = [];
+        foreach ($linhas as $linha) {
+            $porPais[$linha['pais']][] = $linha['distrito'];
+        }
+
+        return $porPais;
+    }
+
+    /** Distrito a gravar: o que a fonte indicar, ou em Portugal o calculado a partir do local. */
+    private function distritoDe(Corrida $corrida): ?string
+    {
+        if ($corrida->distrito !== null) {
+            return $corrida->distrito;
+        }
+        if ($corrida->pais !== 'PT') {
+            return null;
+        }
+
+        return DistritoHelper::localizar($corrida->local, $corrida->regiao)['distrito'];
     }
 
     /**
