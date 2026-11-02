@@ -51,6 +51,30 @@ $pagina = max(1, (int) ($_GET['pagina'] ?? 1));
 $parcial = isset($_GET['parcial']);
 
 $utilizadorAtual = $auth->utilizadorAtual();
+
+// Visitantes (sem sessão): só as próximas provas, sem filtros nem "Mostrar mais". Filtros e lista completa são para quem entra.
+$visitante = !$auth->autenticado();
+if ($visitante) {
+    if ($parcial) {
+        http_response_code(401);
+        exit;
+    }
+    $mes = null;
+    $fonte = null;
+    $procura = null;
+    $distanciaChave = null;
+    $distanciaFaixa = null;
+    $inscricaoChave = null;
+    $inscricaoFaixa = null;
+    $categoria = null;
+    $premiosChave = null;
+    $premios = null;
+    $perto = null;
+    $pagina = 1;
+    $podeFiltrarFonte = false;
+    $podeVerPremios = false;
+}
+
 $total = $db->contarCorridas($mes, $fonte, $procura, $distanciaFaixa, $categoria, $premios, $inscricaoFaixa, $perto);
 $corridas = $db->listarCorridas(
     $mes,
@@ -74,7 +98,7 @@ $filtrosAtivos = array_filter(
     static fn ($v) => $v !== null
 );
 $voltar = '/' . ($filtrosAtivos !== [] ? '?' . http_build_query($filtrosAtivos) : '');
-$haMais = $pagina * PROVAS_POR_PAGINA < $total;
+$haMais = !$visitante && $pagina * PROVAS_POR_PAGINA < $total;
 $urlSeguinte = '/?' . http_build_query($filtrosAtivos + ['pagina' => $pagina + 1]);
 
 $blocoMais = static function () use ($haMais, $urlSeguinte): void {
@@ -99,7 +123,9 @@ $tituloDocumento = 'Calendário de corridas em Portugal — estrada, trail, cort
  * Frase do total, de acordo com os filtros escolhidos, ex.:
  * "12 provas de trail em novembro, de 5 a 10 km, encontradas em All4Running".
  */
-$resumo = ($total === 1 ? '1 prova' : $total . ' provas')
+$resumo = $visitante
+    ? min(PROVAS_POR_PAGINA, $total) . ' das ' . $total . ' próximas provas'
+    : ($total === 1 ? '1 prova' : $total . ' provas')
     . ($categoria !== null ? ' de ' . mb_strtolower(CATEGORIAS[$categoria]) : '')
     . match (true) {
         $perto !== null && $perto['ate'] === null => ' até ' . RAIO_PERTO_KM . ' km de ti, a partir de hoje',
@@ -143,6 +169,7 @@ if ($detalhes !== []) {
 
 <?php require __DIR__ . '/partials/cabecalho.php'; ?>
 
+<?php if (!$visitante): ?>
 <div class="barra-filtros">
     <form class="filtros<?= $podeVerPremios ? '' : ' sem-premios' ?>" method="get" action="/" role="search"
           style="--filtros: <?= $numeroFiltros ?>; --colunas: <?= $numeroFiltros - ($podeVerPremios ? 1 : 0) ?>">
@@ -226,6 +253,7 @@ if ($detalhes !== []) {
         <button type="submit" class="filtrar">Procurar</button>
     </form>
 </div>
+<?php endif; ?>
 
 <main>
     <h1 class="sr-only">Calendário de corridas em Portugal</h1>
@@ -251,7 +279,7 @@ if ($detalhes !== []) {
                 </label>
                 <noscript><button type="submit">OK</button></noscript>
             </form>
-        <?php else: ?>
+        <?php elseif (!$visitante): ?>
             <button type="button" class="perto-de-mim" data-perto hidden
                     title="Provas até <?= RAIO_PERTO_KM ?> km de ti (escolhes depois o período)">Perto de mim</button>
         <?php endif; ?>
@@ -271,6 +299,14 @@ if ($detalhes !== []) {
             <?php require __DIR__ . '/partials/lista-corridas.php'; ?>
         </div>
         <?php $blocoMais(); ?>
+    <?php endif; ?>
+
+    <?php if ($visitante): ?>
+        <p class="vazio">
+            Entra para veres as <?= $total ?> provas e filtrar por mês, tipo, distância, inscrição e localização.
+            <a href="/login.php?next=%2F">Entrar</a>
+            <a href="/registo.php">Criar conta</a>
+        </p>
     <?php endif; ?>
 </main>
 
