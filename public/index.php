@@ -305,7 +305,13 @@ if ($detalhes !== []) {
     <h1 class="sr-only">Calendário de corridas em Portugal</h1>
 
     <div class="resumo" aria-live="polite">
-        <?= htmlspecialchars($resumo) ?>
+        <?php
+        // Só os números do total ficam em destaque (ex. "12 provas" ou "20 das 300 próximas provas").
+        $resumoHtml = htmlspecialchars($resumo);
+        $resumoHtml = preg_replace('/^(\d+)/', '<strong class="numero-total">$1</strong>', $resumoHtml, 1);
+        $resumoHtml = preg_replace('/(?<= das )(\d+)/', '<strong class="numero-total">$1</strong>', $resumoHtml, 1);
+        echo $resumoHtml;
+        ?>
         <?php if ($filtrosAtivos !== []): ?>
             <a href="/">Limpar filtros</a>
         <?php endif; ?>

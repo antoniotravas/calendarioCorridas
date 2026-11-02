@@ -178,6 +178,7 @@ main {
     color: var(--cinza);
     font-size: 0.92rem;
 }
+.resumo .numero-total { font-size: 1.35em; font-weight: 700; color: var(--asfalto); }
 .resumo a { margin-left: 10px; color: var(--sinal); font-weight: 600; text-decoration: none; }
 .resumo a:hover { text-decoration: underline; }
 
