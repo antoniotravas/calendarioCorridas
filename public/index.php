@@ -128,10 +128,7 @@ $resumo = $visitante
     ? min(PROVAS_POR_PAGINA, $total) . ' das ' . $total . ' próximas provas'
     : ($total === 1 ? '1 prova' : $total . ' provas')
     . ($categoria !== null ? ' de ' . mb_strtolower(CATEGORIAS[$categoria]) : '')
-    . match (true) {
-        $mes !== null => ' em ' . DateHelper::nomeMes($mes),
-        default => ' a partir de hoje',
-    };
+    . ($mes !== null ? ' em ' . DateHelper::nomeMes($mes) : '');
 $detalhes = [];
 if ($distanciaChave !== null && isset(DistanciaHelper::FAIXAS[$distanciaChave])) {
     $faixa = mb_strtolower(trim(preg_replace('/\(.*\)/', '', DistanciaHelper::FAIXAS[$distanciaChave]['label'])));
